@@ -11,3 +11,4 @@ __pycache__/
 node_modules/
 results/**/raw/
 results/**/artifacts/
+dist/
