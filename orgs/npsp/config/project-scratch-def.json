@@ -1,5 +1,5 @@
 {
-  "orgName": "ForceBench Grader NPSP",
+  "orgName": "Forcebench Grader NPSP",
   "edition": "Developer",
   "hasSampleData": false,
   "features": ["EnableSetPasswordInApi"],

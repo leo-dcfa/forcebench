@@ -1,4 +1,4 @@
-# ForceBench sandbox: the only place ForceBench runs the Salesforce CLI.
+# Forcebench sandbox: the only place Forcebench runs the Salesforce CLI.
 #
 # It has its own Salesforce login store (the `forcebench-sf-home` volume). Your machine's
 # ~/.sf and ~/.sfdx are never mounted, so nothing in here can reach orgs logged in there.

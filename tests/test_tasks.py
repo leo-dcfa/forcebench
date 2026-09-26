@@ -27,3 +27,22 @@ def test_all_grader_modules_import():
     from forcebench.graders import import_errors
 
     assert import_errors() == {}
+
+
+def test_lite_subset_is_stable_and_stratified():
+    import yaml
+
+    from forcebench.tasks import SUBSET_MIX, lite_selection, load_subset
+
+    suites = load_suites()
+    ids = lite_selection(suites)
+    assert ids == lite_selection(suites), "selection must be deterministic"
+    committed = yaml.safe_load((SUITES_DIR / "lite.yaml").read_text())["tasks"]
+    assert ids == committed, "suites/lite.yaml is stale: run `forcebench subset --write`"
+    assert load_subset("lite") == set(ids)
+    per_suite = {}
+    for t in all_tasks(suites):
+        if t.id in set(ids):
+            per_suite.setdefault(t.suite, []).append(t.difficulty)
+    for suite, diffs in per_suite.items():
+        assert len(diffs) == sum(SUBSET_MIX.values()), suite

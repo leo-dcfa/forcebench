@@ -1,6 +1,6 @@
-# Authoring ForceBench tasks
+# Authoring Forcebench tasks
 
-A ForceBench task is one YAML file: `suites/<suite>/tasks/<task-id>.yaml`. The file name must
+A Forcebench task is one YAML file: `suites/<suite>/tasks/<task-id>.yaml`. The file name must
 equal the task `id`. This guide is the contract every task must meet before it is merged.
 
 ## Principles
