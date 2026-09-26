@@ -102,11 +102,12 @@ class Client:
                 r = await agent.run(user, model_settings=self.settings)
             except Exception as e:
                 last_err = e
-                # Timeouts and length cut-offs are the model's problem, not the endpoint's.
+                # The budget is tokens (max_tokens), not wall-clock time: slow hardware must not
+                # cost a model points. A timeout is an endpoint problem; the case is re-run on resume.
                 if "timeout" in type(e).__name__.lower() or "timed out" in str(e).lower():
                     return Generation(
-                        error=None, finish_reason="timeout", latency_s=time.monotonic() - t0,
-                        attempts=attempt,
+                        error=f"timed out after {time.monotonic() - t0:.0f}s (not scored; re-run with --resume)",
+                        finish_reason="timeout", latency_s=time.monotonic() - t0, attempts=attempt,
                     )  # fmt: skip
                 if attempt < self.retries and _retryable(e):
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
