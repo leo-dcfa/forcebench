@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+.sf/
+.sfdx/
+node_modules/
+results/**/raw/
+results/**/artifacts/

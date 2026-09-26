@@ -1,0 +1,1494 @@
+{
+ "_provenance": {
+  "source": "https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_scratch_orgs_def_file_config_values.htm",
+  "release": "Summer '26 (API version 67.0)",
+  "retrieved": "2026-09-26",
+  "notes": "Index of the Scratch Org Features page, plus features used in that page's sample definitions, plus the feature list of the official scratch org definition JSON schema (@salesforce/schemas). quantity=true means the docs list the feature as Name:<value>; min/max come from 'Supported Quantities'."
+ },
+ "features": {
+  "AccountingSubledgerGrowthEdition": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AccountingSubledgerStarterEdition": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AccountingSubledgerUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AccountInspection": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AddCustomApps": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "AddCustomObjects": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "AddCustomRelationships": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "AddCustomTabs": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "AddDataComCRMRecordCredit": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "AddInsightsQueryLimit": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "AdditionalFieldHistory": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 40
+  },
+  "AdmissionsConnectUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AdvisorLinkFeature": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AdvisorLinkPathwaysFeature": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AgentforceVibesIDEForDE": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AgentforceVibesUnmeteredAccess": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AIAttribution": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AllUserIdServiceAccess": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AnalyticsAdminPerms": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AnalyticsAppEmbedded": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AnalyticsQueryService": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "ApexGuruCodeAnalyzer": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ApexIntegrationTests": {
+   "quantity": false,
+   "source": "docs",
+   "note": "(Developer Preview)"
+  },
+  "API": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ArcGraphCommunity": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Assessments": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AssetScheduling": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "AssociationEngine": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "AuthorApex": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "B2BCommerce": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "B2BLoyaltyManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "B2CCommerceGMV": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "B2CLoyaltyManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "B2CLoyaltyManagementPlus": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BatchManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BenefitManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BigObjectsBulkAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BillingAdvanced": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Briefcase": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BudgetManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BusinessRulesEngine": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BYOCCaaS": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "BYOOTT": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CacheOnlyKeys": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CalloutSizeMB": {
+   "quantity": true,
+   "source": "docs",
+   "min": 3,
+   "max": 12
+  },
+  "CampaignInfluence2": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CascadeDelete": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CaseClassification": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CaseWrapUp": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CGAnalytics": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ChangeDataCapture": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Chatbot": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ChatterEmailFooterLogo": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ChatterEmailFooterText": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ChatterEmailSenderName": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CleanEnergyProgramManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CloneApplication": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CMSMaxContType": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CMSMaxNodesPerContType": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CMSUnlimitedUse": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Communities": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CompareReportsOrgPerm": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ConAppPluginExecuteAsUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ConcStreamingClients": {
+   "quantity": true,
+   "source": "docs",
+   "min": 20,
+   "max": 4000
+  },
+  "ConnectedAppCustomNotifSubscription": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ConnectedAppToolingAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ConsentEventStream": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ConsolePersistenceInterval": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 500
+  },
+  "ContactsToMultipleAccounts": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ContextService": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "ContractApprovals": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ContractManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ContractMgmtInd": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CoreCpq": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CPQ": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CustomerCommunityPlus": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "CustomerDataPlatform": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CustomerDataPlatformLite": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CustomerExperienceAnalytics": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CustomFieldDataTranslation": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "CustomNotificationType": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DataComDnbAccounts": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DataComFullClean": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DataMaskUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DataProcessingEngine": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DebugApex": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DecisionTable": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DefaultWorkflowUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DeferSharingCalc": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DevelopmentWave": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DeviceTrackingEnabled": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DevOpsCenter": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DisableManageIdConfAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DisclosureFramework": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Division": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DocGen": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DocGenDesigner": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DocGenInd": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DocumentChecklist": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DocumentReaderPageLimit": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DSARPortability": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DurableClassicStreamingAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DurableGenericStreamingAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "DynamicClientCreationLimit": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUAgentforce": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUCoreSales": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUCoreSelfServicePortal": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUCoreService": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUCoreTimeSheetService": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUDataKits": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUDigitalSales": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAndUSelfServicePortal": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EAOutputConnectors": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EASyncOut": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EdPredictionM3Threshold": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EdPredictionTimeout": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EdPredictionTimeoutBulk": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EdPredictionTimeoutByomBulk": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EducationCloud": {
+   "quantity": true,
+   "source": "docs",
+   "max": 10
+  },
+  "Einstein1AIPlatform": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinAnalyticsPlus": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinArticleRecommendations": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinBuilderFree": {
+   "quantity": false,
+   "source": "schema"
+  },
+  "EinsteinDocReader": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinRecommendationBuilder": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinRecommendationBuilderMetadata": {
+   "quantity": false,
+   "source": "schema"
+  },
+  "EinsteinSalesRepFdbk": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinSearch": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinVisits": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EinsteinVisitsED": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EmbeddedLoginForIE": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EmergencyManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EmpPublishRateLimit": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1000,
+   "max": 10000
+  },
+  "EnableManageIdConfUI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Enablement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EnablePRM": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EnableSetPasswordInApi": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EncryptionStatisticsInterval": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 604800
+  },
+  "EncryptionSyncInterval": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 604800
+  },
+  "EnergyAndUtilitiesCloud": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Entitlements": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EntityTranslation": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ERMAnalytics": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "EventLogFile": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ExcludeSAMLSessionIndex": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Explainability": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ExpressionSetMaxExecPerHour": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ExternalIdentityLogin": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FeatureParameterLicensing": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "FieldAuditTrail": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FieldService": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FieldServiceAppointmentAssistantUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FieldServiceDispatcherUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FieldServiceLastMileUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FieldServiceMobileExtension": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FieldServiceMobileUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FieldServiceSchedulingUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25
+  },
+  "FinanceLogging": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FinancialServicesCommunityUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "FinancialServicesInsuranceUser": {
+   "quantity": true,
+   "source": "docs"
+  },
+  "FinancialServicesUser": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "FlowSites": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ForceComPlatform": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ForecastEnableCustomField": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FSCAlertFramework": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "FSCServiceProcess": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Fundraising": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "GenericStreaming": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "GenStreamingEventsPerDay": {
+   "quantity": true,
+   "source": "docs",
+   "min": 10000,
+   "max": 50000
+  },
+  "Grantmaking": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "GuidanceHubAllowed": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudEOLOverride": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudForCmty": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudMedicationReconciliation": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudPNMAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HealthCloudUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HighVelocitySales": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HighVolumePlatformEventAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HLSAnalytics": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "HoursBetweenCoverageJob": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 24
+  },
+  "IdentityProvisioningFeatures": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IgnoreQueryParamWhitelist": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesActionPlan": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesBranchManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesCompliantDataSharing": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesManufacturingCmty": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgAccountForecast": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgAdvncdAccFrcs": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgPartnerVisitMgmt": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgProgram": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgRebates": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesMfgTargets": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IndustriesSalesExcellenceAddOn": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "IndustriesServiceExcellenceAddOn": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "InsightsPlatform": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InsuranceCalculationUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InsuranceClaimMgmt": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InsurancePolicyAdmin": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IntelligentDocumentReader": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Interaction": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InvestigativeCaseManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InvocableActionExt": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "InvoiceManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "IoT": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "JigsawUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Knowledge": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LegacyLiveAgentRouting": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LightningSalesConsole": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LightningScheduler": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LightningServiceConsole": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LiveAgent": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LiveMessage": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LongLayoutSectionTitles": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LoyaltyAnalytics": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LoyaltyEngine": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LoyaltyManagementStarter": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "LoyaltyMaximumPartners": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 1
+  },
+  "LoyaltyMaximumPrograms": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 1
+  },
+  "LoyaltyMaxOrderLinePerHour": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 3500000
+  },
+  "LoyaltyMaxProcExecPerHour": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 500000
+  },
+  "LoyaltyMaxTransactions": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 50000000
+  },
+  "LoyaltyMaxTrxnJournals": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 25000000
+  },
+  "Macros": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MarketingCloud": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MarketingUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MaterialityAssessment": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MaxActiveDPEDefs": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 50
+  },
+  "MaxApexCodeSize": {
+   "quantity": true,
+   "source": "docs"
+  },
+  "MaxAudTypeCriterionPerAud": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MaxCustomLabels": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 15
+  },
+  "MaxDatasetLinksPerDT": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 3
+  },
+  "MaxDataSourcesPerDPE": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 50
+  },
+  "MaxDecisionTableAllowed": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 30
+  },
+  "MaxFavoritesAllowed": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 200
+  },
+  "MaxFieldsPerNode": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 500
+  },
+  "MaxInputColumnsPerDT": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "MaxLoyaltyProcessRules": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 20
+  },
+  "MaxNodesPerDPE": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 500
+  },
+  "MaxNoOfLexThemesAllowed": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 300
+  },
+  "MaxOutputColumnsPerDT": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 5
+  },
+  "MaxSourceObjectPerDSL": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 5
+  },
+  "MaxStreamingTopics": {
+   "quantity": true,
+   "source": "docs",
+   "min": 40,
+   "max": 100
+  },
+  "MaxUserNavItemsAllowed": {
+   "quantity": true,
+   "source": "docs",
+   "min": 0,
+   "max": 500
+  },
+  "MaxUserStreamingChannels": {
+   "quantity": true,
+   "source": "docs",
+   "min": 20,
+   "max": 1000
+  },
+  "MaxWishlistsItemsPerWishlist": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MaxWishlistsPerStoreAccUsr": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MaxWritebacksPerDPE": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 10
+  },
+  "MedVisDescriptorLimit": {
+   "quantity": true,
+   "source": "docs",
+   "min": 150,
+   "max": 1600
+  },
+  "MinKeyRotationInterval": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MobileExtMaxFileSizeMB": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 2000
+  },
+  "MobileSecurity": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MobileVoiceAndLLM": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MultiLevelMasterDetail": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MutualAuthentication": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "MyTrailhead": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "NonprofitCloudCaseManagementUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "NumPlatformEvents": {
+   "quantity": true,
+   "source": "docs",
+   "min": 5,
+   "max": 20
+  },
+  "ObjectLinking": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OmnistudioDesigner": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OmnistudioMetadata": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OmnistudioRuntime": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OrderManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OrderSaveBehaviorBoth": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OrderSaveLogicEnabled": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OutboundMessageHTTPSession": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "OutcomeManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PardotScFeaturesCampaignInfluence": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PartnerCommunity": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "PersonAccounts": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PipelineInspection": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PlatformCache": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PlatformConnect": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 5
+  },
+  "PlatformEncryption": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PlatformEventsPerDay": {
+   "quantity": true,
+   "source": "docs",
+   "min": 10000,
+   "max": 50000
+  },
+  "ProcessBuilder": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProductCatalogManagementAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProductCatalogManagementPCAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProductCatalogManagementViewerAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProductsAndSchedules": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProgramManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProviderFreePlatformCache": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ProviderManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PSSAssetManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PublicSectorAccess": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PublicSectorApplicationUsageCreditsAddOn": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "PublicSectorSiteTemplate": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "RateManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "RecordTypes": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "RefreshOnInvalidSession": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "RevSubscriptionManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "S1ClientComponentCacheSize": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesCloudEinstein": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesforceConfiguratorEngine": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "SalesforceContentUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesforceFeedbackManagementStarter": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesforceHostedMCP": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesforceIdentityForCommunities": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesforcePricing": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SalesUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SAML20SingleLogout": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SCIMProtocol": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Scrt2Conversation": {
+   "quantity": false,
+   "source": "docs example"
+  },
+  "ScvMultipartyAndConsult": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SecurityEventEnabled": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SentimentInsightsFeature": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ServiceCatalog": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ServiceCloud": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "ServiceCloudVoicePartnerTelephony": {
+   "quantity": true,
+   "source": "docs",
+   "min": 1,
+   "max": 50
+  },
+  "ServiceUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SessionIdInLogEnabled": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SFDOInsightsDataIntegrityUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SharedActivities": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Sites": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SocialCustomerService": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "StateAndCountryPicklist": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "StreamingAPI": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "StreamingEventsPerDay": {
+   "quantity": true,
+   "source": "docs",
+   "min": 10000,
+   "max": 50000
+  },
+  "SubPerStreamingChannel": {
+   "quantity": true,
+   "source": "docs",
+   "min": 20,
+   "max": 4000
+  },
+  "SubPerStreamingTopic": {
+   "quantity": true,
+   "source": "docs",
+   "min": 20,
+   "max": 4000
+  },
+  "SurveyAdvancedFeatures": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SustainabilityApp": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "SustainabilityCloud": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TalentRecruitmentManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TCRMforSustainability": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TimelineConditionsLimit": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TimelineEventLimit": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TimelineRecordTypeLimit": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TimeSheetTemplateSettings": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "TransactionFinalizers": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "UsageManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "VolunteerManagement": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "WaveMaxCurrency": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "WavePlatform": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "Workflow": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "WorkflowFlowActionFeature": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "WorkplaceCommandCenterUser": {
+   "quantity": false,
+   "source": "docs"
+  },
+  "WorkThanksPref": {
+   "quantity": false,
+   "source": "docs"
+  }
+ },
+ "retired": {
+  "MultiCurrency": "no longer a scratch org feature (removed from the Scratch Org Features docs; Salesforce Help 000395964: remove it and use currencySettings.enableMultiCurrency)",
+  "Functions": "Salesforce Functions was retired; the feature is no longer available"
+ },
+ "deprecated": {
+  "ExpandedSourceTracking": "deprecated: source tracking is always on in scratch orgs",
+  "ListCustomSettingCreation": "deprecated by Salesforce CLI",
+  "AppNavCapabilities": "deprecated by Salesforce CLI",
+  "CMTRecordManagedDeletion": "deprecated by Salesforce CLI",
+  "EditInSubtab": "deprecated by Salesforce CLI",
+  "OldNewRecordFlowConsole": "deprecated by Salesforce CLI",
+  "OldNewRecordFlowStd": "deprecated by Salesforce CLI",
+  "DesktopLayoutStandardOff": "deprecated by Salesforce CLI",
+  "SplitViewOnStandardOff": "deprecated by Salesforce CLI",
+  "PopOutUtilities": "deprecated by Salesforce CLI",
+  "SalesWave": "renamed: use DevelopmentWave",
+  "ServiceWave": "renamed: use DevelopmentWave"
+ }
+}

@@ -1,0 +1,212 @@
+# Open-weight models served locally, one entry per model *and quantisation*.
+#
+# `endpoint_model` is the name your OpenAI-compatible endpoint serves (here: a LiteLLM proxy
+# in front of several inference servers). `efforts` maps each reasoning-effort label to the
+# request-body fields that select it on that server; labels follow each vendor's own
+# vocabulary, and `effort_tiers` maps them onto a common off/low/medium/high/max scale.
+# Sampling follows each vendor's recommendation for thinking mode.
+
+models:
+  # ---------------------------------------------------------------- Qwen3.8 27B (dense)
+  - id: qwen3.8-27b-awq-int4
+    provider: local
+    endpoint_model: qwen3.8-27b
+    display: Qwen3.8 27B
+    family: Qwen3.8
+    base_model: Qwen3.8-27B
+    quant: AWQ-INT4
+    engine: vLLM
+    context: 163840
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {low: low, medium: medium, xhigh: max}
+
+  - id: qwen3.8-27b-mlx-4bit
+    provider: mtplx
+    endpoint_model: mtplx-qwen38-27b-optimized-speed
+    display: Qwen3.8 27B
+    family: Qwen3.8
+    base_model: Qwen3.8-27B
+    quant: MLX 4-bit
+    engine: MTPLX
+    context: 262144
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      high: {reasoning_effort: high}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {"off": "off", low: low, medium: medium, high: high, xhigh: max}
+
+  - id: qwen3.8-27b-mlx-8bit
+    provider: mtplx
+    endpoint_model: mtplx-qwen38-27b-optimized-quality
+    display: Qwen3.8 27B
+    family: Qwen3.8
+    base_model: Qwen3.8-27B
+    quant: MLX 8-bit
+    engine: MTPLX
+    context: 262144
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      high: {reasoning_effort: high}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {"off": "off", low: low, medium: medium, high: high, xhigh: max}
+
+  - id: qwen3.8-27b-splash-4bit
+    provider: splash
+    endpoint_model: splash-qwen38-27b
+    display: Qwen3.8 27B
+    family: Qwen3.8
+    base_model: Qwen3.8-27B
+    quant: Splash 4-bit
+    engine: Splash
+    context: 262144
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      "off": {reasoning_effort: none}
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {"off": "off", low: low, medium: medium, xhigh: max}
+
+  - id: qwen3.8-27b-lmstudio-mlx-8bit
+    provider: lmstudio
+    endpoint_model: qwen/qwen3.8-27b
+    display: Qwen3.8 27B
+    family: Qwen3.8
+    base_model: Qwen3.8-27B
+    quant: MLX 8-bit
+    engine: LM Studio (MLX)
+    context: 262144
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: xhigh
+    efforts:
+      xhigh: {}
+    effort_tiers: {xhigh: max}
+    notes: LM Studio does not expose effort levels per request; runs at the chat template's default (xhigh).
+
+  # ---------------------------------------------------------------- Qwen3.8 Flash-Next (MoE)
+  - id: qwen3.8-flash-next-nvfp4
+    provider: local
+    endpoint_model: qwen3.8-flash-next
+    display: Qwen3.8 Flash-Next
+    family: Qwen3.8
+    base_model: Qwen3.8-Flash-Next
+    quant: NVFP4
+    engine: vLLM
+    context: 1000000
+    notes: Served with YaRN rope scaling x4 to reach a 1M-token context.
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {low: low, medium: medium, xhigh: max}
+
+  - id: qwen3.8-flash-next-mlx-4bit
+    provider: mtplx
+    endpoint_model: mtplx-flash-next-optimized-speed
+    display: Qwen3.8 Flash-Next
+    family: Qwen3.8
+    base_model: Qwen3.8-Flash-Next
+    quant: MLX 4-bit
+    engine: MTPLX
+    context: 262144
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      low: {reasoning_effort: low}
+      medium: {reasoning_effort: medium}
+      high: {reasoning_effort: high}
+      xhigh: {reasoning_effort: xhigh}
+    effort_tiers: {"off": "off", low: low, medium: medium, high: high, xhigh: max}
+
+  # ---------------------------------------------------------------- GLM-5.3 Flash
+  - id: glm-5.3-flash-exl3-4bpw
+    provider: local
+    endpoint_model: glm-5.3-flash-exl3
+    display: GLM-5.3 Flash
+    family: GLM-5.3
+    base_model: GLM-5.3-Flash
+    quant: EXL3 4.0bpw
+    engine: vLLM + ExLlamaV3
+    notes: EXL3 4.0bpw routed experts, FP8 dense layers, FP8 KV cache.
+    context: 850000
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: high
+    efforts:
+      "off": {enable_thinking: false}
+      low: {reasoning_effort: low}
+      high: {reasoning_effort: high}
+      max: {reasoning_effort: max}
+    effort_tiers: {"off": "off", low: low, high: high, max: max}
+
+  # ---------------------------------------------------------------- DeepSeek V4 family
+  - id: deepseek-v4.1-flash-exl3-2.9bpw
+    provider: local
+    endpoint_model: deepseek-v4.1-flash-exl3
+    display: DeepSeek V4.1 Flash
+    family: DeepSeek-V4
+    base_model: DeepSeek-V4.1-Flash
+    quant: EXL3 2.9bpw
+    engine: vLLM + ExLlamaV3
+    context: 600000
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: high
+    efforts:
+      "off": {enable_thinking: false}
+      low: {reasoning_effort: low}
+      high: {reasoning_effort: high}
+      max: {reasoning_effort: max}
+    effort_tiers: {"off": "off", low: low, high: high, max: max}
+
+  - id: deepseek-v4-flash-vision-nvfp4
+    provider: local
+    endpoint_model: deepseek-v4-flash-vision-exp
+    display: DeepSeek V4 Flash Vision (exp)
+    family: DeepSeek-V4
+    base_model: DeepSeek-V4-Flash-Vision-Exp
+    quant: FP8 + FP4 experts
+    engine: vLLM
+    context: 1048576
+    notes: Vendor checkpoint (FP8 with FP4 experts), NVFP4 KV cache.
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: high
+    efforts:
+      "off": {thinking: false}
+      low: {thinking: true, reasoning_effort: low}
+      high: {thinking: true, reasoning_effort: high}
+      max: {thinking: true, reasoning_effort: max}
+    effort_tiers: {"off": "off", low: low, high: high, max: max}
+
+  # ---------------------------------------------------------------- MiMo V2.6 Flash
+  - id: mimo-v2.6-flash-mxfp4
+    provider: local
+    endpoint_model: mimo-v2.6-flash
+    display: MiMo V2.6 Flash
+    family: MiMo-V2.6
+    base_model: MiMo-V2.6-Flash
+    quant: FP8 + MXFP4 experts
+    engine: SGLang
+    context: 1048576
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: "on"
+    efforts:
+      "off": {enable_thinking: false}
+      "on": {enable_thinking: true}
+    effort_tiers: {"off": "off", "on": max}
+    notes: Xiaomi's RL-trained release (MiMo-V2.6-Flash-RL), vendor FP8 with MXFP4 experts. MiMo exposes a single thinking switch, no graded effort levels.

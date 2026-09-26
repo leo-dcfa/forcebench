@@ -1,0 +1,26 @@
+name: notify-site
+
+# Rebuild forcebench.ai when published results change.
+on:
+  push:
+    branches: [main]
+    paths: ["results/leaderboard.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger site rebuild
+        env:
+          TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "SITE_DISPATCH_TOKEN not set; skipping"; exit 0; fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/leo-dcfa/forcebench-site/dispatches \
+            -d '{"event_type":"results-updated"}'

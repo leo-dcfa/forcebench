@@ -1,0 +1,34 @@
+# How to reach each provider. Endpoints and keys come from the environment (.env), never
+# from this repo.
+local:            # any OpenAI-compatible server or proxy you run yourself (vLLM, SGLang, LiteLLM, ...)
+  kind: openai_compatible
+  base_url_env: FORCEBENCH_LOCAL_BASE_URL
+  api_key_env: FORCEBENCH_LOCAL_API_KEY
+mtplx:            # MTPLX (MLX) server, called directly
+  kind: openai_compatible
+  base_url: http://127.0.0.1:8000/v1
+  base_url_env: FORCEBENCH_MTPLX_BASE_URL
+  api_key_env: FORCEBENCH_MTPLX_API_KEY
+splash:           # Splash (MLX) server, called directly
+  kind: openai_compatible
+  base_url: http://127.0.0.1:8001/v1
+  base_url_env: FORCEBENCH_SPLASH_BASE_URL
+  api_key_env: FORCEBENCH_SPLASH_API_KEY
+lmstudio:
+  kind: openai_compatible
+  base_url: http://localhost:1234/v1
+  base_url_env: FORCEBENCH_LMSTUDIO_BASE_URL
+  api_key_env: FORCEBENCH_LMSTUDIO_API_KEY
+openrouter:
+  kind: openai_compatible
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+openai:
+  kind: openai
+  api_key_env: OPENAI_API_KEY
+anthropic:
+  kind: anthropic
+  api_key_env: ANTHROPIC_API_KEY
+google:
+  kind: google
+  api_key_env: GEMINI_API_KEY
