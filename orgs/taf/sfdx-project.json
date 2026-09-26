@@ -1,0 +1,14 @@
+{
+  "packageDirectories": [
+    {
+      "path": "force-app",
+      "default": true
+    }
+  ],
+  "name": "forcebench-grader-taf",
+  "namespace": "",
+  "sourceApiVersion": "67.0",
+  "packageAliases": {
+    "Trigger Actions Framework@0.3.4-1": "04tKY000000R0yHYAS"
+  }
+}
