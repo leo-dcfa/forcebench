@@ -77,10 +77,12 @@ class GenerationStore:
                     continue
                 rec = json.loads(line)
                 gen = Generation.model_validate(rec["generation"])
-                # Endpoint failures and wall-clock timeouts (incl. those stored before timeouts
-                # counted as endpoint failures) are re-run on resume.
+                # The latest record for a key wins. Endpoint failures, wall-clock timeouts and
+                # invalidated answers (`forcebench invalidate`) are re-run on resume.
                 if gen.error is None and gen.finish_reason != "timeout":
                     self.done[rec["key"]] = gen
+                else:
+                    self.done.pop(rec["key"], None)
 
     async def add(self, key: str, gen: Generation) -> None:
         async with self._lock:
@@ -159,7 +161,7 @@ async def run(
             "model": m.public_dict(),
             "effort": effort,
             "effort_tier": m.effort_tiers[effort],
-            "request": {k: v for k, v in client.settings.items() if k != "timeout"},
+            "request": {**client.settings, "stream": True, "sdk_retries": 0},
             "system_prompt_sha": _sha(SYSTEM_PROMPT),
             "samples": samples,
             "concurrency": concurrency,
@@ -183,6 +185,20 @@ async def run(
     meta["finished_at"] = dt.datetime.now(dt.UTC).isoformat()
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
     return run_dir
+
+
+def invalidate(run_dir: Path, keys: list[str], reason: str) -> int:
+    """Mark stored answers to be regenerated on the next resume (appends; keeps history)."""
+    store = GenerationStore(run_dir / "raw" / "generations.jsonl")
+    marked = 0
+    with store.path.open("a") as f:
+        for key in keys:
+            if key in store.done:
+                old = store.done[key]
+                rec = Generation(error=f"invalidated: {reason}", latency_s=old.latency_s)
+                f.write(json.dumps({"key": key, "generation": rec.model_dump()}) + "\n")
+                marked += 1
+    return marked
 
 
 async def regrade(run_dir: Path, tasks: list[Task], env: GradeEnv, progress: bool = True) -> Path:

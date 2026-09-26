@@ -137,3 +137,23 @@ def test_artifacts_confined_to_case_dir(make_task, tmp_path):
     written = {p.relative_to(tmp_path) for p in tmp_path.rglob("*") if p.is_file()}
     assert all(str(p).startswith("run/artifacts/t/0/") for p in written)
     assert not (tmp_path / "escape.txt").exists()
+
+
+def test_invalidate_last_record_wins(tmp_path):
+    import json
+
+    from forcebench.llm import Generation
+    from forcebench.runner import GenerationStore, invalidate
+
+    run = tmp_path / "run"
+    (run / "raw").mkdir(parents=True)
+    path = run / "raw" / "generations.jsonl"
+    path.write_text(
+        json.dumps({"key": "t#0", "generation": Generation(text="a", latency_s=900).model_dump()})
+        + "\n"
+        + json.dumps({"key": "u#0", "generation": Generation(text="b", latency_s=10).model_dump()})
+        + "\n"
+    )
+    assert invalidate(run, ["t#0"], "proxy retried") == 1
+    store = GenerationStore(path)
+    assert set(store.done) == {"u#0"}
