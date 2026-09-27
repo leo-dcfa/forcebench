@@ -143,7 +143,14 @@ _FENCE_RE = re.compile(
 )
 
 
+# Chat-template control tokens that a misconfigured server can leak into the answer text
+# (e.g. Gemma's <|channel>…<channel|>, <|im_end|>). They are engine artifacts, never part of an
+# answer, so they are removed before extraction.
+_CONTROL_TOKEN_RE = re.compile(r"<\|[\w.:-]{1,40}\|?>|<[\w.:-]{1,40}\|>")
+
+
 def strip_reasoning(text: str) -> str:
+    text = _CONTROL_TOKEN_RE.sub("", text)
     text = _THINK_RE.sub("", text)
     # An unclosed <think> means the model never left its reasoning; keep what follows if any.
     if "</think>" in text.lower():

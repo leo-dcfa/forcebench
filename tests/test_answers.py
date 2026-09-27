@@ -157,3 +157,11 @@ def test_invalidate_last_record_wins(tmp_path):
     assert invalidate(run, ["t#0"], "proxy retried") == 1
     store = GenerationStore(path)
     assert set(store.done) == {"u#0"}
+
+
+def test_leaked_control_tokens_are_stripped(make_task):
+    t = make_task({"format": "files", "files": ["force-app/main/default/lwc/x/x.html"]})
+    reply = "File: force-app/main/default/lwc/x/x.html\n```html\n<template></template>\n```<|channel><channel|>"
+    a = extract(t, reply)
+    assert a.files == {"force-app/main/default/lwc/x/x.html": "<template></template>\n"}
+    assert extract(make_task({"format": "text"}), "Answer: 42<|im_end|>").value == "42"
