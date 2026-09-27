@@ -60,3 +60,7 @@ direct-mimo:
   kind: openai_compatible
   base_url_env: FORCEBENCH_MIMO_BASE_URL
   api_key_env: FORCEBENCH_MIMO_API_KEY
+direct-gpu:       # the single-GPU vLLM server; it serves one model at a time
+  kind: openai_compatible
+  base_url_env: FORCEBENCH_GPU_BASE_URL
+  api_key_env: FORCEBENCH_GPU_API_KEY
