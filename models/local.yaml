@@ -264,3 +264,20 @@ models:
       "on": {chat_template_kwargs: {enable_thinking: true}}
     effort_tiers: {"off": "off", "on": max}
     notes: nvidia NVFP4 checkpoint. One thinking switch, no effort levels.
+
+  - id: gemma-4-31b-qat-w4a16
+    provider: direct-gpu
+    endpoint_model: gemma-4-31b-qat
+    display: Gemma 4 31B
+    family: Gemma-4
+    base_model: Gemma-4-31B
+    quant: QAT W4A16
+    engine: vLLM
+    context: 131072
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 64}
+    default_effort: "on"
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      "on": {chat_template_kwargs: {enable_thinking: true}}
+    effort_tiers: {"off": "off", "on": max}
+    notes: Google's official quantisation-aware-trained 4-bit weights (W4A16, compressed-tensors). One thinking switch.
