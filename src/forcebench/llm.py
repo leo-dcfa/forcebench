@@ -108,7 +108,9 @@ class Client:
     async def generate(self, system: str, user: str) -> Generation:
         from pydantic_ai.messages import ThinkingPart
 
-        agent = self._agent_cls(self._model, system_prompt=system)
+        # retries=0: pydantic-ai would otherwise re-prompt the model after an empty
+        # answer, a hidden retry that would change the conversation being measured.
+        agent = self._agent_cls(self._model, system_prompt=system, retries=0)
         last_err: Exception | None = None
         for attempt in range(1, self.retries + 1):
             t0 = time.monotonic()
@@ -118,6 +120,8 @@ class Client:
                 messages = r.all_messages()
                 usage = r.usage
             except Exception as e:
+                from pydantic_ai.exceptions import UnexpectedModelBehavior
+
                 last_err = e
                 elapsed = time.monotonic() - t0
                 # The budget is tokens (max_tokens), not wall-clock time: slow hardware must not
@@ -127,17 +131,20 @@ class Client:
                         error=f"timed out after {elapsed:.0f}s (not scored; re-run with --resume)",
                         finish_reason="timeout", latency_s=elapsed, attempts=attempt,
                     )  # fmt: skip
-                if attempt < self.retries and _retryable(e):
+                # Only the model's own failures are scored as failed answers: it exhausted the
+                # token budget, or it returned no answer at all.
+                if isinstance(e, UnexpectedModelBehavior):
+                    return Generation(
+                        finish_reason=f"error: {type(e).__name__}: {e}"[:500],
+                        latency_s=elapsed,
+                        attempts=attempt,
+                    )
+                # Anything else came from the endpoint (5xx, overload, out of memory, bad
+                # request...): retry with backoff, then leave the answer unscored for --resume.
+                if attempt < self.retries:
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
                     continue
-                if _retryable(e):
-                    return Generation(error=f"{type(e).__name__}: {e}"[:1000], attempts=attempt)
-                # Anything else (400s, empty output, parse errors) counts as a failed answer.
-                return Generation(
-                    finish_reason=f"error: {type(e).__name__}: {e}"[:500],
-                    latency_s=elapsed,
-                    attempts=attempt,
-                )
+                return Generation(error=f"{type(e).__name__}: {e}"[:1000], attempts=attempt)
             resp = messages[-1]
             reasoning = "\n".join(
                 p.content for p in getattr(resp, "parts", []) if isinstance(p, ThinkingPart)

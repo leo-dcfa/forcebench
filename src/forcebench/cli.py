@@ -300,6 +300,13 @@ def invalidate(
         float | None, typer.Option(help="Mark answers that took at least this many seconds.")
     ] = None,
     task: TaskOpt = None,
+    endpoint_errors: Annotated[
+        bool,
+        typer.Option(
+            help="Mark answers that were scored as failures because of an endpoint error "
+            "(anything but the model exhausting its budget or giving no answer)."
+        ),
+    ] = False,
 ) -> None:
     """Mark stored answers to be regenerated on the next `run --resume` (history is kept)."""
     import json
@@ -314,6 +321,10 @@ def invalidate(
             continue
         if min_latency is not None and gen.get("latency_s", 0) < min_latency:
             continue
+        if endpoint_errors:
+            fr = str(gen.get("finish_reason") or "")
+            if not fr.startswith("error:") or fr.startswith("error: UnexpectedModelBehavior"):
+                continue
         keys.append(rec["key"])
     n = do_invalidate(run_dir, sorted(set(keys)), reason)
     console.print(f"marked {n} answers in {run_dir.name} for regeneration")
