@@ -4,7 +4,10 @@ import os
 from importlib.metadata import version as _version
 from pathlib import Path
 
-__version__ = _version("forcebench")
+try:
+    __version__ = _version("forcebench")
+except Exception:  # running from source without installation (e.g. the offline grader)
+    __version__ = "0.1.0+src"
 
 # Version of the task set. Bump the minor version when tasks are added or changed;
 # results are only comparable within the same benchmark version.

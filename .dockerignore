@@ -1,3 +1,5 @@
 *
 !pyproject.toml
 !uv.lock
+!src/forcebench/data/lwc-jest/
+!src/forcebench/data/lwc-jest/**
