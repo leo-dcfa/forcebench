@@ -263,7 +263,7 @@ models:
       "off": {chat_template_kwargs: {enable_thinking: false}}
       "on": {chat_template_kwargs: {enable_thinking: true}}
     effort_tiers: {"off": "off", "on": max}
-    notes: nvidia NVFP4 checkpoint. One thinking switch, no effort levels.
+    notes: nvidia NVFP4 checkpoint (keeps some layers in 16-bit). Does not fit a 32 GB GPU in vLLM - weights alone exceed it. One thinking switch.
 
   - id: gemma-4-31b-qat-w4a16
     provider: direct-gpu
