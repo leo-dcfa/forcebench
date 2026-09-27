@@ -301,11 +301,14 @@ def _safe_path(path: str) -> PurePosixPath | None:
 
 
 def write_artifacts(case_dir: Path, gen: Generation, ans: Answer | None, g: Grade) -> None:
-    """Save what a case produced: the files it generated, its reply, grade and org evidence."""
+    """Save what a case produced: the files it generated, its reply and reasoning, grade and org
+    evidence."""
     if case_dir.exists():
         shutil.rmtree(case_dir)
     case_dir.mkdir(parents=True)
     (case_dir / "reply.md").write_text(gen.text or "")
+    if gen.reasoning:
+        (case_dir / "reasoning.md").write_text(gen.reasoning)
     if ans is not None:
         for path, content in ans.files.items():
             safe = _safe_path(path)

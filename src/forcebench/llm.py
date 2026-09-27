@@ -89,6 +89,46 @@ def _retryable(e: Exception) -> bool:
     return "connection" in text or "overloaded" in text
 
 
+class _Streamed:
+    """What the model has streamed so far, per response part. A reply that fails still leaves a
+    record of what the model wrote, e.g. the reasoning that used up the token budget."""
+
+    def __init__(self) -> None:
+        self.parts: dict[int, tuple[bool, list[str]]] = {}  # index -> (is_thinking, chunks)
+
+    async def collect(self, _ctx: Any, events: Any) -> None:
+        from pydantic_ai.messages import (
+            PartDeltaEvent,
+            PartStartEvent,
+            ThinkingPart,
+            ThinkingPartDelta,
+        )
+
+        async for ev in events:
+            if isinstance(ev, PartStartEvent):
+                content = getattr(ev.part, "content", None)
+                self.parts[ev.index] = (
+                    isinstance(ev.part, ThinkingPart),
+                    [content] if isinstance(content, str) else [],
+                )
+            elif isinstance(ev, PartDeltaEvent):
+                delta = getattr(ev.delta, "content_delta", None)
+                if isinstance(delta, str):
+                    thinking = isinstance(ev.delta, ThinkingPartDelta)
+                    self.parts.setdefault(ev.index, (thinking, []))[1].append(delta)
+
+    def _join(self, thinking: bool) -> str:
+        return "".join(
+            "".join(chunks) for _, (t, chunks) in sorted(self.parts.items()) if t is thinking
+        )
+
+    def thinking(self) -> str:
+        return self._join(True)
+
+    def text(self) -> str:
+        return self._join(False)
+
+
 class Client:
     """One model configuration. Responses are streamed: proxies commonly cap the time to a
     complete (non-streamed) response, which would cut off slow machines' long answers."""
@@ -106,6 +146,7 @@ class Client:
         self._agent_cls = Agent
 
     async def generate(self, system: str, user: str) -> Generation:
+        from pydantic_ai.exceptions import UnexpectedModelBehavior
         from pydantic_ai.messages import ThinkingPart
 
         # retries=0: pydantic-ai would otherwise re-prompt the model after an empty
@@ -114,14 +155,12 @@ class Client:
         last_err: Exception | None = None
         for attempt in range(1, self.retries + 1):
             t0 = time.monotonic()
+            streamed = _Streamed()
             try:
-                async with agent.run_stream(user, model_settings=self.settings) as r:
-                    output = await r.get_output()
-                messages = r.all_messages()
-                usage = r.usage
+                r = await agent.run(
+                    user, model_settings=self.settings, event_stream_handler=streamed.collect
+                )
             except Exception as e:
-                from pydantic_ai.exceptions import UnexpectedModelBehavior
-
                 last_err = e
                 elapsed = time.monotonic() - t0
                 # The budget is tokens (max_tokens), not wall-clock time: slow hardware must not
@@ -132,9 +171,14 @@ class Client:
                         finish_reason="timeout", latency_s=elapsed, attempts=attempt,
                     )  # fmt: skip
                 # Only the model's own failures are scored as failed answers: it exhausted the
-                # token budget, or it returned no answer at all.
+                # token budget, or it returned no answer at all. What it wrote is kept.
                 if isinstance(e, UnexpectedModelBehavior):
+                    # The server stops at exactly max_tokens when the budget runs out.
+                    budget = "token limit" in str(e)
                     return Generation(
+                        text=streamed.text(),
+                        reasoning=streamed.thinking(),
+                        output_tokens=(self.settings["max_tokens"] or 0) if budget else 0,
                         finish_reason=f"error: {type(e).__name__}: {e}"[:500],
                         latency_s=elapsed,
                         attempts=attempt,
@@ -145,17 +189,16 @@ class Client:
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
                     continue
                 return Generation(error=f"{type(e).__name__}: {e}"[:1000], attempts=attempt)
-            resp = messages[-1]
-            reasoning = "\n".join(
-                p.content for p in getattr(resp, "parts", []) if isinstance(p, ThinkingPart)
-            )
+            resp = r.response
+            usage = r.usage
+            reasoning = "\n".join(p.content for p in resp.parts if isinstance(p, ThinkingPart))
             return Generation(
-                text=output if isinstance(output, str) else str(output),
+                text=r.output if isinstance(r.output, str) else str(r.output),
                 reasoning=reasoning,
                 input_tokens=usage.input_tokens or 0,
                 output_tokens=usage.output_tokens or 0,
                 reasoning_tokens=int((usage.details or {}).get("reasoning_tokens", 0)),
-                finish_reason=getattr(resp, "finish_reason", None),
+                finish_reason=resp.finish_reason,
                 latency_s=time.monotonic() - t0,
                 attempts=attempt,
             )
