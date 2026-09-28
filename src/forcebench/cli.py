@@ -283,6 +283,9 @@ def run(
     if resume and len(efforts) > 1:
         raise typer.BadParameter("a resumed run has one effort", param_hint="--effort")
     _, tasks = select_tasks(suite, task, tasks_dir, subset or started.get("subset", "full"))
+    # Grading covers every task of the run, not only those selected now: cases.jsonl is
+    # rewritten, and a resume with --suite/--task would otherwise drop the others' results.
+    _, all_tasks = select_tasks(None, None, tasks_dir, subset or started.get("subset", "full"))
     env = make_env(use_orgs=not no_org) if grade else None
     for e in efforts:
         try:
@@ -297,7 +300,7 @@ def run(
             raise typer.Exit(1) from None
         console.print(f"generated {run_dir}")
         if grade and env is not None:
-            asyncio.run(do_grade(run_dir, tasks, env))
+            asyncio.run(do_grade(run_dir, all_tasks, env))
             _print_run_summary(run_dir)
 
 

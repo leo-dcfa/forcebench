@@ -56,6 +56,22 @@ async def test_append_after_a_final_line_without_newline_starts_a_new_line(raw):
     assert [r["key"] for r in read_records(raw)] == ["a#0", "b#0"]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("same_size", [False, True])
+async def test_what_another_writer_added_since_is_never_cut(raw, same_size):
+    torn = _line("b#0", text="B" * 100)[:-10]
+    raw.write_text(_line("a#0", text="A") + torn)
+    with pytest.warns(RuntimeWarning):
+        store = GenerationStore(raw)
+    # Meanwhile another process drops the torn line and appends its own record, which may even
+    # leave the file exactly as long as it was.
+    pad = len(torn) - len(_line("c#0", text="")) if same_size else 5
+    other = _line("c#0", text="C" * pad)
+    raw.write_text(_line("a#0", text="A") + other)
+    await store.add("b#0", Generation(text="B again"))
+    assert [r["key"] for r in read_records(raw)] == ["a#0", "c#0", "b#0"]
+
+
 def test_invalidate_survives_a_torn_line(raw):
     raw.write_text(_line("a#0", text="A") + _line("b#0", text="B")[:25])
     with pytest.warns(RuntimeWarning):
@@ -231,6 +247,36 @@ def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
     (run_dir / "run.json").write_text(json.dumps(meta))
     with pytest.raises(ResumeError, match="request"):
         _generate(model, run_dir, [_task(make_task)])
+
+
+def test_resume_refuses_a_changed_system_prompt(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    meta = _meta(run_dir)
+    meta["system_prompt_sha"] = "0123456789ab"  # the run was started with another prompt
+    (run_dir / "run.json").write_text(json.dumps(meta))
+    with pytest.raises(ResumeError, match="system prompt"):
+        _generate(model, run_dir, [_task(make_task)])
+
+
+def test_resume_regenerates_an_answer_to_another_prompt(model, make_task, tmp_path):
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    raw = run_dir / "raw" / "generations.jsonl"
+    (rec,) = read_records(raw)
+    raw.write_text(json.dumps({**rec, "prompt_sha": "0123456789ab"}) + "\n")
+    _generate(model, run_dir, [_task(make_task)])
+    assert len(model.prompts) == 2, "the answer was to a prompt the task no longer renders"
+
+
+def test_answers_without_run_json_are_not_resumed(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    (run_dir / "run.json").unlink()
+    with pytest.raises(ResumeError, match=r"no run\.json"):
+        _generate(model, run_dir, [_task(make_task)], effort="xhigh")
+    assert len(model.prompts) == 1
 
 
 def test_resume_refuses_a_run_from_an_older_protocol(model, make_task, tmp_path):

@@ -81,14 +81,15 @@ class CorruptStoreError(ValueError):
     """A generations file is damaged somewhere other than its last line."""
 
 
-def _read_records(path: Path) -> tuple[list[dict[str, Any]], int | None]:
-    """The records of a generations file, and the byte offset of a torn last line (None if
-    there is none). A crash mid-write can leave the last line incomplete: it is skipped with a
-    warning. A corrupt line anywhere else means the file was damaged some other way, so reading
-    stops with an error instead of silently losing answers."""
+def _read_records(path: Path) -> tuple[list[dict[str, Any]], bytes | None]:
+    """The records of a generations file, and the bytes of a torn last line to the end of the
+    file (None if there is none). A crash mid-write can leave the last line incomplete: it is
+    skipped with a warning. A corrupt line anywhere else means the file was damaged some other
+    way, so reading stops with an error instead of silently losing answers."""
     if not path.exists():
         return [], None
-    lines = path.read_bytes().split(b"\n")
+    data = path.read_bytes()
+    lines = data.split(b"\n")
     last = max((i for i, line in enumerate(lines) if line.strip()), default=-1)
     records: list[dict[str, Any]] = []
     offset, torn = 0, None
@@ -107,7 +108,7 @@ def _read_records(path: Path) -> tuple[list[dict[str, Any]], int | None]:
                 RuntimeWarning,
                 stacklevel=3,
             )
-            torn = start
+            torn = data[start:]
     return records, torn
 
 
@@ -128,7 +129,6 @@ class GenerationStore:
         # prompt. Records written before these were stored have neither.
         self.provenance: dict[str, dict[str, Any]] = {}
         records, self._torn = _read_records(path)
-        self._size = path.stat().st_size if path.exists() else 0
         for rec in records:
             self._apply(rec)
 
@@ -156,13 +156,13 @@ class GenerationStore:
         fd = os.open(self.path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o644)
         try:
             size = os.fstat(fd).st_size
-            # Drop a torn last line first, so the new records do not continue it. Only if the
-            # file is as it was read: otherwise someone else wrote since, and the next read
+            # Drop a torn last line first, so the new records do not continue it. Only if it is
+            # still the end of the file: otherwise someone else wrote since, and the next read
             # reports the damage instead.
-            if self._torn is not None and size == self._size:
-                os.ftruncate(fd, self._torn)
-                size = self._torn
-            self._torn = None
+            torn, self._torn = self._torn, None
+            if torn and size >= len(torn) and os.pread(fd, len(torn), size - len(torn)) == torn:
+                size -= len(torn)
+                os.ftruncate(fd, size)
             if size and os.pread(fd, 1, size - 1) != b"\n":
                 os.write(fd, b"\n")
             for rec in records:
@@ -170,7 +170,6 @@ class GenerationStore:
                 while view:
                     view = view[os.write(fd, view) :]
             os.fsync(fd)
-            self._size = os.fstat(fd).st_size
         finally:
             os.close(fd)
         for rec in records:
@@ -247,6 +246,7 @@ def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any])
         "samples": started.get("samples"),
         "protocol": run_protocol(started),
         "request": started.get("request"),
+        "system prompt": started.get("system_prompt_sha"),
     }
     diffs = [f"{k} {was[k]!r} (resume asked for {v!r})" for k, v in asked.items() if was[k] != v]
     if diffs:
@@ -276,9 +276,15 @@ async def generate(
 
     A ``run_dir`` that already has a run.json is resumed with the settings it was started with:
     model, effort, subset, samples and request fields left out (None) come from run.json, and
-    any given must match it (ResumeError otherwise).
+    any given must match it, as must the system prompt (ResumeError otherwise).
     """
     started = read_run(run_dir) if run_dir else {}
+    raw = run_dir / "raw" / "generations.jsonl" if run_dir else None
+    if run_dir and not started and raw and raw.exists() and raw.stat().st_size:
+        raise ResumeError(
+            f"cannot resume {run_dir.name}: it has stored answers but no run.json, so the "
+            "settings they were generated with are unknown"
+        )
     if started:
         model_id = model_id or started["model"]["id"]
         effort = effort or started["effort"]
@@ -292,7 +298,10 @@ async def generate(
     subset = subset or "full"
     if started and run_dir is not None:
         asked = {"model": m.id, "effort": effort, "subset": subset, "samples": samples}
-        _check_resume(run_dir, started, {**asked, "protocol": GENERATION_PROTOCOL})
+        asked |= {"protocol": GENERATION_PROTOCOL}
+        if "system_prompt_sha" in started:
+            asked["system prompt"] = _sha(SYSTEM_PROMPT)
+        _check_resume(run_dir, started, asked)
         # Compared once the effort is known to match: an effort the model lacks has no request.
         request = json.loads(json.dumps(recorded_request(m, effort)))  # as stored in run.json
         _check_resume(run_dir, started, {"request": request})
@@ -342,11 +351,15 @@ async def generate(
     async def solve(key: str) -> CaseOutput:
         task_id, _, sample = key.partition("#")
         task = by_id[task_id]
+        prompt = render_prompt(task)
         gen = store.done.get(key)
-        if gen is not None and store.task_version(key, run_versions) != task.version:
-            gen = None  # it answered an older version of the task
+        stored_prompt = store.provenance.get(key, {}).get("prompt_sha")
+        if gen is not None and (
+            store.task_version(key, run_versions) != task.version
+            or stored_prompt not in (None, _sha(prompt))  # older records have no hash
+        ):
+            gen = None  # it answered an older version of the task, or another prompt
         if gen is None:
-            prompt = render_prompt(task)
             gen = await client.generate(SYSTEM_PROMPT, prompt)
             await store.add(key, gen, task_version=task.version, prompt_sha=_sha(prompt))
         return CaseOutput(
