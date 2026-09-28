@@ -17,10 +17,16 @@ jobs:
       - name: Trigger site rebuild
         env:
           TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+          # The file at this exact commit: raw.githubusercontent.com caches main for up to 5
+          # minutes, and a commit-pinned URL is never stale.
+          LEADERBOARD_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/results/leaderboard.json
         run: |
-          if [ -z "$TOKEN" ]; then echo "SITE_DISPATCH_TOKEN not set; skipping"; exit 0; fi
+          if [ -z "$TOKEN" ]; then
+            echo "::error::SITE_DISPATCH_TOKEN is not set, so forcebench.ai was not told to rebuild"
+            exit 1
+          fi
           curl -fsS -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/leo-dcfa/forcebench-site/dispatches \
-            -d '{"event_type":"results-updated"}'
+            -d "{\"event_type\":\"results-updated\",\"client_payload\":{\"leaderboard_url\":\"$LEADERBOARD_URL\"}}"
