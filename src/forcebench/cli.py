@@ -309,13 +309,11 @@ def invalidate(
     ] = False,
 ) -> None:
     """Mark stored answers to be regenerated on the next `run --resume` (history is kept)."""
-    import json
-
     from forcebench.runner import invalidate as do_invalidate
+    from forcebench.runner import read_records
 
     keys = []
-    for line in (run_dir / "raw" / "generations.jsonl").read_text().splitlines():
-        rec = json.loads(line)
+    for rec in read_records(run_dir / "raw" / "generations.jsonl"):
         gen = rec["generation"]
         if task and rec["key"].split("#")[0] not in set(task):
             continue
