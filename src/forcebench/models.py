@@ -11,6 +11,7 @@ reasoning effort are a different entry on the leaderboard.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any, Literal
 
@@ -91,8 +92,26 @@ class Registry(BaseModel):
         return self.providers[m.provider]
 
 
+# Safety switches come only from the environment the sandbox and the Makefile set, never from
+# .env (which `run` loads inside the networked sandbox, see docs/sandbox.md).
+DOTENV_IGNORED = frozenset(
+    {
+        "HOME",
+        "FORCEBENCH_SANDBOX",
+        "FORCEBENCH_PROVISION",
+        "FORCEBENCH_DEVHUB_USERNAME",
+        "FORCEBENCH_CACHE_DIR",
+        "FORCEBENCH_LWC_OFFLINE",
+        "FORCEBENCH_LWC_SANDBOX",
+        "FORCEBENCH_LWC_WORKSPACE",
+    }
+)
+
+
 def load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
-    """Minimal .env loader (KEY=VALUE lines); existing environment variables win."""
+    """Minimal .env loader (KEY=VALUE lines); existing environment variables win.
+
+    Keys in DOTENV_IGNORED are skipped with a warning."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -100,7 +119,13 @@ def load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
-        os.environ.setdefault(key.strip(), val.strip().strip("'\""))
+        key = key.strip()
+        if key in DOTENV_IGNORED:
+            print(
+                f"WARNING: ignoring {key} in {path.name}: set only by the sandbox", file=sys.stderr
+            )
+            continue
+        os.environ.setdefault(key, val.strip().strip("'\""))
 
 
 def load_registry(models_dir: Path = MODELS_DIR) -> Registry:
