@@ -141,7 +141,8 @@ def build_entry(runs: list[Run], suites: list[Suite]) -> dict[str, Any]:
             continue
         if c.get("skipped") or c.get("infra_error"):
             pending_in[current[c["task_id"]].suite] += 1
-            stale[run_id] += bool(c.get("stale"))
+            if c.get("stale"):
+                stale[run_id] += 1
             continue
         samples[c["task_id"]].append(1.0 if c["passed"] else 0.0)
         valid.append(c)

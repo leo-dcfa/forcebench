@@ -22,9 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from forcebench import MODELS_DIR, REPO_ROOT
 
 # The common scale effort labels map to, for comparing models: "off", then the graded levels
-# low < medium < high < max. "on" is a plain thinking switch's (efforts "off" and "on" only):
-# thinking at the model's own default depth, which no request set, so it is not a level on the
-# graded scale (docs/methodology.md, section 4).
+# low < medium < high < max. "on" is the tier of a plain thinking switch (efforts "off" and "on"
+# only) switched on: thinking at the model's own default depth, which no request set, so it is
+# not a level on the graded scale (docs/methodology.md, section 4).
 EffortTier = Literal["off", "on", "low", "medium", "high", "max"]
 THINKING_SWITCH = frozenset({"off", "on"})
 
