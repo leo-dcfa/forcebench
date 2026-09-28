@@ -298,7 +298,7 @@ def test_grade_needs_only_the_offline_mounts(tmp_path):
     for name in ("src", "suites"):
         shutil.copytree(REPO_ROOT / name, work / name, ignore=shutil.ignore_patterns("__pycache__"))
     [task] = [t for t in all_tasks(load_suites(["lwc"]))][:1]
-    run = work / "results" / "runs" / "r1"
+    run = work / "results" / "runs" / "20260928T000000Z_m@low"
     (run / "raw").mkdir(parents=True)
     (run / "run.json").write_text(json.dumps({"task_ids": [task.id], "samples": 1}))
     gen = {"text": task.reference_output, "finish_reason": "stop"}
@@ -325,7 +325,7 @@ def test_grade_needs_only_the_offline_mounts(tmp_path):
         )  # fmt: skip
         assert Path(where.stdout.strip()) == work
         done = subprocess.run(
-            [sys.executable, "-m", "forcebench", "grade", "results/runs/r1", "--suite", "lwc",
+            [sys.executable, "-m", "forcebench", "grade", "results/runs/20260928T000000Z_m@low", "--suite", "lwc",
              "--no-org"],
             cwd=work, env=env, capture_output=True, text=True, timeout=300, check=False,
         )  # fmt: skip

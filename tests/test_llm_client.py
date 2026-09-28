@@ -54,11 +54,18 @@ class _Drop:
     body: str
 
 
+@dataclass
+class _Status:
+    """Answer with an HTTP error instead of a stream."""
+
+    code: int
+
+
 class _FakeServer:
     """An OpenAI-compatible endpoint that streams scripted replies, one per request (the last
     one repeats)."""
 
-    def __init__(self, *replies: str | _Drop):
+    def __init__(self, *replies: str | _Drop | _Status):
         import http.server
         import threading
 
@@ -70,6 +77,14 @@ class _FakeServer:
                 self.rfile.read(int(self.headers["Content-Length"]))
                 reply = replies[min(server.requests, len(replies) - 1)]
                 server.requests += 1
+                if isinstance(reply, _Status):
+                    body = json.dumps({"error": {"message": f"status {reply.code}"}}).encode()
+                    self.send_response(reply.code)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
                 if isinstance(reply, _Drop):
@@ -87,7 +102,9 @@ class _FakeServer:
                 pass
 
         self.httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        threading.Thread(
+            target=self.httpd.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
+        ).start()
         self.url = f"http://127.0.0.1:{self.httpd.server_port}/v1"
 
     def close(self):
@@ -102,7 +119,7 @@ def _client(monkeypatch, url, retries: int = 1):
     return Client(m, p, "low", retries=retries)
 
 
-async def _generate(monkeypatch, *replies: str | _Drop, retries: int = 1):
+async def _generate(monkeypatch, *replies: str | _Drop | _Status, retries: int = 1):
     server = _FakeServer(*replies)
     try:
         gen = await _client(monkeypatch, server.url, retries).generate("system", "hi")
@@ -200,3 +217,30 @@ async def test_connection_dropped_mid_stream_is_retried_and_counted(monkeypatch,
     gen, requests = await _generate(monkeypatch, _Drop(answer[:120]), answer, retries=4)
     assert (gen.error, gen.text) == (None, "Answer: B")
     assert (gen.attempts, requests) == (2, 2), "the retry is recorded, not hidden"
+
+
+ANSWER = _sse([{"role": "assistant", "content": "Answer: x"}])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", [400, 401, 403, 404, 413, 422])
+async def test_client_errors_that_cannot_succeed_are_not_retried(monkeypatch, no_backoff, code):
+    gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
+    assert requests == 1, "a bad request is not sent again"
+    assert gen.error is not None and f"client error {code}, not retried" in gen.error
+    assert gen.attempts == 1 and gen.text == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", [408, 409, 425, 429, 500, 502, 503])
+async def test_transient_errors_are_retried(monkeypatch, no_backoff, code):
+    gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
+    assert requests == 2
+    assert gen.error is None and gen.text == "Answer: x" and gen.attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_retries_stop_at_the_limit_and_leave_the_answer_unscored(monkeypatch, no_backoff):
+    gen, requests = await _generate(monkeypatch, _Status(429), retries=3)
+    assert requests == 3
+    assert gen.error is not None and "not retried" not in gen.error and gen.attempts == 3

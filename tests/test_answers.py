@@ -145,7 +145,7 @@ def test_invalidate_last_record_wins(tmp_path):
     from forcebench.llm import Generation
     from forcebench.runner import GenerationStore, invalidate
 
-    run = tmp_path / "run"
+    run = tmp_path / "20260928T000000Z_m@low"
     (run / "raw").mkdir(parents=True)
     path = run / "raw" / "generations.jsonl"
     path.write_text(

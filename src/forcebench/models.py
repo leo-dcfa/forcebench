@@ -11,6 +11,7 @@ reasoning effort are a different entry on the leaderboard.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Literal
@@ -38,6 +39,9 @@ class Provider(BaseModel):
 
     def api_key(self) -> str | None:
         return os.environ.get(self.api_key_env) if self.api_key_env else None
+
+
+_EFFORT_RE = re.compile(r"[a-z0-9][a-z0-9_.-]*")
 
 
 class ModelConfig(BaseModel):
@@ -71,6 +75,13 @@ class ModelConfig(BaseModel):
         missing = set(self.efforts) - set(self.effort_tiers)
         if missing:
             raise ValueError(f"{self.id}: effort_tiers missing {sorted(missing)}")
+        # The effort is part of the run id and so of a directory name (runner.RUN_ID_RE).
+        bad = sorted(e for e in self.efforts if not _EFFORT_RE.fullmatch(e))
+        if bad:
+            raise ValueError(
+                f"{self.id}: effort names must be lower-case letters, digits, '_', '.' or '-': "
+                f"{bad}"
+            )
         return self
 
     def public_dict(self) -> dict[str, Any]:

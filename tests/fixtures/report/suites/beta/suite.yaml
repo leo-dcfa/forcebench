@@ -1,0 +1,4 @@
+id: beta
+name: Beta
+description: Report fixture suite beta.
+grading: deterministic

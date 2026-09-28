@@ -28,8 +28,9 @@ class Generation(BaseModel):
     finish_reason: str | None = None
     latency_s: float = 0.0
     attempts: int = 1
-    # Set when the endpoint failed (connection, 5xx) after retries. Such cases are not
-    # scored; they are re-run with `forcebench run --resume`.
+    # Set when the endpoint failed (connection, 5xx, ...) after retries, or with a client error
+    # that no retry fixes (400, 401, 404, ...). Such cases are not scored; they are re-run with
+    # `forcebench run --resume`.
     error: str | None = None
 
 
@@ -84,20 +85,40 @@ def recorded_request(m: ModelConfig, effort: str) -> dict[str, Any]:
     return {**_settings(m, effort), "stream": True, "sdk_retries": 0}
 
 
-def _retryable(e: Exception) -> bool:
-    """Endpoint failures worth retrying. Timeouts are never retried (see Client.generate)."""
-    name = type(e).__name__
-    text = str(e).lower()
-    if "timeout" in name.lower() or "timed out" in text:
-        return False
-    if name in {"APIConnectionError", "ConnectError", "RemoteProtocolError", "ReadError"}:
-        return True
-    status = getattr(e, "status_code", None) or getattr(
-        getattr(e, "response", None), "status_code", None
-    )
-    if isinstance(status, int) and (status >= 500 or status == 429):
-        return True
-    return "connection" in text or "overloaded" in text
+# Client errors that a later try can get past: request timeout, conflict, too early, rate
+# limited. Any other 4xx (bad request, unauthorised, forbidden, not found, payload too large...)
+# fails the same way every time, so it is not retried.
+RETRYABLE_CLIENT_ERRORS = frozenset({408, 409, 425, 429})
+
+
+def _status_code(e: BaseException) -> int | None:
+    """The HTTP status of an endpoint error, from the exception or the ones it was raised from
+    (pydantic-ai's ModelHTTPError wraps the SDK's status error)."""
+    seen: set[int] = set()
+    cur: BaseException | None = e
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        for status in (_attr(cur, "status_code"), _attr(_attr(cur, "response"), "status_code")):
+            if isinstance(status, int):
+                return status
+        cur = cur.__cause__ or cur.__context__
+    return None
+
+
+def _attr(obj: object, name: str) -> Any:
+    """obj.name, or None; some SDK exceptions raise from properties they cannot fill."""
+    try:
+        return getattr(obj, name, None)
+    except Exception:
+        return None
+
+
+def _permanent_client_error(e: BaseException) -> int | None:
+    """The status of a client error no retry will fix (4xx other than 408/409/425/429)."""
+    status = _status_code(e)
+    if status is not None and 400 <= status < 500 and status not in RETRYABLE_CLIENT_ERRORS:
+        return status
+    return None
 
 
 class _UnfinishedReplyError(Exception):
@@ -130,7 +151,9 @@ def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> s
     from pydantic_ai.exceptions import UnexpectedModelBehavior
 
     what = f"{type(e).__name__}: {e}"
-    if isinstance(e, _UnfinishedReplyError | UnexpectedModelBehavior):
+    if e is not None and (status := _permanent_client_error(e)) is not None:
+        what = f"client error {status}, not retried: {what}"
+    elif isinstance(e, _UnfinishedReplyError | UnexpectedModelBehavior):
         raw = _raw_finish_reason(resp) if resp is not None else None
         why = f"finish reason {raw!r}" if raw else "no finish reason"
         what = f"reply not finished by the server ({why}): {what}"
@@ -255,10 +278,11 @@ class Client:
                         latency_s=elapsed,
                         attempts=attempt,
                     )
-                # Anything else came from the endpoint (5xx, overload, out of memory, bad
-                # request, a dropped or unfinished stream...): start the answer again from
-                # scratch with backoff, then leave it unscored for --resume.
-                if attempt < self.retries:
+                # Anything else came from the endpoint (5xx, overload, out of memory, rate
+                # limiting, a dropped or unfinished stream...): start the answer again from
+                # scratch with backoff, then leave it unscored for --resume. A client error that
+                # a retry cannot fix (400, 401, 404...) ends the answer unscored at once.
+                if attempt < self.retries and _permanent_client_error(e) is None:
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
                     continue
                 return Generation(
