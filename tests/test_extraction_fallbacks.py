@@ -39,6 +39,8 @@ def nine(make_task):
         ("Reasoning.\n\nThe correct option is C.", ["C"]),
         ("Reasoning.\n\nSo the correct answer is **C** because it is bulk-safe.", ["C"]),
         ("Reasoning.\n\nThe correct options are A and C.", ["A", "C"]),
+        ("Reasoning.\n\nThe answer is B.", ["B"]),
+        ("Reasoning.\n\nCorrect answer: B", ["B"]),
         ("Reasoning.\n\nBoth A and C", ["A", "C"]),
         ("Reasoning.\n\nBoth A and C are correct.", ["A", "C"]),
         ("Reasoning.\n\nOptions A and C are correct.", ["A", "C"]),
@@ -70,6 +72,9 @@ def test_choice_fallbacks(five, reply, expected):
         "The correct answer is I think C.",
         # the fallbacks read explicit answer phrases only, and only on the last line
         "Option A is wrong because it is not bulk-safe.",
+        "In short, option B is tempting but wrong.",
+        "The answer is not A.",
+        "Each option is A production-ready choice.",
         "Both A and C are wrong.",
         "The correct option is C.\n\nThat said, a lot depends on the data volume.",
         # a letter that is not an option
@@ -94,6 +99,8 @@ def test_text_answer_on_the_next_line_and_final_answer(make_task):
     assert (a.value, a.source) == ("25", "https://example.com/a.htm")
     a = extract(t, "Reasoning.\n\nAnswer:\n25 requests\n\nSource: https://example.com/a.htm")
     assert a.value == "25 requests"
+    a = extract(t, "Answer:\n```text\nSforce-Limit-Info\n```\nSource: https://example.com/a.htm")
+    assert a.value == "Sforce-Limit-Info"
     # the Source line is never read as the answer
     assert extract(t, "Answer:\nSource: https://example.com/a.htm").error
 
