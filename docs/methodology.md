@@ -83,12 +83,13 @@ reasoning effort. We record all four because they change results.
   happened to finish quickly, biasing slow configurations towards short answers. The harness
   itself retries only answers the endpoint failed to complete: any error from the server or
   the connection (5xx, overload, 4xx, a connection dropped mid-stream) and any reply that ends
-  without a finish reason (an empty stream, or a server that died mid-answer). Such an answer
-  is started again from scratch, up to 4 attempts in all, 30, 60 and 120 seconds apart; if the
-  last attempt fails too, the answer is left unscored and generated again on `run --resume`. A
-  timeout is not retried in-run (it is re-run on resume), and an answer the model finished is
-  never retried, whatever it contains: wrong, cut off by the token budget, or empty (an empty
-  reply the model ended itself counts as **no answer**). Every case records how many attempts
+  without a finish reason (an empty stream, or a server that died mid-answer) or with one that
+  says the server aborted it (`abort`, `error`). Such an answer is started again from scratch,
+  up to 4 attempts in all, 30, 60 and 120 seconds apart; if the last attempt fails too, the
+  answer is left unscored and generated again on `run --resume`. A timeout is not retried
+  in-run (it is re-run on resume), and an answer the server delivered complete is never
+  retried, whatever it contains: wrong, cut off by the token budget, or empty (an empty reply
+  the model ended itself counts as **no answer**). Every case records how many attempts
   it took (`attempts` in `cases.jsonl`), and each leaderboard entry reports how many of its
   graded answers needed more than one (`outcomes.retried`; null for runs graded before this
   was recorded). Answers affected before this was fixed are marked with `forcebench

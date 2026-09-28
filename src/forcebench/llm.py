@@ -104,21 +104,36 @@ class _UnfinishedReplyError(Exception):
     """The server ended a reply without saying why: it was cut off, not finished."""
 
 
+# Raw finish reasons with which a server says it gave up on the request itself (vLLM, SGLang:
+# abort, error; OpenAI Responses: cancelled, failed). The reply was cut off, not finished.
+_ABORTED = {"abort", "aborted", "error", "cancelled", "failed"}
+
+
+def _raw_finish_reason(resp: ModelResponse) -> str | None:
+    raw = (resp.provider_details or {}).get("finish_reason")
+    return str(raw) if raw else None
+
+
 def _finished(resp: ModelResponse | None) -> bool:
-    """Whether the server finished the reply, i.e. reported a finish reason (stop, length,
-    content filter...). The raw reason counts too, for values pydantic-ai does not map."""
+    """Whether the server finished the reply, i.e. reported how it ended (stop, length, content
+    filter...). A raw reason pydantic-ai does not map counts too, unless it says the server
+    aborted the request."""
     if resp is None:
         return False
-    raw = (resp.provider_details or {}).get("finish_reason")
-    return resp.finish_reason is not None or bool(raw)
+    raw = _raw_finish_reason(resp)
+    if raw is not None and raw.lower() in _ABORTED:
+        return False
+    return resp.finish_reason is not None or raw is not None
 
 
-def _endpoint_error(e: Exception | None) -> str:
+def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> str:
     from pydantic_ai.exceptions import UnexpectedModelBehavior
 
     what = f"{type(e).__name__}: {e}"
     if isinstance(e, _UnfinishedReplyError | UnexpectedModelBehavior):
-        what = f"reply not finished by the server: {what}"
+        raw = _raw_finish_reason(resp) if resp is not None else None
+        why = f"finish reason {raw!r}" if raw else "no finish reason"
+        what = f"reply not finished by the server ({why}): {what}"
     return what[:1000]
 
 
@@ -209,7 +224,7 @@ class Client:
             try:
                 r = await self._run(agent, user, streamed)
                 if not _finished(r.response):
-                    raise _UnfinishedReplyError("the stream ended without a finish reason")
+                    raise _UnfinishedReplyError("the answer was cut off")
             except Exception as e:
                 last_err = e
                 elapsed = time.monotonic() - t0
@@ -225,12 +240,17 @@ class Client:
                 # A reply the server never finished (an empty stream, or one that stopped with no
                 # finish reason because the server died mid-answer) is the endpoint's failure.
                 if isinstance(e, UnexpectedModelBehavior) and _finished(streamed.response):
+                    assert streamed.response is not None
                     # The server stops at exactly max_tokens when the budget runs out.
                     budget = "token limit" in str(e)
+                    used = streamed.response.usage
                     return Generation(
                         text=streamed.text(),
                         reasoning=streamed.thinking(),
-                        output_tokens=(self.settings["max_tokens"] or 0) if budget else 0,
+                        input_tokens=used.input_tokens or 0,
+                        output_tokens=(self.settings["max_tokens"] or 0)
+                        if budget
+                        else used.output_tokens or 0,
                         finish_reason=f"error: {type(e).__name__}: {e}"[:500],
                         latency_s=elapsed,
                         attempts=attempt,
@@ -241,7 +261,9 @@ class Client:
                 if attempt < self.retries:
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
                     continue
-                return Generation(error=_endpoint_error(e), latency_s=elapsed, attempts=attempt)
+                return Generation(
+                    error=_endpoint_error(e, streamed.response), latency_s=elapsed, attempts=attempt
+                )
             resp = r.response
             usage = r.usage
             reasoning = "\n".join(p.content for p in resp.parts if isinstance(p, ThinkingPart))
@@ -251,7 +273,8 @@ class Client:
                 input_tokens=usage.input_tokens or 0,
                 output_tokens=usage.output_tokens or 0,
                 reasoning_tokens=int((usage.details or {}).get("reasoning_tokens", 0)),
-                finish_reason=resp.finish_reason,
+                # The server's own reason where pydantic-ai has no name for it.
+                finish_reason=resp.finish_reason or _raw_finish_reason(resp),
                 latency_s=time.monotonic() - t0,
                 attempts=attempt,
             )
