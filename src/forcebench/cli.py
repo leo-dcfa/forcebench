@@ -40,6 +40,14 @@ ExcludeGraderOpt = Annotated[
     list[str] | None,
     typer.Option("--exclude-grader", help="Leave out tasks graded by this grader type."),
 ]
+OnlyGraderOpt = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--only-grader",
+        help="Keep only tasks of this grader type among those otherwise selected: it narrows "
+        "the selection, never adds to it (the Makefile's offline pass).",
+    ),
+]
 
 
 def _check_graders(*options: tuple[str, list[str] | None]) -> None:
@@ -47,12 +55,16 @@ def _check_graders(*options: tuple[str, list[str] | None]) -> None:
     a pass meant to grade those tasks would silently grade none."""
     if not any(names for _, names in options):
         return
+    from forcebench.graders import import_errors
+
     known = registered()
     for hint, names in options:
         unknown = sorted(set(names or ()) - set(known))
         if unknown:
+            broken = import_errors()
             raise typer.BadParameter(
-                f"unknown grader type {', '.join(unknown)}; have {', '.join(known)}",
+                f"unknown grader type {', '.join(unknown)}; have {', '.join(known)}"
+                + (f" (grader modules that failed to import: {broken})" if broken else ""),
                 param_hint=hint,
             )
 
@@ -139,11 +151,12 @@ def validate(
     ] = None,
     grader: GraderOpt = None,
     exclude_grader: ExcludeGraderOpt = None,
+    only_grader: OnlyGraderOpt = None,
     no_org: Annotated[bool, typer.Option(help="Do not use scratch orgs.")] = False,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
 ) -> None:
-    """Oracle-check tasks: reference passes, empty and negative answers fail. --grader and
-    --exclude-grader narrow the selection by grader type, whichever suite a task is in."""
+    """Oracle-check tasks: reference passes, empty and negative answers fail. --grader,
+    --exclude-grader and --only-grader select by grader type, whichever suite a task is in."""
     # validate grades only the task authors' own outputs, never model output. validate_tasks
     # marks that in-process (graders/lwc.py authored_answers), so LWC Jest tests may run here
     # outside the offline container (CI's `validate --no-org`); no environment variable can do
@@ -152,9 +165,11 @@ def validate(
     from forcebench.graders.lwc import OFFLINE_MARKER
     from forcebench.validate import validate_tasks
 
-    _check_graders(("--grader", grader), ("--exclude-grader", exclude_grader))
+    _check_graders(
+        ("--grader", grader), ("--exclude-grader", exclude_grader), ("--only-grader", only_grader)
+    )
     _, tasks = select_tasks(suite, task, tasks_dir, subset)
-    keep = TaskFilter.of(only_suite, exclude_suite, grader, exclude_grader)
+    keep = TaskFilter.of(only_suite, exclude_suite, grader, exclude_grader, only_grader)
     tasks = [t for t in tasks if keep.keeps(t)]
     authored = os.environ.get(OFFLINE_MARKER) != "1"
     env = make_env(use_orgs=not no_org)
@@ -450,6 +465,7 @@ def grade_cmd(
         list[str] | None,
         typer.Option("--exclude-grader", help="Tasks of this grader type are left as they are."),
     ] = None,
+    only_grader: OnlyGraderOpt = None,
     no_wait: Annotated[
         bool,
         typer.Option(
@@ -469,8 +485,16 @@ def grade_cmd(
 
     if all_runs == (run_dir is not None):
         raise typer.BadParameter("give a run directory, or --all (not both)")
-    _check_graders(("--grader", grader), ("--exclude-grader", exclude_grader))
-    select = TaskFilter.of(suite, exclude_suite, grader, exclude_grader)
+    from forcebench.graders.lwc import OFFLINE_GRADERS, OFFLINE_MARKER
+
+    _check_graders(
+        ("--grader", grader), ("--exclude-grader", exclude_grader), ("--only-grader", only_grader)
+    )
+    select = TaskFilter.of(suite, exclude_suite, grader, exclude_grader, only_grader)
+    if os.environ.get(OFFLINE_MARKER) == "1":
+        # The offline container has no orgs: any other grader's result there could only
+        # replace a real grade with a skip. Whatever the options, it grades only these.
+        select = select.narrowed(OFFLINE_GRADERS)
     with _results_errors():
         check_results()
     if run_dir is not None:

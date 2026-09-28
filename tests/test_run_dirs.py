@@ -221,7 +221,8 @@ def test_regrade_all_lists_runs_in_python_not_in_the_shell():
     docker = [ln for ln in lines if ln.startswith("docker run")]
     assert len(docker) == 2 and len(lines) == 3  # and the host-side results symlink guard
     assert "grade --all --exclude-grader lwc_jest" in docker[0]
-    assert "--network none" in docker[1] and "grade --all --grader lwc_jest --no-org" in docker[1]
+    assert "--network none" in docker[1]
+    assert "grade --all --only-grader lwc_jest --no-org" in docker[1]
     # results/runs appears only as the offline container's mount (and in the symlink guard),
     # never with a run directory in it
     assert f'-v "{REPO_ROOT}/results/runs":/work/results/runs' in docker[1]
