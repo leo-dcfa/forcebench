@@ -230,13 +230,32 @@ def _org_errors() -> Iterator[None]:
 
 @orgs_app.command("list")
 def orgs_list() -> None:
-    """Show registered grader orgs that are active scratch orgs."""
+    """Show registered grader orgs that are active scratch orgs, and orgs `orgs create` is
+    still setting up (pending), or gave up on over PENDING_TTL ago (expired: no longer used)."""
     from forcebench import org
 
     with _org_errors():
         orgs = org.available_orgs()
     for profile, aliases in orgs.items():
         console.print(f"{profile}: {', '.join(aliases)}")
+    for p in org.pending_orgs():
+        if p.expired():
+            console.print(
+                f"expired: {p.alias} ({p.profile}), pending since {org.created_at(p)} and not "
+                f"registered: no longer used (a pending org is usable for {org.ttl_hours()} "
+                f"hours). If its setup finished, register it: forcebench orgs register "
+                f"{p.profile} {p.alias}",
+                style="yellow",
+                markup=False,
+                soft_wrap=True,
+            )
+        else:
+            console.print(
+                f"pending: {p.alias} ({p.profile}), being set up by orgs create since "
+                f"{org.created_at(p)}",
+                markup=False,
+                soft_wrap=True,
+            )
 
 
 @orgs_app.command("register")

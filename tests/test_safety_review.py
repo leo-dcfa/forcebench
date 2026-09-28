@@ -436,6 +436,22 @@ def test_destructive_setup_needs_a_registered_or_provisioning_grader_org(sandbox
     assert sandbox == ["someone-scratch", "fb-grader-1", "fb-grader-1", "fb-grader-1"]
 
 
+def test_an_expired_pending_org_is_not_wiped_but_can_still_be_registered(sandbox, monkeypatch):
+    """A pending entry older than a day no longer makes its org a grader org for the base wipe;
+    `forcebench orgs register` still works (and clears it) once its setup is known to be done."""
+    start = org._now()
+    monkeypatch.setattr(org, "_now", lambda: start)
+    org._set_pending("fb-grader-1", "base")
+    org.check_setup_target("fb-grader-1", "base")
+    monkeypatch.setattr(org, "_now", lambda: start + org.PENDING_TTL + dt.timedelta(minutes=1))
+    with pytest.raises(OrgError, match="usable for 24 hours only") as refused:
+        org.check_setup_target("fb-grader-1", "base")
+    assert "forcebench orgs register base fb-grader-1" in str(refused.value)
+    org.register("base", "fb-grader-1")
+    assert org._load_pending() == {} and org.load_registry() == {"base": ["fb-grader-1"]}
+    org.check_setup_target("fb-grader-1", "base")
+
+
 def test_module_entry_point(sandbox, capsys):
     assert org.main(["check", "someone-scratch"]) == 0
     assert org.main(["check", "someone-scratch", "--profile", "base"]) == 1

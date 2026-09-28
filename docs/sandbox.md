@@ -91,6 +91,13 @@ Contacts, Opportunities, Cases, Leads, ...), so it and `seed.py guard|wipe` addi
 a registered `base` grader org (`forcebench orgs list`), or the one `forcebench orgs create base`
 is provisioning. `seed.py` sends every `sf` call through `forcebench.org`.
 
+An org `orgs create` is provisioning is recorded as *pending* until its setup finishes and it is
+registered. A pending entry records when it was made and is used for 24 hours only
+(`PENDING_TTL` in `src/forcebench/org.py`): after that, or if its age is unknown, it no longer
+lets the org's setup run while the Dev Hub is logged in, nor makes it a `base` grader org for the
+wipe, and `forcebench orgs list` shows it as expired. `forcebench orgs register <profile>
+<alias>` still registers the org (and clears the entry) once its setup is known to be done.
+
 `tests/test_org_lock.py` and `tests/test_safety_review.py` cover each rule.
 
 ## Using it
