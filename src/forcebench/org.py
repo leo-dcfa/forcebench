@@ -173,7 +173,10 @@ def _parse_json(out: str) -> dict[str, Any]:
     start = out.find("{")
     if start < 0:
         raise OrgError(f"no JSON in sf output: {out[:500]}")
-    return json.loads(out[start:])
+    try:
+        return json.loads(out[start:])
+    except ValueError as e:  # truncated or garbled output: an sf problem, not the answer's
+        raise OrgError(f"unreadable sf output ({e}): {out[:500]}") from None
 
 
 async def sf_json(*args: str, cwd: Path | None = None, timeout: float = 1800) -> dict[str, Any]:

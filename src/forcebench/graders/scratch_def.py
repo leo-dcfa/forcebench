@@ -423,7 +423,8 @@ def settings_naming_problems(key: str) -> list[str]:
     where = f"settings.{key}"
     if not key[:1].islower():
         return [f"{where}: settings names are lower camel case ({key[:1].lower()}{key[1:]})"]
-    if not key.endswith("Settings"):
+    # Type names are alphanumeric; the name also becomes a file name in the deployed shape.
+    if not key.endswith("Settings") or not (key.isascii() and key.isalnum()):
         options = [s[:1].lower() + s[1:] for s in _catalog()["settings"]]
         return [f"{where}: not a Metadata API Settings type name{_suggest(key, options)}"]
     return []
@@ -853,7 +854,8 @@ def project_problems(proj: Any) -> list[str]:
             av = d.get("ancestorVersion")
             if isinstance(av, str) and not _ANCESTOR_RE.match(av):
                 problems.append(f"{where}.ancestorVersion {av!r} is not a version, HIGHEST or NONE")
-            for j, dep in enumerate(d.get("dependencies") or []):
+            deps = d.get("dependencies")
+            for j, dep in enumerate(deps if isinstance(deps, list) else []):  # schema: array
                 if not isinstance(dep, dict):
                     continue
                 pkg, dvn = dep.get("package"), dep.get("versionNumber")

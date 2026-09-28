@@ -365,6 +365,6 @@ def extract(task: Task, reply: str) -> Answer:
                     ans.requests = _parse_http(block)
                     if not ans.requests:
                         ans.error = "no requests in http block"
-    except (ValueError, json.JSONDecodeError) as e:
+    except (ValueError, RecursionError) as e:  # RecursionError: absurdly nested JSON
         ans.error = f"could not parse answer: {e}"
     return ans
