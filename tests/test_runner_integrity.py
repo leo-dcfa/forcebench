@@ -167,6 +167,13 @@ def test_resume_regenerates_answers_to_an_older_task_version(model, make_task, t
     assert (case["stale"], case["task_version"], case["passed"]) == (False, 2, True)
 
 
+def test_cases_publish_how_many_attempts_each_answer_took(model, make_task, tmp_path):
+    model.reply = Generation(text="Answer: x", finish_reason="stop", attempts=3)
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    (case,) = _grade(run_dir, [_task(make_task)])
+    assert (case["passed"], case["attempts"]) == (True, 3)
+
+
 # --------------------------------------------------------------------------- resume
 
 

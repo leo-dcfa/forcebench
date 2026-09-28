@@ -582,6 +582,9 @@ async def _evaluate(run_dir, tasks, samples, env, fn, concurrency, progress, mer
                 "reasoning_tokens": gen.reasoning_tokens,
                 "finish_reason": gen.finish_reason,
                 "latency_s": round(gen.latency_s, 2),
+                # Tries the answer took: more than 1 when the endpoint failed before the answer
+                # was complete and it was started again from scratch (see Client.generate).
+                "attempts": gen.attempts,
             }
         )
     cases_path = run_dir / "cases.jsonl"
