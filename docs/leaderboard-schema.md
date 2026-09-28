@@ -12,6 +12,7 @@ such change bumps the version, and a reader should refuse a version it does not 
 |---|---|---|
 | `schema_version` | int | `2` |
 | `benchmark` | string | `"forcebench"` |
+| `visibility` | string | `"public"`. The website refuses any other value. The report builds it only from public runs of public tasks (added within v2) |
 | `version` | string | benchmark version the results are for (`BENCHMARK_VERSION`) |
 | `generated_at` | string | ISO 8601 UTC time of the build (the only field `--check` ignores) |
 | `tasks_sha` | string | fingerprint of the task set (every task id and version) |

@@ -851,20 +851,48 @@ def report(
         ),
     ] = False,
     results_dir: Annotated[
-        Path, typer.Option("--results-dir", help="Results directory (runs/ and the leaderboard).")
-    ] = RESULTS_DIR,
+        Path | None,
+        typer.Option("--results-dir", help="Results directory (runs/ and the leaderboard)."),
+    ] = None,
+    pool: Annotated[
+        str,
+        typer.Option(
+            "--pool",
+            help="public (default): results/leaderboard.json. private: the private pool's "
+            "leaderboard, written only in that pool.",
+        ),
+    ] = "public",
 ) -> None:
-    """Aggregate all runs into results/leaderboard.json (and LEADERBOARD.md)."""
+    """Aggregate all runs into results/leaderboard.json (and LEADERBOARD.md). Only public runs
+    of public tasks are ever published: anything else refuses the whole report."""
     from forcebench.fsutil import check_results_dir
-    from forcebench.report import check_leaderboard, write_leaderboard
+    from forcebench.report import check_leaderboard, known_task_ids, write_leaderboard
 
-    suites = load_suites()
+    if pool not in ("public", "private"):
+        raise typer.BadParameter("public or private", param_hint="--pool")
+    if pool == "private":
+        if results_dir is not None:
+            raise typer.BadParameter(
+                "the private leaderboard is written only in the private pool",
+                param_hint="--results-dir",
+            )
+        private = private_pool()
+        suites, _ = select_tasks(None, None, "full", "private", private=private)
+        every, _ = select_tasks(
+            None, None, "full", "private", private=private, statuses=EVERY_STATUS
+        )
+        results_dir = private.results_dir
+    else:
+        suites = load_suites()
+        every = load_suites(statuses=EVERY_STATUS)
+        results_dir = results_dir or RESULTS_DIR
+    known = known_task_ids(every, pool)
     out = results_dir / "leaderboard.json"
     with _results_errors():
         check_results_dir(results_dir)
     if check:
         with _results_errors():
-            problems = check_leaderboard(suites, out)
+            problems = check_leaderboard(suites, out, visibility=pool, known=known)
         for p in problems:
             console.print(f"  {p}", markup=False, soft_wrap=True)
         if problems:
@@ -878,5 +906,5 @@ def report(
         console.print(f"{out} is up to date", markup=False, soft_wrap=True)
         return
     with _results_errors():
-        write_leaderboard(suites, out)
+        write_leaderboard(suites, out, visibility=pool, known=known)
     console.print(f"wrote {out}", markup=False, soft_wrap=True)
