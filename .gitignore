@@ -9,9 +9,10 @@ __pycache__/
 .sf/
 .sfdx/
 node_modules/
-# Raw replies, reasoning included, stay local and are never published; cases.jsonl carries each
-# final answer.
-results/**/raw/
+# Raw replies (reasoning included) are published with the results; anything else under raw/
+# (locks, temp files) is not.
+results/**/raw/*
+!results/**/raw/generations.jsonl
 results/**/artifacts/
 dist/
 # per-run lock files, and temporary files of atomic writes a crash left behind
