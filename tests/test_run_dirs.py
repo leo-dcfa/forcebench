@@ -149,7 +149,10 @@ def _dry_run(target: str) -> list[str]:
     if not shutil.which("make"):
         pytest.skip("make not installed")
     out = subprocess.run(
-        ["make", "-n", "-C", str(REPO_ROOT), target], capture_output=True, text=True, check=True
+        ["make", "-n", "--no-print-directory", "-C", str(REPO_ROOT), target],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return out.stdout.splitlines()
 

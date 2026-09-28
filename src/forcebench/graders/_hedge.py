@@ -50,13 +50,16 @@ import unicodedata
 from typing import NamedTuple
 
 _LIMIT = 4000
+# Distinct values compared pairwise in one headline, so the check stays cheap on runaway input.
+_MAX_CANDIDATES = 64
 _DASHES = "\N{EM DASH}\N{EN DASH}-"
 _ALT_ASIDE_RE = re.compile(
     r"[(\[]\s*(?:or|either|maybe|possibly|perhaps|probably|alternatively)\b([^)\]]*)", re.I
 )
 _SEPARATOR_RE = re.compile(
     rf"\s[{_DASHES}]{{1,2}}\s(?!\d)|;|:\s"
-    r"|,?\s+(?:because|since|which|where|while|but|e\.g\.|i\.e\.)(?!\w)|,\s+as\b",
+    # starts only at a run of whitespace, which it never gives back: linear on long runs
+    r"|(?:,|(?<![\s,]))\s++(?:because|since|which|where|while|but|e\.g\.|i\.e\.)(?!\w)|,\s++as\b",
     re.I,
 )
 _CONCLUSION_RE = re.compile(
@@ -257,8 +260,12 @@ def hedge_reason(value: str, context: str = "", allow_range: bool = False) -> st
         if m is None:
             continue
         label = _label(seg, m)
+        if any(label == ol and _same(m, other) for other, ol in candidates):
+            continue  # the same value again: nothing new to compare against
         for other, other_label in candidates:
             if not _same(m, other) and _alternatives(label, other_label):
                 return "more than one number"
         candidates.append((m, label))
+        if len(candidates) >= _MAX_CANDIDATES:
+            break  # a headline with this many distinct values is not one answer anyway
     return None
