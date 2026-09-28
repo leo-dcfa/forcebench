@@ -119,7 +119,11 @@ Run directories are data, never code. Every command that takes one (`grade`, `ru
 `invalidate`) refuses a directory whose name is not a run id as the harness makes them
 (`<YYYYMMDDTHHMMSSZ>_<model id>@<effort>`, `RUN_ID_RE` in `src/forcebench/runner.py`) or that
 is a symbolic link, and `make regrade-all` lists `results/runs/` in Python (`forcebench grade
---all`), so a contributed run's directory name never reaches a shell.
+--all`), so a contributed run's directory name never reaches a shell. Nor may `results/` or
+`results/runs/` themselves be symbolic links: `run`, `grade`, `invalidate` and `report` refuse
+to start if either is one (`check_results_dir` in `src/forcebench/fsutil.py`), and since Docker
+follows a symbolic link in a mount's source, `make grade` and `make regrade-all` check on the host
+too before mounting `results/runs/` into the offline container.
 
 ## Grader orgs
 

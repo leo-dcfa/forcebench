@@ -40,6 +40,11 @@ OFFLINE = docker run --rm --network none \
 	-e PYTHONDONTWRITEBYTECODE=1 \
 	-e FORCEBENCH_LWC_OFFLINE=1
 OFFLINE_GRADE = $(OFFLINE) -v "$(CURDIR)/results/runs":/work/results/runs
+# Docker follows a symbolic link in a mount's source, so inside the offline container a
+# symlinked results/ or results/runs looks like a plain directory. forcebench refuses both
+# (fsutil.check_results_dir), and so do the offline grading passes, here on the host, first.
+RESULTS_NOT_LINKED = test ! -L "$(CURDIR)/results" && test ! -L "$(CURDIR)/results/runs" \
+	|| { echo "refusing: results/ or results/runs is a symbolic link (docs/sandbox.md)" >&2; exit 1; }
 
 TTY := $(shell [ -t 0 ] && echo -it)
 
@@ -75,6 +80,7 @@ run: ## forcebench run $(ARGS), in the sandbox
 
 grade: ## Grade a run: org and deterministic suites in the sandbox, LWC with no network at all
 	$(SANDBOX) $(IMAGE) uv run forcebench grade $(ARGS) --exclude-grader $(OFFLINE_GRADER)
+	@$(RESULTS_NOT_LINKED)
 	$(OFFLINE_GRADE) $(IMAGE) /opt/venv/bin/python -m forcebench grade $(ARGS) --grader $(OFFLINE_GRADER) --no-org
 
 validate: ## Oracle-check tasks: org and deterministic suites in the sandbox, LWC with no network
@@ -95,6 +101,7 @@ lint:
 # another forcebench process is writing (being generated) is skipped, not waited for.
 regrade-all: ## Re-grade every finished run (after task or grader fixes; no model calls)
 	$(SANDBOX) $(IMAGE) uv run forcebench grade --all --exclude-grader $(OFFLINE_GRADER)
+	@$(RESULTS_NOT_LINKED)
 	$(OFFLINE_GRADE) $(IMAGE) /opt/venv/bin/python -m forcebench grade --all --grader $(OFFLINE_GRADER) --no-org
 
 # Names are only ever quoted shell values here (never evaluated), and names that are not run

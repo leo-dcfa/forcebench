@@ -1,4 +1,4 @@
-"""Crash-safe file writes and advisory locks.
+"""Crash-safe file writes, advisory locks, and the results-directory symlink check.
 
 A run's ``cases.jsonl`` and ``run.json`` (and the leaderboard) are rewritten as a whole, and are
 read by other processes while that happens (``forcebench report``, the publisher). They are
@@ -11,6 +11,11 @@ cannot interleave their read-merge-write of ``cases.jsonl``. The lock is ``flock
 released when the process exits however it exits, and shared by every process on one kernel
 (two containers of one Docker VM, or two processes on one machine), not between the host and a
 container.
+
+The results tree is data (runs can be contributed), so none of the directories the harness
+reads runs from and writes them and the leaderboard to may be a symbolic link:
+:func:`check_results_dir` refuses ``results/`` or ``results/runs`` if either is one, as
+``runner.check_run_dir`` refuses a run directory, and its files, that is one.
 """
 
 from __future__ import annotations
@@ -24,7 +29,31 @@ import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
-__all__ = ["LockBusyError", "atomic_write_text", "exclusive_lock"]
+__all__ = [
+    "LockBusyError",
+    "ResultsDirError",
+    "atomic_write_text",
+    "check_results_dir",
+    "exclusive_lock",
+]
+
+
+class ResultsDirError(ValueError):
+    """The results directory, or its ``runs/``, is a symbolic link (see check_results_dir)."""
+
+
+def check_results_dir(results_dir: Path, runs_dir: Path | None = None) -> None:
+    """Refuse ``results_dir`` (``results/``) and ``runs_dir`` (default ``results_dir/runs``) if
+    either is a symbolic link: runs would be read and graded, and grades and the leaderboard
+    written, wherever it points. A missing directory is not refused (a new checkout)."""
+    runs_dir = results_dir / "runs" if runs_dir is None else runs_dir
+    links = [str(d) for d in (results_dir, runs_dir) if d.is_symlink()]
+    if links:
+        raise ResultsDirError(
+            f"refusing to read or write results: {' and '.join(links)} "
+            f"{'is a symbolic link' if len(links) == 1 else 'are symbolic links'}; results/ "
+            "and results/runs must be plain directories (docs/sandbox.md)"
+        )
 
 
 def _fsync_dir(directory: Path) -> None:

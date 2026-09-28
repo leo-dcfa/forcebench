@@ -44,7 +44,12 @@ from forcebench import (
 )
 from forcebench.answer_files import format_error, path_problem
 from forcebench.answers import SYSTEM_PROMPT, Answer, extract, render_prompt
-from forcebench.fsutil import LockBusyError, atomic_write_text, exclusive_lock
+from forcebench.fsutil import (
+    LockBusyError,
+    atomic_write_text,
+    check_results_dir,
+    exclusive_lock,
+)
 from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
@@ -263,6 +268,12 @@ def check_run_dir(run_dir: Path) -> None:
         raise RunDirError(f"refusing {str(run_dir)!r}: symbolic links in a run ({what})")
 
 
+def check_results() -> None:
+    """Refuse to generate, grade or invalidate while results/ or results/runs is a symbolic
+    link (fsutil.check_results_dir). Raises ResultsDirError."""
+    check_results_dir(RUNS_DIR.parent, RUNS_DIR)
+
+
 def gradable_runs(runs_dir: Path = RUNS_DIR) -> tuple[list[Path], list[str]]:
     """The finished runs ``grade --all`` re-grades, and why each other entry is left alone.
 
@@ -383,6 +394,7 @@ async def generate(
 
     The run is locked (``run_lock``) for the whole generation.
     """
+    check_results()
     if run_dir is None:
         if model_id is None:
             raise ValueError("a new run needs a model id")
@@ -541,6 +553,7 @@ def invalidate(
     """Mark stored answers to be regenerated on the next resume (appends; keeps history).
     ``keys`` may be a function of the stored records: it then chooses them under the run's lock,
     from the records as they are once no other command is writing the run."""
+    check_results()
     check_run_dir(run_dir)
     with run_lock(run_dir):
         raw = run_dir / "raw" / "generations.jsonl"
@@ -580,6 +593,7 @@ async def grade(
     holds the lock this waits for it, or with ``wait=False`` raises RunBusyError and grades
     nothing.
     """
+    check_results()
     check_run_dir(run_dir)
     with run_lock(run_dir, wait=wait):
         return await _grade(run_dir, tasks, env, concurrency, progress, select or TaskFilter())
