@@ -5,11 +5,15 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from forcebench.models import ModelConfig, Provider
+
+if TYPE_CHECKING:
+    from pydantic_ai import Agent, AgentRunResult
+    from pydantic_ai.messages import ModelResponse
 
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
@@ -89,12 +93,36 @@ def _retryable(e: Exception) -> bool:
     return "connection" in text or "overloaded" in text
 
 
+class _UnfinishedReplyError(Exception):
+    """The server ended a reply without saying why: it was cut off, not finished."""
+
+
+def _finished(resp: ModelResponse | None) -> bool:
+    """Whether the server finished the reply, i.e. reported a finish reason (stop, length,
+    content filter...). The raw reason counts too, for values pydantic-ai does not map."""
+    if resp is None:
+        return False
+    raw = (resp.provider_details or {}).get("finish_reason")
+    return resp.finish_reason is not None or bool(raw)
+
+
+def _endpoint_error(e: Exception | None) -> str:
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    what = f"{type(e).__name__}: {e}"
+    if isinstance(e, _UnfinishedReplyError | UnexpectedModelBehavior):
+        what = f"reply not finished by the server: {what}"
+    return what[:1000]
+
+
 class _Streamed:
     """What the model has streamed so far, per response part. A reply that fails still leaves a
     record of what the model wrote, e.g. the reasoning that used up the token budget."""
 
     def __init__(self) -> None:
         self.parts: dict[int, tuple[bool, list[str]]] = {}  # index -> (is_thinking, chunks)
+        # The last complete response, kept so a failed run can still tell how the reply ended.
+        self.response: ModelResponse | None = None
 
     async def collect(self, _ctx: Any, events: Any) -> None:
         from pydantic_ai.messages import (
@@ -145,6 +173,20 @@ class Client:
         self._model = _build_model(m, p, timeout)
         self._agent_cls = Agent
 
+    async def _run(self, agent: Agent[None, str], user: str, streamed: _Streamed) -> AgentRunResult:
+        """One model call. Driving the run node by node streams every model request through
+        `streamed` and keeps the last response, so a failure can be classified by how the
+        reply ended (its finish reason)."""
+        async with agent.iter(user, model_settings=self.settings) as run:
+            async for node in run:
+                if agent.is_model_request_node(node):
+                    async with node.stream(run.ctx) as events:
+                        await streamed.collect(run.ctx, events)
+                elif agent.is_call_tools_node(node):
+                    streamed.response = node.model_response
+            assert run.result is not None, "the agent run did not finish"
+            return run.result
+
     async def generate(self, system: str, user: str) -> Generation:
         from pydantic_ai.exceptions import UnexpectedModelBehavior
         from pydantic_ai.messages import ThinkingPart
@@ -157,9 +199,9 @@ class Client:
             t0 = time.monotonic()
             streamed = _Streamed()
             try:
-                r = await agent.run(
-                    user, model_settings=self.settings, event_stream_handler=streamed.collect
-                )
+                r = await self._run(agent, user, streamed)
+                if not _finished(r.response):
+                    raise _UnfinishedReplyError("the stream ended without a finish reason")
             except Exception as e:
                 last_err = e
                 elapsed = time.monotonic() - t0
@@ -171,8 +213,10 @@ class Client:
                         finish_reason="timeout", latency_s=elapsed, attempts=attempt,
                     )  # fmt: skip
                 # Only the model's own failures are scored as failed answers: it exhausted the
-                # token budget, or it returned no answer at all. What it wrote is kept.
-                if isinstance(e, UnexpectedModelBehavior):
+                # token budget, or it ended its reply without an answer. What it wrote is kept.
+                # A reply the server never finished (an empty stream, or one that stopped with no
+                # finish reason because the server died mid-answer) is the endpoint's failure.
+                if isinstance(e, UnexpectedModelBehavior) and _finished(streamed.response):
                     # The server stops at exactly max_tokens when the budget runs out.
                     budget = "token limit" in str(e)
                     return Generation(
@@ -184,11 +228,12 @@ class Client:
                         attempts=attempt,
                     )
                 # Anything else came from the endpoint (5xx, overload, out of memory, bad
-                # request...): retry with backoff, then leave the answer unscored for --resume.
+                # request, a dropped or unfinished stream...): start the answer again from
+                # scratch with backoff, then leave it unscored for --resume.
                 if attempt < self.retries:
                     await asyncio.sleep(min(30 * 2 ** (attempt - 1), 300))
                     continue
-                return Generation(error=f"{type(e).__name__}: {e}"[:1000], attempts=attempt)
+                return Generation(error=_endpoint_error(e), latency_s=elapsed, attempts=attempt)
             resp = r.response
             usage = r.usage
             reasoning = "\n".join(p.content for p in resp.parts if isinstance(p, ThinkingPart))
@@ -202,6 +247,4 @@ class Client:
                 latency_s=time.monotonic() - t0,
                 attempts=attempt,
             )
-        return Generation(
-            error=f"{type(last_err).__name__}: {last_err}"[:1000], attempts=self.retries
-        )
+        return Generation(error=_endpoint_error(last_err), attempts=self.retries)
