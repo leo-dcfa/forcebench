@@ -292,7 +292,7 @@ def test_only_the_offline_container_sets_the_lwc_marker():
 
 
 def test_grade_needs_only_the_offline_mounts(tmp_path):
-    """`forcebench grade --suite lwc --no-org` in the offline container's layout: /work holds
+    """`forcebench grade --grader lwc_jest --no-org` in the offline container's layout: /work holds
     only read-only src/ and suites/ and a writable results/ (no .env, orgs/, models/)."""
     work = tmp_path / "work"
     for name in ("src", "suites"):
@@ -325,8 +325,8 @@ def test_grade_needs_only_the_offline_mounts(tmp_path):
         )  # fmt: skip
         assert Path(where.stdout.strip()) == work
         done = subprocess.run(
-            [sys.executable, "-m", "forcebench", "grade", "results/runs/20260928T000000Z_m@low", "--suite", "lwc",
-             "--no-org"],
+            [sys.executable, "-m", "forcebench", "grade", "results/runs/20260928T000000Z_m@low", "--grader",
+             "lwc_jest", "--no-org"],
             cwd=work, env=env, capture_output=True, text=True, timeout=300, check=False,
         )  # fmt: skip
         assert done.returncode == 0, done.stderr[-2000:]

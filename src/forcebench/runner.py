@@ -49,7 +49,7 @@ from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
 from forcebench.models import ModelConfig, Registry
-from forcebench.tasks import AnswerFormat, Task
+from forcebench.tasks import AnswerFormat, Task, TaskFilter
 
 RUNS_DIR = RESULTS_DIR / "runs"
 # Held by every command that writes a run (generate, grade, invalidate): see run_lock().
@@ -568,21 +568,21 @@ async def grade(
     env: GradeEnv,
     concurrency: int = 16,
     progress: bool = True,
-    only_suites: set[str] | None = None,
-    exclude_suites: set[str] | None = None,
     *,
+    select: TaskFilter | None = None,
     wait: bool = True,
 ) -> Path:
     """Phase 2: grade stored answers (in the sandbox for org tasks). Safe to repeat.
 
-    With only_suites/exclude_suites, only those tasks are (re-)graded and merged into the
-    existing cases.jsonl, e.g. LWC in the offline container and everything else outside it.
-    The run is locked (``run_lock``) while it is graded; while another process holds the lock
-    this waits for it, or with ``wait=False`` raises RunBusyError and grades nothing.
+    With ``select``, only the tasks it keeps are (re-)graded and merged into the existing
+    cases.jsonl, e.g. LWC Jest tasks (by grader type) in the offline container and everything
+    else outside it. The run is locked (``run_lock``) while it is graded; while another process
+    holds the lock this waits for it, or with ``wait=False`` raises RunBusyError and grades
+    nothing.
     """
     check_run_dir(run_dir)
     with run_lock(run_dir, wait=wait):
-        return await _grade(run_dir, tasks, env, concurrency, progress, only_suites, exclude_suites)
+        return await _grade(run_dir, tasks, env, concurrency, progress, select or TaskFilter())
 
 
 async def _grade(
@@ -591,19 +591,12 @@ async def _grade(
     env: GradeEnv,
     concurrency: int,
     progress: bool,
-    only_suites: set[str] | None,
-    exclude_suites: set[str] | None,
+    select: TaskFilter,
 ) -> Path:
     store = GenerationStore(run_dir / "raw" / "generations.jsonl")
     meta = json.loads((run_dir / "run.json").read_text())
-    by_id = {
-        t.id: t
-        for t in tasks
-        if t.id in set(meta["task_ids"])
-        and (only_suites is None or t.suite in only_suites)
-        and (exclude_suites is None or t.suite not in exclude_suites)
-    }
-    merge = only_suites is not None or exclude_suites is not None
+    by_id = {t.id: t for t in tasks if t.id in set(meta["task_ids"]) and select.keeps(t)}
+    merge = bool(select)
 
     run_versions: dict[str, int] = meta.get("task_versions") or {}
 

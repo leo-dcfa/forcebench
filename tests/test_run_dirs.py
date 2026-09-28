@@ -219,8 +219,8 @@ def _dry_run(target: str) -> list[str]:
 def test_regrade_all_lists_runs_in_python_not_in_the_shell():
     lines = _dry_run("regrade-all")
     assert len(lines) == 2 and all(ln.startswith("docker run") for ln in lines)
-    assert "grade --all --exclude-suite lwc" in lines[0]
-    assert "--network none" in lines[1] and "grade --all --suite lwc --no-org" in lines[1]
+    assert "grade --all --exclude-grader lwc_jest" in lines[0]
+    assert "--network none" in lines[1] and "grade --all --grader lwc_jest --no-org" in lines[1]
     assert not any("results/runs" in ln for ln in lines)
 
 
