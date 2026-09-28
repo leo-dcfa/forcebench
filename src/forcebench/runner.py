@@ -438,7 +438,9 @@ async def grade(
 
     async def replay(key: str) -> CaseOutput:
         task_id, _, sample = key.partition("#")
-        gen = store.done.get(key) or Generation(error="no stored generation")
+        gen = store.done.get(key)
+        if gen is None:
+            return CaseOutput(task_id, int(sample), Generation(error="no stored generation"))
         return CaseOutput(
             task_id=task_id,
             sample=int(sample),
