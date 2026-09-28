@@ -1,7 +1,7 @@
 """Fail-closed safety checks from the external review (docs/sandbox.md).
 
 1. LWC answers (model-written JavaScript) run only in the offline grading container.
-2. That container sees only src/ and suites/ (read-only) and results/, never .env.
+2. That container sees only src/ and suites/ (read-only) and results/runs, never .env.
 3. The org setup scripts refuse outside the sandbox and against anything but a scratch org in
    the audited login store; the base wipe also needs a registered base grader org.
 4. Settings metadata in an answer is never deployed to the shared grader orgs.
@@ -242,11 +242,11 @@ def test_default_route_detection(tmp_path):
 # =============================================================================== 2. offline mounts
 
 
-def _make_dry_run() -> str:
+def _make_dry_run(target: str = "grade", args: str = "results/runs/x") -> str:
     if not shutil.which("make"):
         pytest.skip("make not installed")
     out = subprocess.run(
-        ["make", "-n", "-C", str(REPO_ROOT), "grade", "ARGS=results/runs/x"],
+        ["make", "-n", "-C", str(REPO_ROOT), target, f"ARGS={args}"],
         capture_output=True,
         text=True,
         check=True,
@@ -269,18 +269,24 @@ def _mounts(argv: list[str]) -> list[tuple[str, str, bool]]:
     return out
 
 
-def test_offline_container_mounts_only_code_tasks_and_results():
-    argv = _docker_line(_make_dry_run(), offline=True)
-    mounts = {dst: (src, ro) for src, dst, ro in _mounts(argv)}
+def test_offline_container_mounts_only_code_tasks_and_the_runs():
+    """Grading writes only into run directories: results/runs is the one writable mount, and
+    the rest of results/ (the leaderboard) is not mounted at all."""
     root = str(REPO_ROOT)
-    assert mounts == {
+    code_and_tasks = {
         "/work/src": (f"{root}/src", True),
         "/work/suites": (f"{root}/suites", True),
-        "/work/results": (f"{root}/results", False),
     }
-    assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
-    assert "FORCEBENCH_LWC_OFFLINE=1" in argv
-    assert not any(".env" in a for a in argv)
+    for dry in (_make_dry_run(), _make_dry_run("regrade-all")):
+        argv = _docker_line(dry, offline=True)
+        mounts = {dst: (src, ro) for src, dst, ro in _mounts(argv)}
+        assert mounts == {**code_and_tasks, "/work/results/runs": (f"{root}/results/runs", False)}
+        assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
+        assert "FORCEBENCH_LWC_OFFLINE=1" in argv
+        assert not any(".env" in a for a in argv)
+    # validate reads no results and writes none: nothing writable is mounted
+    argv = _docker_line(_make_dry_run("validate", ""), offline=True)
+    assert {dst: (src, ro) for src, dst, ro in _mounts(argv)} == code_and_tasks
 
 
 def test_only_the_offline_container_sets_the_lwc_marker():
@@ -291,24 +297,37 @@ def test_only_the_offline_container_sets_the_lwc_marker():
     assert "FORCEBENCH_LWC_OFFLINE" not in sandbox_block
 
 
-def test_grade_needs_only_the_offline_mounts(tmp_path):
-    """`forcebench grade --suite lwc --no-org` in the offline container's layout: /work holds
-    only read-only src/ and suites/ and a writable results/ (no .env, orgs/, models/)."""
+def _snapshot(root: Path) -> dict[str, bytes]:
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def test_grade_all_writes_only_into_the_run_directories(tmp_path):
+    """`forcebench grade --all --only-grader lwc_jest --no-org` in the offline container's layout:
+    /work holds only read-only src/ and suites/, and results/ with only runs/ writable (no .env,
+    orgs/, models/; the leaderboard read-only). It runs, and everything it writes is in the run
+    directory: its lock, cases.jsonl, run.json and artifacts/. That is why OFFLINE_GRADE mounts
+    results/runs, and nothing else, read-write."""
     work = tmp_path / "work"
     for name in ("src", "suites"):
         shutil.copytree(REPO_ROOT / name, work / name, ignore=shutil.ignore_patterns("__pycache__"))
     [task] = [t for t in all_tasks(load_suites(["lwc"]))][:1]
-    run = work / "results" / "runs" / "20260928T000000Z_m@low"
+    results = work / "results"
+    run = results / "runs" / "20260928T000000Z_m@low"
     (run / "raw").mkdir(parents=True)
     (run / "run.json").write_text(json.dumps({"task_ids": [task.id], "samples": 1}))
+    (run / "cases.jsonl").write_text("")  # graded before: grade --all re-grades finished runs
     gen = {"text": task.reference_output, "finish_reason": "stop"}
     (run / "raw" / "generations.jsonl").write_text(
         json.dumps({"key": f"{task.id}#0", "generation": gen}) + "\n"
     )
-    for name in ("src", "suites"):
-        for p in (work / name).rglob("*"):
-            p.chmod(0o555 if p.is_dir() else 0o444)
-        (work / name).chmod(0o555)
+    (results / "leaderboard.json").write_text("{}\n")
+    (results / "LEADERBOARD.md").write_text("# results\n")
+    read_only = [work / "src", work / "suites", results]
+    for d in read_only:
+        for p in d.rglob("*"):
+            if not p.is_relative_to(results / "runs"):
+                p.chmod(0o555 if p.is_dir() else 0o444)
+        d.chmod(0o555)
     env = {
         "PATH": os.environ["PATH"],
         "HOME": str(tmp_path / "home"),
@@ -318,6 +337,7 @@ def test_grade_needs_only_the_offline_mounts(tmp_path):
         "FORCEBENCH_LWC_OFFLINE": "1",
         "NO_COLOR": "1",
     }
+    before = _snapshot(work)
     try:
         where = subprocess.run(
             [sys.executable, "-c", "import forcebench; print(forcebench.REPO_ROOT)"],
@@ -325,18 +345,25 @@ def test_grade_needs_only_the_offline_mounts(tmp_path):
         )  # fmt: skip
         assert Path(where.stdout.strip()) == work
         done = subprocess.run(
-            [sys.executable, "-m", "forcebench", "grade", "results/runs/20260928T000000Z_m@low", "--suite", "lwc",
+            [sys.executable, "-m", "forcebench", "grade", "--all", "--only-grader", "lwc_jest",
              "--no-org"],
             cwd=work, env=env, capture_output=True, text=True, timeout=300, check=False,
         )  # fmt: skip
-        assert done.returncode == 0, done.stderr[-2000:]
+        assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-2000:]
         [case] = [json.loads(x) for x in (run / "cases.jsonl").read_text().splitlines()]
         # This machine is not the sandbox container: the answer is skipped, never run.
         assert case["task_id"] == task.id
         assert "not in the Forcebench sandbox container" in case["skipped"]
+        after = _snapshot(work)
+        written = {k for k in after.keys() | before.keys() if after.get(k) != before.get(k)}
+        in_run = str(run.relative_to(work))
+        assert all(k.startswith(f"{in_run}/") for k in written), sorted(written)
+        assert {k[len(in_run) + 1 :].split("/")[0] for k in written} == {
+            ".lock", "cases.jsonl", "run.json", "artifacts",
+        }  # fmt: skip
     finally:
-        for name in ("src", "suites"):
-            for p in [work / name, *(work / name).rglob("*")]:
+        for d in read_only:
+            for p in [d, *d.rglob("*")]:
                 p.chmod(p.stat().st_mode | stat.S_IWUSR)
 
 
@@ -407,6 +434,22 @@ def test_destructive_setup_needs_a_registered_or_provisioning_grader_org(sandbox
     assert org._load_pending() == {}
     org.check_setup_target("fb-grader-1", "base")
     assert sandbox == ["someone-scratch", "fb-grader-1", "fb-grader-1", "fb-grader-1"]
+
+
+def test_an_expired_pending_org_is_not_wiped_but_can_still_be_registered(sandbox, monkeypatch):
+    """A pending entry older than a day no longer makes its org a grader org for the base wipe;
+    `forcebench orgs register` still works (and clears it) once its setup is known to be done."""
+    start = org._now()
+    monkeypatch.setattr(org, "_now", lambda: start)
+    org._set_pending("fb-grader-1", "base")
+    org.check_setup_target("fb-grader-1", "base")
+    monkeypatch.setattr(org, "_now", lambda: start + org.PENDING_TTL + dt.timedelta(minutes=1))
+    with pytest.raises(OrgError, match="usable for 24 hours only") as refused:
+        org.check_setup_target("fb-grader-1", "base")
+    assert "forcebench orgs register base fb-grader-1" in str(refused.value)
+    org.register("base", "fb-grader-1")
+    assert org._load_pending() == {} and org.load_registry() == {"base": ["fb-grader-1"]}
+    org.check_setup_target("fb-grader-1", "base")
 
 
 def test_module_entry_point(sandbox, capsys):

@@ -14,16 +14,16 @@ Run layout (``results/runs/<run_id>/``):
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime as dt
 import errno
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -37,17 +37,23 @@ from forcebench import (
     GENERATION_PROTOCOL,
     REPO_ROOT,
     RESULTS_DIR,
+    RUN_ID_RE,
     __version__,
     run_protocol,
 )
 from forcebench.answer_files import format_error, path_problem
 from forcebench.answers import SYSTEM_PROMPT, Answer, extract, render_prompt
-from forcebench.fsutil import atomic_write_text, exclusive_lock
+from forcebench.fsutil import (
+    LockBusyError,
+    atomic_write_text,
+    check_results_dir,
+    exclusive_lock,
+)
 from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
 from forcebench.models import ModelConfig, Registry
-from forcebench.tasks import AnswerFormat, Task
+from forcebench.tasks import AnswerFormat, Task, TaskFilter
 
 RUNS_DIR = RESULTS_DIR / "runs"
 # Held by every command that writes a run (generate, grade, invalidate): see run_lock().
@@ -223,12 +229,6 @@ def _stale(out: CaseOutput, task: Task) -> bool:
     return out.task_version is not None and out.task_version != task.version
 
 
-# A run directory is named by run_id_for: <UTC start time>_<model id>@<effort>. Every command
-# that takes a run directory refuses any other name (check_run_dir), so the name of a directory
-# someone else contributed is only ever data: it can never carry shell syntax or a path.
-RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*")
-
-
 class RunDirError(ValueError):
     """Not a run directory Forcebench works on (see check_run_dir)."""
 
@@ -259,6 +259,12 @@ def check_run_dir(run_dir: Path) -> None:
     if links:
         what = ", ".join(e or "the directory itself" for e in links)
         raise RunDirError(f"refusing {str(run_dir)!r}: symbolic links in a run ({what})")
+
+
+def check_results() -> None:
+    """Refuse to generate, grade or invalidate while results/ or results/runs is a symbolic
+    link (fsutil.check_results_dir). Raises ResultsDirError."""
+    check_results_dir(RUNS_DIR.parent, RUNS_DIR)
 
 
 def gradable_runs(runs_dir: Path = RUNS_DIR) -> tuple[list[Path], list[str]]:
@@ -308,15 +314,33 @@ def write_run(run_dir: Path, meta: dict[str, Any]) -> None:
     atomic_write_text(run_dir / "run.json", json.dumps(meta, indent=2) + "\n")
 
 
-def run_lock(run_dir: Path):
+class RunBusyError(RuntimeError):
+    """Another forcebench process holds the run's lock (it is being generated, graded or
+    invalidated), and the caller asked not to wait for it."""
+
+
+@contextlib.contextmanager
+def run_lock(run_dir: Path, *, wait: bool = True) -> Iterator[None]:
     """An exclusive lock on a run, held while a command writes it (generating, grading,
     invalidating), so two processes never interleave their writes of its files. A second
-    command on the same run waits for the first to finish. Readers (``report``) take no lock:
-    run.json and cases.jsonl are only ever replaced atomically. The run directory must exist."""
-    return exclusive_lock(
-        run_dir / LOCK_FILE,
-        waiting=f"waiting for another forcebench process working on {run_dir.name} to finish",
-    )
+    command on the same run waits for the first to finish, or with ``wait=False`` raises
+    RunBusyError without touching the run. Readers (``report``) take no lock: run.json and
+    cases.jsonl are only ever replaced atomically. The run directory must exist."""
+    with contextlib.ExitStack() as stack:
+        try:
+            stack.enter_context(
+                exclusive_lock(
+                    run_dir / LOCK_FILE,
+                    waiting=f"waiting for another forcebench process working on {run_dir.name} "
+                    "to finish",
+                    wait=wait,
+                )
+            )
+        except LockBusyError:
+            raise RunBusyError(
+                f"{run_dir.name} is being generated (or graded) by another forcebench process"
+            ) from None
+        yield
 
 
 def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any]) -> None:
@@ -363,6 +387,7 @@ async def generate(
 
     The run is locked (``run_lock``) for the whole generation.
     """
+    check_results()
     if run_dir is None:
         if model_id is None:
             raise ValueError("a new run needs a model id")
@@ -521,6 +546,7 @@ def invalidate(
     """Mark stored answers to be regenerated on the next resume (appends; keeps history).
     ``keys`` may be a function of the stored records: it then chooses them under the run's lock,
     from the records as they are once no other command is writing the run."""
+    check_results()
     check_run_dir(run_dir)
     with run_lock(run_dir):
         raw = run_dir / "raw" / "generations.jsonl"
@@ -548,18 +574,22 @@ async def grade(
     env: GradeEnv,
     concurrency: int = 16,
     progress: bool = True,
-    only_suites: set[str] | None = None,
-    exclude_suites: set[str] | None = None,
+    *,
+    select: TaskFilter | None = None,
+    wait: bool = True,
 ) -> Path:
     """Phase 2: grade stored answers (in the sandbox for org tasks). Safe to repeat.
 
-    With only_suites/exclude_suites, only those tasks are (re-)graded and merged into the
-    existing cases.jsonl, e.g. LWC in the offline container and everything else outside it.
-    The run is locked (``run_lock``) while it is graded.
+    With ``select``, only the tasks it keeps are (re-)graded and merged into the existing
+    cases.jsonl, e.g. LWC Jest tasks (by grader type) in the offline container and everything
+    else outside it. The run is locked (``run_lock``) while it is graded; while another process
+    holds the lock this waits for it, or with ``wait=False`` raises RunBusyError and grades
+    nothing.
     """
+    check_results()
     check_run_dir(run_dir)
-    with run_lock(run_dir):
-        return await _grade(run_dir, tasks, env, concurrency, progress, only_suites, exclude_suites)
+    with run_lock(run_dir, wait=wait):
+        return await _grade(run_dir, tasks, env, concurrency, progress, select or TaskFilter())
 
 
 async def _grade(
@@ -568,19 +598,12 @@ async def _grade(
     env: GradeEnv,
     concurrency: int,
     progress: bool,
-    only_suites: set[str] | None,
-    exclude_suites: set[str] | None,
+    select: TaskFilter,
 ) -> Path:
     store = GenerationStore(run_dir / "raw" / "generations.jsonl")
     meta = json.loads((run_dir / "run.json").read_text())
-    by_id = {
-        t.id: t
-        for t in tasks
-        if t.id in set(meta["task_ids"])
-        and (only_suites is None or t.suite in only_suites)
-        and (exclude_suites is None or t.suite not in exclude_suites)
-    }
-    merge = only_suites is not None or exclude_suites is not None
+    by_id = {t.id: t for t in tasks if t.id in set(meta["task_ids"]) and select.keeps(t)}
+    merge = bool(select)
 
     run_versions: dict[str, int] = meta.get("task_versions") or {}
 

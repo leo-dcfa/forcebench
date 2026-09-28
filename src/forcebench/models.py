@@ -21,7 +21,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from forcebench import MODELS_DIR, REPO_ROOT
 
-EffortTier = Literal["off", "low", "medium", "high", "max"]
+# The common scale effort labels map to, for comparing models: "off", then the graded levels
+# low < medium < high < max. "on" is the tier of a plain thinking switch (efforts "off" and "on"
+# only) switched on: thinking at the model's own default depth, which no request set, so it is
+# not a level on the graded scale (docs/methodology.md, section 4).
+EffortTier = Literal["off", "on", "low", "medium", "high", "max"]
+THINKING_SWITCH = frozenset({"off", "on"})
 
 
 class Provider(BaseModel):
@@ -75,6 +80,18 @@ class ModelConfig(BaseModel):
         missing = set(self.efforts) - set(self.effort_tiers)
         if missing:
             raise ValueError(f"{self.id}: effort_tiers missing {sorted(missing)}")
+        switch = set(self.efforts) <= THINKING_SWITCH
+        for label, tier in self.effort_tiers.items():
+            if tier == "on" and not (switch and label == "on"):
+                raise ValueError(
+                    f"{self.id}: tier 'on' is for the 'on' of a plain thinking switch (efforts "
+                    "'off' and 'on' only); map graded effort levels to low, medium, high or max"
+                )
+            if switch and label == "on" and tier != "on":
+                raise ValueError(
+                    f"{self.id}: a thinking switch is not an effort level: map 'on' to tier 'on', "
+                    f"not {tier!r}"
+                )
         # The effort is part of the run id and so of a directory name (runner.RUN_ID_RE).
         bad = sorted(e for e in self.efforts if not _EFFORT_RE.fullmatch(e))
         if bad:

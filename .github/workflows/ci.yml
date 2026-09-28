@@ -47,6 +47,11 @@ jobs:
         run: git ls-files 'src/*.py' 'tests/*.py' | grep -vxF "$PYRIGHT_BASELINE" | xargs uvx pyright@1.1.414
       - name: Unit tests
         run: uv run pytest -q
+      - name: Leaderboard is up to date
+        # results/leaderboard.json and LEADERBOARD.md must be what `forcebench report` builds
+        # from the committed runs and tasks (apart from generated_at): a change to the report,
+        # a task or a run must come with the rebuilt leaderboard.
+        run: uv run forcebench report --check
       - name: Oracle-validate tasks that need no org
         # Tasks that need a scratch org are reported as skipped here; a maintainer
         # validates them against grader orgs before merging.

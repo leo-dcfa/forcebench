@@ -1,5 +1,6 @@
 """The org lock: sf never runs outside the sandbox, and inside it only against scratch orgs."""
 
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -177,6 +178,91 @@ def test_create_and_register_run_while_the_devhub_is_logged_in(provisioning, mon
     org.register("plain", "fb-grader-1")  # the explicit register command
     with pytest.raises(OrgError, match="a Dev Hub is logged in"):
         check_command(DEPLOY)  # nothing is left allowed once they return
+
+
+# --------------------------------------------------------------------------- pending orgs expire
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """org._now, moved forward by setting clock["later"] (a timedelta)."""
+    start = org._now()
+    state = {"later": dt.timedelta(0)}
+    monkeypatch.setattr(org, "_now", lambda: start + state["later"])
+    return state
+
+
+def test_a_pending_entry_records_when_it_was_made(sandbox, clock):
+    org._set_pending("fb-new", "base")
+    [p] = org.pending_orgs()
+    assert (p.alias, p.profile, p.created) == ("fb-new", "base", org._now().replace(microsecond=0))
+    assert not p.expired()
+    assert json.loads(org.PENDING.read_text())["fb-new"]["created"].endswith("+00:00")
+
+
+def test_a_pending_entry_expires_after_a_day(provisioning, clock):
+    """An orgs create whose setup failed or was abandoned must not leave its org usable with
+    the Dev Hub logged in (or wipeable as a grader org) for good."""
+    display = ("org", "display", "--target-org", "fb-new")
+    org._set_pending("fb-new", "base")
+    clock["later"] = dt.timedelta(hours=23, minutes=59)
+    check_command(display)
+    assert org.is_grader_org("fb-new", "base")
+    clock["later"] = dt.timedelta(hours=24, minutes=1)
+    with pytest.raises(OrgError, match="a Dev Hub is logged in"):
+        check_command(display)
+    assert not org.is_grader_org("fb-new", "base")
+    [p] = org.pending_orgs()
+    assert p.expired(), "it stays listed, as expired"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "base",  # the format before creation times were recorded
+        {"profile": "base"},
+        {"profile": "base", "created": "yesterday"},
+        {"profile": "base", "created": "2026-09-28T10:00:00"},  # no time zone
+        {"profile": "base", "created": "2999-01-01T00:00:00+00:00"},  # far in the future
+    ],
+    ids=["old-format", "no-time", "unreadable", "naive", "future"],
+)
+def test_a_pending_entry_of_unknown_age_is_expired(provisioning, entry):
+    org.PENDING.parent.mkdir(parents=True, exist_ok=True)
+    org.PENDING.write_text(json.dumps({"fb-new": entry}))
+    [p] = org.pending_orgs()
+    assert (p.alias, p.profile) == ("fb-new", "base") and p.expired()
+    with pytest.raises(OrgError, match="a Dev Hub is logged in"):
+        check_command(("org", "display", "--target-org", "fb-new"))
+
+
+def test_orgs_list_shows_pending_and_expired_entries(sandbox, clock):
+    from typer.testing import CliRunner
+
+    from forcebench.cli import app
+
+    org._set_pending("fb-old", "base")
+    clock["later"] = dt.timedelta(days=2)
+    org._set_pending("fb-new", "npsp")
+    result = CliRunner().invoke(app, ["orgs", "list"])
+    assert result.exit_code == 0, result.output
+    out = " ".join(result.output.split())
+    assert "pending: fb-new (npsp), being set up by orgs create since" in out
+    assert "expired: fb-old (base), pending since" in out
+    assert "no longer used" in out and "forcebench orgs register base fb-old" in out
+
+
+def test_orgs_list_shows_pending_entries_even_while_a_devhub_is_logged_in(provisioning):
+    """Pending entries exist while provisioning, when listing the registered orgs refuses."""
+    from typer.testing import CliRunner
+
+    from forcebench.cli import app
+
+    org._set_pending("fb-new", "base")
+    result = CliRunner().invoke(app, ["orgs", "list"])
+    assert result.exit_code == 1
+    out = " ".join(result.output.split())
+    assert "pending: fb-new (base)" in out and "a Dev Hub is logged in to the sandbox" in out
 
 
 def test_create_refuses_names_that_are_not_plain(provisioning):
