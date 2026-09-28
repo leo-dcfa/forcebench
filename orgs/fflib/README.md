@@ -33,8 +33,9 @@ to this directory.
 uv run forcebench orgs create fflib fb-fflib-1 --dev-hub <dev-hub-alias>
 
 # or an existing Forcebench scratch org (every fflib class is fflib_-prefixed, so the
-# libraries can share an org with another profile such as `taf`)
-FB_ORG=<scratch-alias> bash orgs/fflib/setup.sh
+# libraries can share an org with another profile such as `taf`), in the sandbox
+# (make sandbox-shell): setup.sh refuses anywhere else (../guard.sh)
+FB_ORG=<scratch-alias> uv run bash orgs/fflib/setup.sh
 uv run forcebench orgs register fflib <scratch-alias>
 ```
 

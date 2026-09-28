@@ -6,14 +6,12 @@
 set -euo pipefail
 
 : "${FB_ORG:?FB_ORG must name the target scratch org alias}"
+# Safety: inside the sandbox only, and only against a scratch org in its audited login store
+# (see ../guard.sh), before any sf command.
+# shellcheck source=SCRIPTDIR/../guard.sh
+. "$(dirname "$0")/../guard.sh"
+fb_guard "$FB_ORG"
 cd "$(dirname "$0")"
-
-# Safety: refuse to touch anything that is not a scratch org.
-display=$(sf org display --target-org "$FB_ORG" --json 2>/dev/null || true)
-if ! printf '%s' "$display" | grep -Eq '"isScratch"[[:space:]]*:[[:space:]]*true|"devHubId"[[:space:]]*:[[:space:]]*"[^"]+"|"instanceUrl"[[:space:]]*:[[:space:]]*"[^"]*\.scratch\.'; then
-  echo "refusing to run: $FB_ORG is not a scratch org" >&2
-  exit 1
-fi
 
 # name|04t package version id, in dependency order.
 DEPENDENCIES=(
