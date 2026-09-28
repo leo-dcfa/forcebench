@@ -107,7 +107,7 @@ regrade-all: ## Re-grade every finished run (after task or grader fixes; no mode
 
 # Names are only ever quoted shell values here (never evaluated), and names that are not run
 # ids are skipped.
-bundle: ## Zip each run's full replies and artifacts into dist/runs/ for a GitHub release
+bundle: ## Zip each run's full replies and artifacts into dist/runs/ (a private archive: reasoning is never published)
 	@mkdir -p dist/runs
 	@for d in results/runs/*/; do n=$$(basename -- "$$d"); \
 	  case "$$n" in *[!A-Za-z0-9._@-]*) n=;; esac; \
