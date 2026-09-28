@@ -8,8 +8,7 @@ finished work, and grading can be redone later (`forcebench grade`) without call
 Run layout (``results/runs/<run_id>/``):
     run.json          configuration, versions, totals
     cases.jsonl       one line per (task, sample): answer, grade, tokens, latency
-    raw/generations.jsonl   full replies including reasoning (not committed; published as a
-                            release asset)
+    raw/generations.jsonl   full replies including reasoning (committed with the results)
 """
 
 from __future__ import annotations
