@@ -39,6 +39,7 @@ from forcebench import (
     run_protocol,
 )
 from forcebench.answers import SYSTEM_PROMPT, Answer, extract, render_prompt
+from forcebench.fsutil import atomic_write_text, exclusive_lock
 from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
@@ -46,6 +47,8 @@ from forcebench.models import ModelConfig, Registry
 from forcebench.tasks import AnswerFormat, Task
 
 RUNS_DIR = RESULTS_DIR / "runs"
+# Held by every command that writes a run (generate, grade, invalidate): see run_lock().
+LOCK_FILE = ".lock"
 
 
 def _git_sha() -> str | None:
@@ -236,6 +239,23 @@ def read_run(run_dir: Path) -> dict[str, Any]:
     return json.loads(path.read_text()) if path.exists() else {}
 
 
+def write_run(run_dir: Path, meta: dict[str, Any]) -> None:
+    """Replace a run's run.json atomically: readers never see a half-written file."""
+    atomic_write_text(run_dir / "run.json", json.dumps(meta, indent=2) + "\n")
+
+
+def run_lock(run_dir: Path):
+    """An exclusive lock on a run, held while a command writes it (generating, grading,
+    invalidating), so two processes never interleave their writes of its files. A second
+    command on the same run waits for the first to finish. Readers (``report``) take no lock:
+    run.json and cases.jsonl are only ever replaced atomically."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return exclusive_lock(
+        run_dir / LOCK_FILE,
+        waiting=f"waiting for another forcebench process working on {run_dir.name} to finish",
+    )
+
+
 def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any]) -> None:
     """Refuse to resume a run with settings other than those it was started with: its stored
     answers would be published under the new settings (e.g. low-effort answers as xhigh)."""
@@ -277,10 +297,37 @@ async def generate(
     A ``run_dir`` that already has a run.json is resumed with the settings it was started with:
     model, effort, subset, samples and request fields left out (None) come from run.json, and
     any given must match it, as must the system prompt (ResumeError otherwise).
+
+    The run is locked (``run_lock``) for the whole generation.
     """
-    started = read_run(run_dir) if run_dir else {}
-    raw = run_dir / "raw" / "generations.jsonl" if run_dir else None
-    if run_dir and not started and raw and raw.exists() and raw.stat().st_size:
+    if run_dir is None:
+        if model_id is None:
+            raise ValueError("a new run needs a model id")
+        m = registry.get(model_id)
+        run_dir = RUNS_DIR / run_id_for(m, effort or m.default_effort)
+    with run_lock(run_dir):
+        return await _generate(
+            registry, model_id, effort, tasks,
+            samples=samples, concurrency=concurrency, run_dir=run_dir, subset=subset,
+            progress=progress,
+        )  # fmt: skip
+
+
+async def _generate(
+    registry: Registry,
+    model_id: str | None,
+    effort: str | None,
+    tasks: list[Task],
+    *,
+    samples: int | None,
+    concurrency: int,
+    run_dir: Path,
+    subset: str | None,
+    progress: bool,
+) -> Path:
+    started = read_run(run_dir)
+    raw = run_dir / "raw" / "generations.jsonl"
+    if not started and raw.exists() and raw.stat().st_size:
         raise ResumeError(
             f"cannot resume {run_dir.name}: it has stored answers but no run.json, so the "
             "settings they were generated with are unknown"
@@ -296,7 +343,7 @@ async def generate(
     effort = effort or m.default_effort
     samples = samples if samples is not None else 1
     subset = subset or "full"
-    if started and run_dir is not None:
+    if started:
         asked = {"model": m.id, "effort": effort, "subset": subset, "samples": samples}
         asked |= {"protocol": GENERATION_PROTOCOL}
         if "system_prompt_sha" in started:
@@ -305,13 +352,10 @@ async def generate(
         # Compared once the effort is known to match: an effort the model lacks has no request.
         request = json.loads(json.dumps(recorded_request(m, effort)))  # as stored in run.json
         _check_resume(run_dir, started, {"request": request})
-    run_dir = run_dir or RUNS_DIR / run_id_for(m, effort)
-    run_dir.mkdir(parents=True, exist_ok=True)
     store = GenerationStore(run_dir / "raw" / "generations.jsonl")
     client = Client(m, registry.provider_for(m), effort)
     by_id = {t.id: t for t in tasks}
 
-    meta_path = run_dir / "run.json"
     meta: dict[str, Any] = dict(started)
     # Task versions as the run recorded them before this session: older answers carry no version
     # of their own. A task that joins the run later adds its current version; a task that changed
@@ -346,7 +390,7 @@ async def generate(
             "started_at": meta.get("started_at") or dt.datetime.now(dt.UTC).isoformat(),
         }
     )
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+    write_run(run_dir, meta)
 
     async def solve(key: str) -> CaseOutput:
         task_id, _, sample = key.partition("#")
@@ -378,7 +422,7 @@ async def generate(
     keys = [case_key(t, s) for t in meta["task_ids"] for s in range(samples)]
     meta["generated_at"] = dt.datetime.now(dt.UTC).isoformat()
     meta["generation_pending"] = sum(k not in store.done for k in keys)
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+    write_run(run_dir, meta)
     return run_dir
 
 
@@ -406,20 +450,21 @@ async def run(
 
 def invalidate(run_dir: Path, keys: list[str], reason: str) -> int:
     """Mark stored answers to be regenerated on the next resume (appends; keeps history)."""
-    store = GenerationStore(run_dir / "raw" / "generations.jsonl")
-    marks = [
-        {
-            "key": key,
-            "generation": Generation(
-                error=f"invalidated: {reason}", latency_s=store.done[key].latency_s
-            ).model_dump(),
-        }
-        for key in keys
-        if key in store.done
-    ]
-    if marks:
-        store.append(marks)
-    return len(marks)
+    with run_lock(run_dir):
+        store = GenerationStore(run_dir / "raw" / "generations.jsonl")
+        marks = [
+            {
+                "key": key,
+                "generation": Generation(
+                    error=f"invalidated: {reason}", latency_s=store.done[key].latency_s
+                ).model_dump(),
+            }
+            for key in keys
+            if key in store.done
+        ]
+        if marks:
+            store.append(marks)
+        return len(marks)
 
 
 async def grade(
@@ -435,7 +480,21 @@ async def grade(
 
     With only_suites/exclude_suites, only those tasks are (re-)graded and merged into the
     existing cases.jsonl, e.g. LWC in the offline container and everything else outside it.
+    The run is locked (``run_lock``) while it is graded.
     """
+    with run_lock(run_dir):
+        return await _grade(run_dir, tasks, env, concurrency, progress, only_suites, exclude_suites)
+
+
+async def _grade(
+    run_dir: Path,
+    tasks: list[Task],
+    env: GradeEnv,
+    concurrency: int,
+    progress: bool,
+    only_suites: set[str] | None,
+    exclude_suites: set[str] | None,
+) -> Path:
     store = GenerationStore(run_dir / "raw" / "generations.jsonl")
     meta = json.loads((run_dir / "run.json").read_text())
     by_id = {
@@ -465,11 +524,11 @@ async def grade(
     await _evaluate(
         run_dir, list(by_id.values()), meta["samples"], env, replay, concurrency, progress, merge
     )
-    meta = json.loads((run_dir / "run.json").read_text())  # a concurrent pass may have written it
+    meta = read_run(run_dir)
     meta["graded_at"] = dt.datetime.now(dt.UTC).isoformat()
     if env.orgs:
         meta["grader_orgs"] = {k: len(v) for k, v in env.orgs.items()}
-    (run_dir / "run.json").write_text(json.dumps(meta, indent=2) + "\n")
+    write_run(run_dir, meta)
     return run_dir
 
 
@@ -610,6 +669,5 @@ async def _evaluate(run_dir, tasks, samples, env, fn, concurrency, progress, mer
             for x in cases_path.read_text().splitlines()
             if x.strip() and json.loads(x)["task_id"] not in graded
         ]
-    with cases_path.open("w") as f:
-        for line in sorted(lines, key=lambda x: (x["suite"], x["task_id"], x["sample"])):
-            f.write(json.dumps(line) + "\n")
+    ordered = sorted(lines, key=lambda x: (x["suite"], x["task_id"], x["sample"]))
+    atomic_write_text(cases_path, "".join(json.dumps(line) + "\n" for line in ordered))

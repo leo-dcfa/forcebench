@@ -12,3 +12,6 @@ node_modules/
 results/**/raw/
 results/**/artifacts/
 dist/
+# per-run lock files, and temporary files of atomic writes a crash left behind
+results/**/.lock
+results/**/.*.tmp
