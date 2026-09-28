@@ -200,3 +200,49 @@ async def test_connection_dropped_mid_stream_is_retried_and_counted(monkeypatch,
     gen, requests = await _generate(monkeypatch, _Drop(answer[:120]), answer, retries=4)
     assert (gen.error, gen.text) == (None, "Answer: B")
     assert (gen.attempts, requests) == (2, 2), "the retry is recorded, not hidden"
+
+
+def _google_config(**overrides: Any):
+    from forcebench.models import ModelConfig, Provider
+
+    m = ModelConfig.model_validate(
+        {
+            "id": "gemini-test",
+            "provider": "google",
+            "endpoint_model": "gemini-test",
+            "display": "Gemini test",
+            "family": "Gemini",
+            "base_model": "Gemini",
+            "quant": "API",
+            "engine": "Google",
+            "open_weights": False,
+            "local": False,
+            "sampling": {"temperature": 1.0},
+            "default_effort": "default",
+            "efforts": {"default": {}},
+            "effort_tiers": {"default": "medium"},
+            **overrides,
+        }
+    )
+    return m, Provider(kind="google", api_key_env="GEMINI_API_KEY")
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"sampling": {"temperature": 1.0, "top_k": 64}},
+        {"efforts": {"default": {"reasoning_effort": "high"}}},
+    ],
+)
+def test_google_config_with_extra_body_fails_loudly(monkeypatch, overrides):
+    """pydantic-ai's Google model has no extra_body: such settings must not be dropped silently."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    m, p = _google_config(**overrides)
+    with pytest.raises(ValueError, match="Google provider cannot send extra request-body"):
+        Client(m, p, "default")
+
+
+def test_google_config_without_extra_body_builds(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    m, p = _google_config()
+    assert "extra_body" not in Client(m, p, "default").settings
