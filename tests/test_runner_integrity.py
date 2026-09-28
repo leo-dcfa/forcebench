@@ -8,6 +8,9 @@ import pytest
 from forcebench.llm import Generation
 from forcebench.runner import CorruptStoreError, GenerationStore, invalidate, read_records
 
+# A run directory name as runner.run_id_for makes them (commands refuse any other name).
+RUN = "20260928T000000Z_qwen3.8-27b-awq-int4@low"
+
 
 def _line(key: str, **gen) -> str:
     return json.dumps({"key": key, "generation": Generation(**gen).model_dump()}) + "\n"
@@ -15,7 +18,7 @@ def _line(key: str, **gen) -> str:
 
 @pytest.fixture
 def raw(tmp_path):
-    path = tmp_path / "run" / "raw" / "generations.jsonl"
+    path = tmp_path / RUN / "raw" / "generations.jsonl"
     path.parent.mkdir(parents=True)
     return path
 
@@ -143,7 +146,7 @@ def test_generation_records_the_task_version_and_prompt(model, make_task, tmp_pa
     from forcebench.answers import render_prompt
     from forcebench.runner import _sha
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (rec,) = read_records(run_dir / "raw" / "generations.jsonl")
     assert rec["task_version"] == 1
     assert rec["prompt_sha"] == _sha(render_prompt(_task(make_task)))
@@ -155,7 +158,7 @@ def test_generation_records_the_task_version_and_prompt(model, make_task, tmp_pa
 def test_answer_to_an_older_task_version_is_not_graded_against_the_new_one(
     model, make_task, tmp_path
 ):
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (case,) = _grade(run_dir, [_task(make_task, version=2)])
     assert case["stale"] and "stale" in case["skipped"]
     assert case["task_version"] == 1, "the answer's own version, which the report leaves out"
@@ -163,7 +166,7 @@ def test_answer_to_an_older_task_version_is_not_graded_against_the_new_one(
 
 
 def test_older_records_fall_back_to_the_run_task_versions(model, make_task, tmp_path):
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     raw = run_dir / "raw" / "generations.jsonl"
     (rec,) = read_records(raw)
     raw.write_text(json.dumps({"key": rec["key"], "generation": rec["generation"]}) + "\n")
@@ -174,7 +177,7 @@ def test_older_records_fall_back_to_the_run_task_versions(model, make_task, tmp_
 
 
 def test_resume_regenerates_answers_to_an_older_task_version(model, make_task, tmp_path):
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     _generate(model, run_dir, [_task(make_task)])
     assert len(model.prompts) == 1, "a current answer is reused"
     _generate(model, run_dir, [_task(make_task, version=2)])
@@ -187,7 +190,7 @@ def test_resume_regenerates_answers_to_an_older_task_version(model, make_task, t
 
 def test_cases_publish_how_many_attempts_each_answer_took(model, make_task, tmp_path):
     model.reply = Generation(text="Answer: x", finish_reason="stop", attempts=3)
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (case,) = _grade(run_dir, [_task(make_task)])
     assert (case["passed"], case["attempts"]) == (True, 3)
 
@@ -202,13 +205,13 @@ def _meta(run_dir):
 def test_new_run_records_the_generation_protocol(model, make_task, tmp_path):
     from forcebench import GENERATION_PROTOCOL, run_protocol
 
-    meta = _meta(_generate(model, tmp_path / "run", [_task(make_task)]))
+    meta = _meta(_generate(model, tmp_path / RUN, [_task(make_task)]))
     assert meta["protocol"] == GENERATION_PROTOCOL == run_protocol(meta)
     assert (meta["request"]["stream"], meta["request"]["sdk_retries"]) == (True, 0)
 
 
 def test_resume_takes_omitted_settings_from_the_run(model, make_task, tmp_path):
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)], samples=2, subset="lite")
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], samples=2, subset="lite")
     before = _meta(run_dir)
     _generate(model, run_dir, [_task(make_task)], model_id=None, effort=None)
     after = _meta(run_dir)
@@ -230,7 +233,7 @@ def test_resume_takes_omitted_settings_from_the_run(model, make_task, tmp_path):
 def test_resume_refuses_other_settings(model, make_task, tmp_path, change):
     from forcebench.runner import ResumeError
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     before = (run_dir / "run.json").read_text()
     with pytest.raises(ResumeError, match="cannot resume"):
         _generate(model, run_dir, [_task(make_task)], **change)
@@ -241,7 +244,7 @@ def test_resume_refuses_other_settings(model, make_task, tmp_path, change):
 def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
     from forcebench.runner import ResumeError
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     meta["request"]["temperature"] = 0.2  # e.g. the model's sampling config changed since
     (run_dir / "run.json").write_text(json.dumps(meta))
@@ -252,7 +255,7 @@ def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
 def test_resume_refuses_a_changed_system_prompt(model, make_task, tmp_path):
     from forcebench.runner import ResumeError
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     meta["system_prompt_sha"] = "0123456789ab"  # the run was started with another prompt
     (run_dir / "run.json").write_text(json.dumps(meta))
@@ -261,7 +264,7 @@ def test_resume_refuses_a_changed_system_prompt(model, make_task, tmp_path):
 
 
 def test_resume_regenerates_an_answer_to_another_prompt(model, make_task, tmp_path):
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     raw = run_dir / "raw" / "generations.jsonl"
     (rec,) = read_records(raw)
     raw.write_text(json.dumps({**rec, "prompt_sha": "0123456789ab"}) + "\n")
@@ -272,7 +275,7 @@ def test_resume_regenerates_an_answer_to_another_prompt(model, make_task, tmp_pa
 def test_answers_without_run_json_are_not_resumed(model, make_task, tmp_path):
     from forcebench.runner import ResumeError
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (run_dir / "run.json").unlink()
     with pytest.raises(ResumeError, match=r"no run\.json"):
         _generate(model, run_dir, [_task(make_task)], effort="xhigh")
@@ -282,7 +285,7 @@ def test_answers_without_run_json_are_not_resumed(model, make_task, tmp_path):
 def test_resume_refuses_a_run_from_an_older_protocol(model, make_task, tmp_path):
     from forcebench.runner import ResumeError
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     del meta["protocol"], meta["request"]["stream"], meta["request"]["sdk_retries"]
     (run_dir / "run.json").write_text(json.dumps(meta))
@@ -292,7 +295,7 @@ def test_resume_refuses_a_run_from_an_older_protocol(model, make_task, tmp_path)
 
 def test_resume_with_fewer_tasks_keeps_the_others(model, make_task, tmp_path):
     a, b = _task(make_task), make_task({"format": "text"}, id="other-task")
-    run_dir = _generate(model, tmp_path / "run", [a, b])
+    run_dir = _generate(model, tmp_path / RUN, [a, b])
     _generate(model, run_dir, [a])
     assert _meta(run_dir)["task_ids"] == ["other-task", "test-task"]
 
@@ -302,7 +305,7 @@ def test_cli_resume_with_another_effort_fails_clearly(model, make_task, tmp_path
 
     from forcebench.cli import app
 
-    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     result = CliRunner().invoke(app, ["run", "--resume", str(run_dir), "-e", "xhigh", "--no-grade"])
     assert result.exit_code == 1
     assert "cannot resume" in result.output and "'low'" in result.output

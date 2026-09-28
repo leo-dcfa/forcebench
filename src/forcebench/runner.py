@@ -19,6 +19,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import warnings
@@ -220,9 +221,62 @@ def _stale(out: CaseOutput, task: Task) -> bool:
     return out.task_version is not None and out.task_version != task.version
 
 
+# A run directory is named by run_id_for: <UTC start time>_<model id>@<effort>. Every command
+# that takes a run directory refuses any other name (check_run_dir), so the name of a directory
+# someone else contributed is only ever data: it can never carry shell syntax or a path.
+RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*")
+
+
+class RunDirError(ValueError):
+    """Not a run directory Forcebench works on (see check_run_dir)."""
+
+
 def run_id_for(m: ModelConfig, effort: str) -> str:
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    return f"{stamp}_{m.id}@{effort}"
+    run_id = f"{stamp}_{m.id}@{effort}"
+    if not RUN_ID_RE.fullmatch(run_id):  # model ids and effort names are validated on load
+        raise RunDirError(f"cannot name a run {run_id!r}: not a valid run id")
+    return run_id
+
+
+def check_run_dir(run_dir: Path) -> None:
+    """Refuse a run directory whose name is not a run id (``RUN_ID_RE``, as run_id_for makes
+    them), or that is a symbolic link (its files would be written wherever it points)."""
+    if not RUN_ID_RE.fullmatch(run_dir.name):
+        raise RunDirError(
+            f"refusing {str(run_dir)[:300]!r}: not a Forcebench run directory (the name must be "
+            "a run id, <YYYYMMDDTHHMMSSZ>_<model id>@<effort>)"
+        )
+    if run_dir.is_symlink():
+        raise RunDirError(f"refusing {str(run_dir)!r}: a run directory may not be a symlink")
+
+
+def gradable_runs(runs_dir: Path = RUNS_DIR) -> tuple[list[Path], list[str]]:
+    """The finished runs ``grade --all`` re-grades, and why each other entry is left alone.
+
+    A finished run has run.json, cases.jsonl (it was graded before) and its stored answers
+    (raw/generations.jsonl, which is not committed: grading a run without it would replace every
+    result with "no stored generation"). Entries that are not run directories are refused, by
+    the same rule as every other command (check_run_dir).
+    """
+    runs: list[Path] = []
+    skipped: list[str] = []
+    for d in sorted(runs_dir.iterdir()) if runs_dir.is_dir() else []:
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        try:
+            check_run_dir(d)
+        except RunDirError as e:
+            skipped.append(str(e))
+            continue
+        missing = [
+            f for f in ("run.json", "cases.jsonl", "raw/generations.jsonl") if not (d / f).is_file()
+        ]
+        if missing:
+            skipped.append(f"skipping {d.name}: no {', '.join(missing)}")
+            continue
+        runs.append(d)
+    return runs, skipped
 
 
 def _sha(text: str) -> str:
@@ -305,6 +359,7 @@ async def generate(
             raise ValueError("a new run needs a model id")
         m = registry.get(model_id)
         run_dir = RUNS_DIR / run_id_for(m, effort or m.default_effort)
+    check_run_dir(run_dir)
     with run_lock(run_dir):
         return await _generate(
             registry, model_id, effort, tasks,
@@ -450,6 +505,7 @@ async def run(
 
 def invalidate(run_dir: Path, keys: list[str], reason: str) -> int:
     """Mark stored answers to be regenerated on the next resume (appends; keeps history)."""
+    check_run_dir(run_dir)
     with run_lock(run_dir):
         store = GenerationStore(run_dir / "raw" / "generations.jsonl")
         marks = [
@@ -482,6 +538,7 @@ async def grade(
     existing cases.jsonl, e.g. LWC in the offline container and everything else outside it.
     The run is locked (``run_lock``) while it is graded.
     """
+    check_run_dir(run_dir)
     with run_lock(run_dir):
         return await _grade(run_dir, tasks, env, concurrency, progress, only_suites, exclude_suites)
 
