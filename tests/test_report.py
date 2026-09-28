@@ -40,11 +40,11 @@ V2_ENTRY = {
     "config_id", "subset", "model", "model_family", "base_model", "quant", "engine", "effort",
     "effort_tier", "open_weights", "local", "overall", "suites", "per_task", "tokens", "outcomes",
     "no_answer_rate", "latency_s_mean", "samples", "pending", "date", "complete", "runs",
-    "progress", "legacy", "rank",
+    "progress", "legacy", "rank", "stale",
 }  # fmt: skip
 V2_UNSCORED = {
     "config_id", "subset", "model", "quant", "engine", "effort", "effort_tier", "progress",
-    "pending", "legacy", "runs",
+    "pending", "legacy", "stale", "runs",
 }  # fmt: skip
 NO_SCORE = {"score": None, "ci_low": None, "ci_high": None}
 
@@ -219,6 +219,44 @@ def test_a_stale_sample_is_pending_until_regenerated(make_task, suites):
     e = build_entry([(_meta(), cases)], suites)
     assert (e["complete"], e["pending"], e["samples"]) == (False, 1, 4)
     assert e["suites"]["a"]["complete"] is False
+
+
+def test_stale_answers_are_listed_by_run_with_the_command_that_clears_them(
+    make_task, suites, tmp_path
+):
+    """Only resuming the run that holds a stale answer regenerates it, so the leaderboard's
+    pending notes give that command per entry (and per run, when several hold some)."""
+    suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
+    stale = {"task_version": 1, "stale": True, "skipped": "stale: ..."}
+    _write_run(tmp_path, _meta("r1"), [_case("a-1", **stale), _case("b-0"), _case("b-1")])
+    _write_run(tmp_path, _meta("r2"), [_case("a-0"), _case("a-1", sample=1, **stale)])
+    _write_run(tmp_path, _meta("r3", config_id="n@low"), _all())
+    data = build_leaderboard(suites, tmp_path)
+    m = next(e for e in data["entries"] if e["config_id"] == "m@low")
+    assert (m["stale"], m["pending"]) == ({"r1": 1, "r2": 1}, 2)
+    assert next(e for e in data["entries"] if e["config_id"] == "n@low")["stale"] == {}
+    md = render_markdown(data)
+    [note] = [line for line in md.splitlines() if line.startswith("- M Q (E), effort low")]
+    assert note.endswith(
+        "2 stale answers: `forcebench run --resume results/runs/r1` (1), "
+        "`forcebench run --resume results/runs/r2` (1)"
+    )
+    assert "regenerated only by resuming the run that holds them" in md
+
+
+def test_no_pending_notes_without_stale_answers(tmp_path, suites):
+    _write_run(tmp_path, _meta("r1"), _all())
+    md = render_markdown(build_leaderboard(suites, tmp_path))
+    assert "stale" not in md and "--resume" not in md
+
+
+def test_stale_answers_of_a_legacy_run_are_legacy(make_task, suites):
+    """A protocol-1 run cannot be resumed (a resume never mixes protocols): its stale answers
+    are legacy, replaced by a new run, and get no resume command."""
+    suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
+    stale = _case("a-1", task_version=1, stale=True, skipped="stale: ...")
+    e = build_entry([(_meta("r1", protocol=1), [stale])], suites)
+    assert (e["stale"], e["legacy"]) == ({}, 1)
 
 
 # --------------------------------------------------------------------------- protocols
@@ -399,11 +437,16 @@ def test_fixture_ranks_complete_entries_only():
     assert c["overall_complete_suites"]["score"] == 1.0
     assert c["overall_complete_suites"]["suites"] == ["alpha"]
     assert c["suites"]["beta"]["complete"] is False and c["pending"] == 1  # a stale answer
+    assert c["stale"] == {"20260928T030000Z_model-c@medium": 1}
     assert [u["config_id"] for u in data["unscored"]] == ["model-e@on"]  # legacy only
     assert data["unscored"][0]["effort_tier"] == "on", "a thinking switch, recorded as max"
     md = (FIXTURE / "results" / "LEADERBOARD.md").read_text()
     row = next(line for line in md.splitlines() if "| Model C |" in line)
     assert row.startswith("| — |") and "| — | partial (1/2 suites complete) |" in row
+    assert (
+        "- Model C Q4 (vLLM), effort medium, full set: 1 stale answer: "
+        "`forcebench run --resume results/runs/20260928T030000Z_model-c@medium`"
+    ) in md.splitlines()
 
 
 # --------------------------------------------------------------------------- report --check

@@ -2,7 +2,7 @@
  "schema_version": 2,
  "benchmark": "forcebench",
  "version": "0.1.0",
- "generated_at": "2026-09-28T05:18:32+00:00",
+ "generated_at": "2026-09-28T05:20:07+00:00",
  "tasks_sha": "c10a24639c5413e0",
  "suites": [
   {
@@ -110,6 +110,7 @@
     "suites_total": 2
    },
    "legacy": 0,
+   "stale": {},
    "rank": 1
   },
   {
@@ -175,6 +176,7 @@
     "suites_total": 2
    },
    "legacy": 0,
+   "stale": {},
    "rank": 2
   },
   {
@@ -240,6 +242,7 @@
     "suites_total": 2
    },
    "legacy": 0,
+   "stale": {},
    "rank": 2
   },
   {
@@ -305,6 +308,9 @@
     "suites_total": 2
    },
    "legacy": 0,
+   "stale": {
+    "20260928T030000Z_model-c@medium": 1
+   },
    "overall_complete_suites": {
     "score": 1.0,
     "ci_low": 1.0,
@@ -378,6 +384,7 @@
     "suites_total": 2
    },
    "legacy": 0,
+   "stale": {},
    "overall_complete_suites": {
     "score": 1.0,
     "ci_low": 1.0,
@@ -406,6 +413,7 @@
    },
    "pending": 4,
    "legacy": 4,
+   "stale": {},
    "runs": [
     "20260928T050000Z_model-e@on"
    ]
