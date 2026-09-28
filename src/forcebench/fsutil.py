@@ -78,7 +78,7 @@ def exclusive_lock(path: Path, waiting: str | None = None) -> Iterator[None]:
     key = os.path.realpath(path)
     if key in _held:
         raise RuntimeError(f"this process already holds the lock {path}")
-    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o644)
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
