@@ -165,3 +165,126 @@ def test_resume_regenerates_answers_to_an_older_task_version(model, make_task, t
     assert json.loads((run_dir / "run.json").read_text())["task_versions"] == {"test-task": 1}
     (case,) = _grade(run_dir, [_task(make_task, version=2)])
     assert (case["stale"], case["task_version"], case["passed"]) == (False, 2, True)
+
+
+# --------------------------------------------------------------------------- resume
+
+
+def _meta(run_dir):
+    return json.loads((run_dir / "run.json").read_text())
+
+
+def test_new_run_records_the_generation_protocol(model, make_task, tmp_path):
+    from forcebench import GENERATION_PROTOCOL, run_protocol
+
+    meta = _meta(_generate(model, tmp_path / "run", [_task(make_task)]))
+    assert meta["protocol"] == GENERATION_PROTOCOL == run_protocol(meta)
+    assert (meta["request"]["stream"], meta["request"]["sdk_retries"]) == (True, 0)
+
+
+def test_resume_takes_omitted_settings_from_the_run(model, make_task, tmp_path):
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)], samples=2, subset="lite")
+    before = _meta(run_dir)
+    _generate(model, run_dir, [_task(make_task)], model_id=None, effort=None)
+    after = _meta(run_dir)
+    assert len(model.prompts) == 2, "nothing is regenerated"
+    for k in ("config_id", "effort", "samples", "subset", "request", "started_at"):
+        assert after[k] == before[k]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"effort": "xhigh"},
+        {"samples": 3},
+        {"subset": "lite"},
+        {"model_id": "qwen3.8-27b-mlx-4bit"},
+    ],
+    ids=lambda c: next(iter(c)),
+)
+def test_resume_refuses_other_settings(model, make_task, tmp_path, change):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    before = (run_dir / "run.json").read_text()
+    with pytest.raises(ResumeError, match="cannot resume"):
+        _generate(model, run_dir, [_task(make_task)], **change)
+    assert len(model.prompts) == 1, "no answer is generated or relabelled"
+    assert (run_dir / "run.json").read_text() == before
+
+
+def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    meta = _meta(run_dir)
+    meta["request"]["temperature"] = 0.2  # e.g. the model's sampling config changed since
+    (run_dir / "run.json").write_text(json.dumps(meta))
+    with pytest.raises(ResumeError, match="request"):
+        _generate(model, run_dir, [_task(make_task)])
+
+
+def test_resume_refuses_a_run_from_an_older_protocol(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    meta = _meta(run_dir)
+    del meta["protocol"], meta["request"]["stream"], meta["request"]["sdk_retries"]
+    (run_dir / "run.json").write_text(json.dumps(meta))
+    with pytest.raises(ResumeError, match="protocol 1"):
+        _generate(model, run_dir, [_task(make_task)])
+
+
+def test_resume_with_fewer_tasks_keeps_the_others(model, make_task, tmp_path):
+    a, b = _task(make_task), make_task({"format": "text"}, id="other-task")
+    run_dir = _generate(model, tmp_path / "run", [a, b])
+    _generate(model, run_dir, [a])
+    assert _meta(run_dir)["task_ids"] == ["other-task", "test-task"]
+
+
+def test_cli_resume_with_another_effort_fails_clearly(model, make_task, tmp_path):
+    from typer.testing import CliRunner
+
+    from forcebench.cli import app
+
+    run_dir = _generate(model, tmp_path / "run", [_task(make_task)])
+    result = CliRunner().invoke(app, ["run", "--resume", str(run_dir), "-e", "xhigh", "--no-grade"])
+    assert result.exit_code == 1
+    assert "cannot resume" in result.output and "'low'" in result.output
+    assert len(model.prompts) == 1
+
+
+@pytest.mark.parametrize(
+    ("meta", "protocol"),
+    [
+        ({"protocol": 2}, 2),
+        ({"request": {"max_tokens": 1}}, 1),  # before streaming
+        (
+            {
+                "request": {"stream": True, "sdk_retries": 0},
+                "started_at": "2026-09-27T00:00:00+00:00",
+            },
+            1,
+        ),
+        (
+            {  # started before protocol 2 existed, then resumed: run.json was rewritten
+                "request": {"stream": True, "sdk_retries": 0},
+                "provider": "mtplx",
+                "started_at": "2026-09-26T19:29:33.656074+00:00",
+            },
+            1,
+        ),
+        (
+            {
+                "request": {"stream": True, "sdk_retries": 0},
+                "provider": "direct-gpu",
+                "started_at": "2026-09-26T21:47:13.1+00:00",
+            },
+            2,
+        ),
+    ],
+)
+def test_protocol_of_runs_from_before_it_was_recorded(meta, protocol):
+    from forcebench import run_protocol
+
+    assert run_protocol(meta) == protocol

@@ -77,6 +77,12 @@ def _settings(m: ModelConfig, effort: str) -> dict[str, Any]:
     return settings
 
 
+def recorded_request(m: ModelConfig, effort: str) -> dict[str, Any]:
+    """The request as a run records it (run.json ``request``): the model settings sent, and
+    how they are sent (streamed, SDK retries off; see Client)."""
+    return {**_settings(m, effort), "stream": True, "sdk_retries": 0}
+
+
 def _retryable(e: Exception) -> bool:
     """Endpoint failures worth retrying. Timeouts are never retried (see Client.generate)."""
     name = type(e).__name__
