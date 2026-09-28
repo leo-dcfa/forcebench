@@ -1,0 +1,4 @@
+id: alpha
+name: Alpha
+description: Report fixture suite alpha.
+grading: deterministic
