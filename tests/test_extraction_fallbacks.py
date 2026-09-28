@@ -63,9 +63,10 @@ def test_choice_fallbacks(five, reply, expected):
 @pytest.mark.parametrize(
     "reply",
     [
-        # articles and pronouns are never options, in the value or in the fallbacks
+        # articles and pronouns are never options in the fallbacks, nor the pronoun `I` that
+        # leads an `Answer:` value
         "Answer: I think a production org needs it",
-        "Answer: A production org needs it",
+        "Answer: I believe the answer depends on the org",
         "I think the answer depends on the org.",
         "A production org would need this.",
         "The correct answer is a matter of taste.",
@@ -135,6 +136,37 @@ def test_pronoun_after_a_real_option_is_dropped(nine):
 )
 def test_option_a_before_a_verb_or_preposition_is_an_option(nine, value):
     assert extract(nine, f"Answer: {value}").choices == ["A"]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # the format asks for the letter first: a leading capital letter that is an option is
+        # the option, whatever word follows it
+        ("A requires a Dev Hub and a namespace", ["A"]),
+        ("A production org needs it", ["A"]),
+        ("A creates the package version", ["A"]),
+        ("A, C require a Dev Hub", ["A", "C"]),
+        ("C and A both apply", ["A", "C"]),
+        ("I requires the Dev Hub", ["I"]),
+        ("I needs no Dev Hub", ["I"]),
+        # the pronoun `I`, and nothing after it
+        ("I think B", []),
+        ("I would pick B", []),
+        ("I believe C is right", []),
+        ("I guess D", []),
+        ("I am fairly sure it is B", []),
+        ("I'd go with B", []),
+        ("I'm going with B", []),
+        ("I chose B", []),
+        ("A, I think", ["A"]),
+        ("B, I would say", ["B"]),
+    ],
+)
+def test_a_leading_capital_letter_is_the_option(nine, value, expected):
+    a = extract(nine, f"Some reasoning.\n\nAnswer: {value}")
+    assert a.choices == expected
+    assert (a.error is None) == bool(expected)
 
 
 def test_text_answer_on_the_next_line_and_final_answer(make_task):
