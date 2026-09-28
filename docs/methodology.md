@@ -209,7 +209,9 @@ with every run).
 - `suites/prompt-hashes.json` records each task's version and the hash of the prompt the model
   sees (the same hash stored with every answer). A test in CI fails when a task's prompt no
   longer matches it while its version is unchanged; `forcebench tasks --write-manifest`
-  regenerates it and refuses to record such a change.
+  regenerates it and refuses to record such a change or a version that goes down. A removed
+  task keeps its entry, marked removed, so its id cannot come back with another prompt under
+  a version it already had.
 - Adding or removing a suite bumps the benchmark version.
 
 ## 9. Known limitations
