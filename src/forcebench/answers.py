@@ -424,8 +424,11 @@ def _parse_http(block: str) -> list[HttpRequest]:
     reqs = []
     for chunk in re.split(r"^\s*###.*$", block, flags=re.M):
         lines = chunk.strip("\n").splitlines()
-        while lines and (not lines[0].strip() or _HTTP_COMMENT_RE.match(lines[0])):
-            lines.pop(0)
+        first = next(
+            (i for i, ln in enumerate(lines) if ln.strip() and not _HTTP_COMMENT_RE.match(ln)),
+            len(lines),
+        )
+        lines = lines[first:]
         if not lines:
             continue
         m = re.match(r"^\s*([A-Z]+)\s+(\S+)(?:\s+HTTP/[\d.]+)?\s*$", lines[0])
