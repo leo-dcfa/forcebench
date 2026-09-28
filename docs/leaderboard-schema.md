@@ -47,7 +47,7 @@ One per configuration (`config_id` = `<model id>@<effort>`) and task set (`subse
 | `no_answer_rate`, `latency_s_mean` | number | |
 | `samples` | int | graded answers |
 | `date` | string | date of the latest run |
-| `runs` | list | run ids, oldest first |
+| `runs` | list | run ids, oldest first. A run id is always `<YYYYMMDDTHHMMSSZ>_<model id>@<effort>` (`RUN_ID_RE`) and its run's directory name: the report refuses any other |
 
 **Order.** Full set before lite; in each, complete entries by `overall.score` (best first), then
 partial entries by `progress.suites_complete` (most first); ties by `config_id`.
