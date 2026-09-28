@@ -81,12 +81,15 @@ def build_entry(runs: list[Run], suites: list[Suite]) -> dict[str, Any]:
     keep = load_subset(subset)
     current = {t.id: t for s in suites for t in s.tasks if keep is None or t.id in keep}
     # Answers to the current version of a current task, with their run's generation protocol.
+    # Answers to tasks removed or changed since the run are left out, except that grading marks
+    # an answer to an older version as stale (it is skipped): it stays, as pending, until it is
+    # regenerated, so a task with some samples regenerated is not complete on those alone.
     answers = [
         (run_protocol(meta), c)
         for meta, cases in runs
         for c in cases
-        # Tasks removed or changed since the run are left out.
-        if (t := current.get(c["task_id"])) is not None and c.get("task_version", 1) == t.version
+        if (t := current.get(c["task_id"])) is not None
+        and (c.get("task_version", 1) == t.version or c.get("stale"))
     ]
     # Answers are never merged across generation protocols. An answer (task, sample) that was
     # regenerated with the current protocol replaces the old one; an old answer that was not is

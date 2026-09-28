@@ -140,12 +140,26 @@ def test_entry_without_a_complete_suite_is_not_scored(suites):
 
 def test_answers_to_older_task_versions_are_left_out(make_task, suites):
     suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
-    stale = _case("a-1", task_version=1, stale=True, skipped="stale: ...")
-    e = build_entry([(_meta(), [_case("a-0"), stale, _case("b-0"), _case("b-1")])], suites)
+    old = _case("a-1", task_version=1)  # graded before the task changed
+    e = build_entry([(_meta(), [_case("a-0"), old, _case("b-0"), _case("b-1")])], suites)
     assert "a-1" not in e["per_task"]
     assert (e["complete"], e["pending"], e["progress"]["suites_complete"]) == (False, 0, 1)
+    stale = _case("a-1", task_version=1, stale=True, skipped="stale: ...")  # graded since
+    e = build_entry([(_meta(), [_case("a-0"), stale, _case("b-0"), _case("b-1")])], suites)
+    assert "a-1" not in e["per_task"]
+    assert (e["complete"], e["pending"], e["progress"]["suites_complete"]) == (False, 1, 1)
     e = build_entry([(_meta(), [*_all()[:1], _case("a-1", task_version=2), *_all()[2:]])], suites)
     assert e["complete"]
+
+
+def test_a_stale_sample_is_pending_until_regenerated(make_task, suites):
+    # Two samples; a-1 changed to version 2 and only sample 0 has been regenerated so far.
+    suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
+    stale = _case("a-1", sample=1, task_version=1, stale=True, skipped="stale: ...")
+    cases = [*_all()[:1], _case("a-1", task_version=2), stale, *_all()[2:]]
+    e = build_entry([(_meta(), cases)], suites)
+    assert (e["complete"], e["pending"], e["samples"]) == (False, 1, 4)
+    assert e["suites"]["a"]["complete"] is False
 
 
 # --------------------------------------------------------------------------- protocols
