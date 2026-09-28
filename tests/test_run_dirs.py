@@ -48,7 +48,7 @@ def test_a_symlinked_run_directory_is_refused(tmp_path):
     target = tmp_path / "elsewhere"
     target.mkdir()
     (tmp_path / GOOD).symlink_to(target)
-    with pytest.raises(RunDirError, match="symlink"):
+    with pytest.raises(RunDirError, match="symbolic links in a run \\(the directory itself\\)"):
         check_run_dir(tmp_path / GOOD)
 
 
@@ -99,7 +99,7 @@ def test_gradable_runs_skips_what_is_not_a_finished_run(tmp_path):
     assert len(skipped) == 4
     assert sum("not a Forcebench run directory" in s for s in skipped) == 2
     assert any("no raw/generations.jsonl" in s for s in skipped)
-    assert any("symlink" in s for s in skipped)
+    assert any("symbolic links in a run" in s for s in skipped)
 
 
 def test_grade_all_grades_run_directories_and_leaves_the_rest_alone(

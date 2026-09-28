@@ -334,21 +334,25 @@ def run(
     # rewritten, and a resume with --suite/--task would otherwise drop the others' results.
     _, all_tasks = select_tasks(None, None, tasks_dir, subset or started.get("subset", "full"))
     env = make_env(use_orgs=not no_org) if grade else None
-    for e in efforts:
-        try:
-            run_dir = asyncio.run(
-                do_generate(
-                    reg, model, e, tasks,
-                    samples=samples, concurrency=concurrency, run_dir=resume, subset=subset,
-                )
+
+    # Every effort in one event loop: the grading environment's per-org semaphores (and the
+    # graders' own asyncio locks) belong to the loop they were first used in.
+    async def run_all() -> None:
+        for e in efforts:
+            run_dir = await do_generate(
+                reg, model, e, tasks,
+                samples=samples, concurrency=concurrency, run_dir=resume, subset=subset,
             )  # fmt: skip
-        except (ResumeError, RunDirError) as err:
-            console.print(str(err), style="red", markup=False, soft_wrap=True)
-            raise typer.Exit(1) from None
-        console.print(f"generated {run_dir}")
-        if grade and env is not None:
-            asyncio.run(do_grade(run_dir, all_tasks, env))
-            _print_run_summary(run_dir)
+            console.print(f"generated {run_dir}")
+            if grade and env is not None:
+                await do_grade(run_dir, all_tasks, env)
+                _print_run_summary(run_dir)
+
+    try:
+        asyncio.run(run_all())
+    except (ResumeError, RunDirError) as err:
+        console.print(str(err), style="red", markup=False, soft_wrap=True)
+        raise typer.Exit(1) from None
 
 
 def _check_run_dir(run_dir: Path) -> None:
@@ -396,15 +400,20 @@ def grade_cmd(
             console.print(why, style="yellow", markup=False, soft_wrap=True)
     _, tasks = select_tasks(None, None, tasks_dir)
     env = make_env(use_orgs=not no_org)
-    for d in run_dirs:
-        asyncio.run(
-            do_grade(
+
+    # All runs in one event loop: the grading environment's per-org semaphores (and the
+    # graders' own asyncio locks) belong to the loop they were first used in, and would raise
+    # in a second one, failing answers.
+    async def grade_all() -> None:
+        for d in run_dirs:
+            await do_grade(
                 d, tasks, env,
                 only_suites=set(suite) if suite else None,
                 exclude_suites=set(exclude_suite) if exclude_suite else None,
-            )
-        )  # fmt: skip
-        _print_run_summary(d)
+            )  # fmt: skip
+            _print_run_summary(d)
+
+    asyncio.run(grade_all())
 
 
 @app.command()
@@ -425,22 +434,27 @@ def invalidate(
 ) -> None:
     """Mark stored answers to be regenerated on the next `run --resume` (history is kept)."""
     from forcebench.runner import invalidate as do_invalidate
-    from forcebench.runner import read_records
 
     _check_run_dir(run_dir)
-    keys = []
-    for rec in read_records(run_dir / "raw" / "generations.jsonl"):
-        gen = rec["generation"]
-        if task and rec["key"].split("#")[0] not in set(task):
-            continue
-        if min_latency is not None and gen.get("latency_s", 0) < min_latency:
-            continue
-        if endpoint_errors:
-            fr = str(gen.get("finish_reason") or "")
-            if not fr.startswith("error:") or fr.startswith("error: UnexpectedModelBehavior"):
+
+    def select(records: list[dict]) -> list[str]:
+        keys = []
+        for rec in records:
+            gen = rec["generation"]
+            if task and rec["key"].split("#")[0] not in set(task):
                 continue
-        keys.append(rec["key"])
-    n = do_invalidate(run_dir, sorted(set(keys)), reason)
+            if min_latency is not None and gen.get("latency_s", 0) < min_latency:
+                continue
+            if endpoint_errors:
+                fr = str(gen.get("finish_reason") or "")
+                if not fr.startswith("error:") or fr.startswith("error: UnexpectedModelBehavior"):
+                    continue
+            keys.append(rec["key"])
+        return sorted(set(keys))
+
+    # The answers are chosen under the run's lock: a resume running meanwhile may have replaced
+    # them by the time the lock is free.
+    n = do_invalidate(run_dir, select, reason)
     console.print(f"marked {n} answers in {run_dir.name} for regeneration")
 
 
