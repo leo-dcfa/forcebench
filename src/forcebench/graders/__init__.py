@@ -20,6 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from forcebench.answer_files import AnswerPathError, format_error
 from forcebench.answers import Answer
 from forcebench.org import OrgError
 from forcebench.tasks import Task
@@ -151,28 +152,34 @@ class TaskError(ValueError):
 
 
 # Exceptions that mean grading failed for reasons other than the answer: task authoring errors,
-# the org and the sf CLI (OrgError), child processes, timeouts and lost connections.
+# the org and the sf CLI (OrgError), child processes, and the operating system (OSError: a
+# missing sf or node, too many open files, a full disk, a permission error; timeouts and lost
+# connections are OSErrors too). An answer cannot cause an OSError: its file paths are checked
+# before anything is written (forcebench.answer_files).
 INFRA_ERRORS: tuple[type[Exception], ...] = (
     TaskError,
     OrgError,
     subprocess.SubprocessError,
-    TimeoutError,
-    ConnectionError,
+    OSError,
 )
 
 
 async def grade(task: Task, answer: Answer, env: GradeEnv) -> Grade:
-    """Grade an extracted answer. Extraction failures fail without calling the grader.
+    """Grade an extracted answer. An answer that is not in the required format (extraction
+    failed, or a file path that cannot be written) fails its "format" check without calling
+    the grader.
 
     A grader exception in ``INFRA_ERRORS`` is an infra error (retried, excluded from scores).
     Anything else was raised while processing the answer's content, so the answer fails: a
     malformed answer must not drop out of the denominator.
     """
-    if answer.error:
-        return Grade.fail("format", answer.error)
+    if problem := format_error(answer):
+        return Grade.fail("format", problem)
     fn = get_grader(task.grader.type)
     try:
         return await fn(task, answer, env)
+    except AnswerPathError as e:  # the answer's paths clash with the task's own files
+        return Grade.fail("format", str(e))
     except Exception as e:
         what = f"{type(e).__name__}: {e}"
         if isinstance(e, INFRA_ERRORS):

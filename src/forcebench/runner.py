@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import errno
 import hashlib
 import json
 import os
@@ -39,6 +40,7 @@ from forcebench import (
     __version__,
     run_protocol,
 )
+from forcebench.answer_files import format_error, path_problem
 from forcebench.answers import SYSTEM_PROMPT, Answer, extract, render_prompt
 from forcebench.fsutil import atomic_write_text, exclusive_lock
 from forcebench.graders import Grade, GradeEnv
@@ -599,12 +601,27 @@ _ANSWER_FILE = {
 }
 
 
-def _safe_path(path: str) -> PurePosixPath | None:
-    """A model-supplied path, confined to its case folder (None if it tries to escape)."""
-    p = PurePosixPath(path.strip().removeprefix("./"))
-    if p.is_absolute() or not p.parts or any(part in ("..", "") for part in p.parts):
-        return None
-    return p
+def _write_model_text(path: Path, text: str) -> None:
+    """Write text the model produced. Text that is not valid Unicode (a lone surrogate from the
+    endpoint) is escaped rather than failing the whole grading run."""
+    path.write_text(text, encoding="utf-8", errors="backslashreplace")
+
+
+def _write_answer_file(files_dir: Path, path: str, content: str) -> None:
+    """Keep one of the answer's files. A path that cannot be written (answer_files) is left out:
+    such an answer failed its format check, and its reply.md holds every file anyway."""
+    if path_problem(path) is not None:
+        return
+    dest = files_dir / PurePosixPath(path)
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        _write_model_text(dest, content)
+    except (NotADirectoryError, IsADirectoryError, FileExistsError):
+        pass  # a name used for a file and a directory: left out, as above
+    except OSError as e:
+        if e.errno != errno.ENAMETOOLONG:
+            raise
+        # A valid path (at most 1024 bytes) that is too long under this machine's run directory.
 
 
 def write_artifacts(case_dir: Path, gen: Generation, ans: Answer | None, g: Grade) -> None:
@@ -613,17 +630,12 @@ def write_artifacts(case_dir: Path, gen: Generation, ans: Answer | None, g: Grad
     if case_dir.exists():
         shutil.rmtree(case_dir)
     case_dir.mkdir(parents=True)
-    (case_dir / "reply.md").write_text(gen.text or "")
+    _write_model_text(case_dir / "reply.md", gen.text or "")
     if gen.reasoning:
-        (case_dir / "reasoning.md").write_text(gen.reasoning)
+        _write_model_text(case_dir / "reasoning.md", gen.reasoning)
     if ans is not None:
         for path, content in ans.files.items():
-            safe = _safe_path(path)
-            if safe is None:
-                continue
-            dest = case_dir / "files" / safe
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content)
+            _write_answer_file(case_dir / "files", path, content)
         name = _ANSWER_FILE.get(ans.format)
         if name:
             match ans.format:
@@ -649,9 +661,9 @@ def write_artifacts(case_dir: Path, gen: Generation, ans: Answer | None, g: Grad
                         (ans.value or "") + (f"\nSource: {ans.source}" if ans.source else "") + "\n"
                     )
             if body.strip():
-                (case_dir / name).write_text(body)
+                _write_model_text(case_dir / name, body)
     grade = g.model_dump(exclude={"artifacts"})
-    grade["answer_error"] = ans.error if ans else None
+    grade["answer_error"] = format_error(ans) if ans else None
     (case_dir / "grade.json").write_text(json.dumps(grade, indent=2) + "\n")
     for key, value in g.artifacts.items():
         (case_dir / f"{key}.json").write_text(json.dumps(value, indent=2, default=str) + "\n")
@@ -705,7 +717,9 @@ async def _evaluate(run_dir, tasks, samples, env, fn, concurrency, progress, mer
                 "skipped": g.skipped,
                 "infra_error": g.infra_error,
                 "checks": [c.model_dump() for c in g.checks],
-                "answer_error": ans.error if ans else None,
+                # Why the answer is not in the required format (an answer that cannot be read,
+                # or has a file path that cannot be written), counted as malformed.
+                "answer_error": format_error(ans) if ans else None,
                 "output": gen.text,
                 "reasoning_chars": len(gen.reasoning),
                 "input_tokens": gen.input_tokens,
