@@ -42,9 +42,12 @@ def test_make_validate_runs_lwc_only_in_the_offline_container():
     assert offline[-7:] == [
         "validate", "--suite", "apex", "-v", "--grader", "lwc_jest", "--no-org",
     ]  # fmt: skip
-    # the offline container is the same one make grade uses for LWC
+    # the offline container is the one make grade uses for LWC, without the writable runs mount
     (_, grade_offline) = _docker_lines("grade", "results/runs/x")
-    assert offline[: offline.index("-m")] == grade_offline[: grade_offline.index("-m")]
+    runs = grade_offline.index("-v", grade_offline.index("PYTHONPATH=/work/src"))
+    assert grade_offline[runs + 1].endswith("/results/runs:/work/results/runs")
+    without_runs = grade_offline[:runs] + grade_offline[runs + 2 :]
+    assert offline[: offline.index("-m")] == without_runs[: without_runs.index("-m")]
 
 
 @pytest.fixture

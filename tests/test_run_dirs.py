@@ -221,7 +221,10 @@ def test_regrade_all_lists_runs_in_python_not_in_the_shell():
     assert len(lines) == 2 and all(ln.startswith("docker run") for ln in lines)
     assert "grade --all --exclude-grader lwc_jest" in lines[0]
     assert "--network none" in lines[1] and "grade --all --grader lwc_jest --no-org" in lines[1]
-    assert not any("results/runs" in ln for ln in lines)
+    # results/runs appears only as the offline container's mount, never as a run directory
+    mount = f'-v "{REPO_ROOT}/results/runs":/work/results/runs'
+    assert mount in lines[1]
+    assert not any("results/runs" in ln.replace(mount, "") for ln in lines)
 
 
 def test_no_make_target_substitutes_a_run_directory_into_a_recipe():
