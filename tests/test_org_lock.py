@@ -252,6 +252,19 @@ def test_orgs_list_shows_pending_and_expired_entries(sandbox, clock):
     assert "no longer used" in out and "forcebench orgs register base fb-old" in out
 
 
+def test_orgs_list_shows_pending_entries_even_while_a_devhub_is_logged_in(provisioning):
+    """Pending entries exist while provisioning, when listing the registered orgs refuses."""
+    from typer.testing import CliRunner
+
+    from forcebench.cli import app
+
+    org._set_pending("fb-new", "base")
+    result = CliRunner().invoke(app, ["orgs", "list"])
+    assert result.exit_code == 1
+    out = " ".join(result.output.split())
+    assert "pending: fb-new (base)" in out and "a Dev Hub is logged in to the sandbox" in out
+
+
 def test_create_refuses_names_that_are_not_plain(provisioning):
     with pytest.raises(OrgError, match="not a valid org profile"):
         org.create("../../etc", "fb-new", "azul")

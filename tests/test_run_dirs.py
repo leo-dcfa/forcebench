@@ -163,7 +163,7 @@ def test_grade_no_wait_skips_a_busy_run(tmp_path, make_task, monkeypatch):
     run = _finished_run(tmp_path, GOOD, task.id)
     with _held_elsewhere(run):
         result = CliRunner().invoke(app, ["grade", str(run), "--no-org", "--no-wait"])
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 75, result.output  # EX_TEMPFAIL: not graded, try again later
     assert "being generated" in result.output
     assert (run / "cases.jsonl").read_text() == ""
 

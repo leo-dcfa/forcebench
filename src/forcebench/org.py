@@ -463,13 +463,18 @@ def check_setup_target(alias: str, profile: str | None = None) -> dict[str, Any]
     check_command(("org", "display", "--target-org", alias))
     if profile is not None and not is_grader_org(alias, profile):
         expired = [p for p in pending_orgs() if p.alias == alias and p.profile == profile]
-        why = (
-            f" (orgs create started setting it up at {created_at(expired[0])}, and a pending org is"
-            f" usable for {ttl_hours()} hours only; if its setup finished, register it with"
-            f" `forcebench orgs register {profile} {alias}`)"
-            if expired
-            else ""
-        )
+        why = ""
+        if expired:
+            when = (
+                f"started setting it up at {created_at(expired[0])}"
+                if expired[0].created
+                else "recorded it without a readable creation time"
+            )
+            why = (
+                f" (orgs create {when}, and a pending org is usable for {ttl_hours()} hours only;"
+                f" if its setup finished, register it with"
+                f" `forcebench orgs register {profile} {alias}`)"
+            )
         raise OrgError(
             f"{alias!r} is not a registered {profile!r} grader org (forcebench orgs list){why}; "
             "this setup deletes data, so it runs only against Forcebench's own grader orgs"

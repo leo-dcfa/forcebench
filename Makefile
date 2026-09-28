@@ -116,9 +116,9 @@ bundle: ## Zip each run's full replies and artifacts into dist/runs/ for a GitHu
 	  (cd -- "$$d" && zip -qr "$(CURDIR)/dist/runs/$$n.zip" raw artifacts 2>/dev/null) \
 	    && echo "dist/runs/$$n.zip"; done
 
-# The check rebuilds the leaderboard in memory and compares it with what `report` just wrote,
-# so what is committed is what CI's `report --check` rebuilds (a run changed meanwhile, or a
-# symlinked results/, stops it here, before anything is committed).
+# The check rebuilds the leaderboard in memory and compares it with what `report` just wrote:
+# a run changed since (or a symlinked results/, or a malformed run) stops the target before
+# anything is committed. Nothing is locked, so do not grade while publishing.
 publish-results: report ## Commit results/ (run regrade-all first); push is up to you
 	uv run forcebench report --check
 	git add results && git commit -m "Update results" || true

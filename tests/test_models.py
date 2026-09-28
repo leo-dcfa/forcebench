@@ -37,7 +37,9 @@ def test_a_thinking_switch_mapped_to_a_graded_tier_is_refused(tier):
 
 
 def test_tier_on_is_only_for_a_thinking_switch():
-    with pytest.raises(ValueError, match="tier 'on' is for a plain thinking switch"):
+    with pytest.raises(ValueError, match="tier 'on' is for the 'on' of a plain thinking switch"):
         ModelConfig.model_validate(_config(["low", "high"], {"low": "low", "high": "on"}))
+    with pytest.raises(ValueError, match="tier 'on' is for the 'on' of a plain thinking switch"):
+        ModelConfig.model_validate(_config(["on", "off"], {"off": "on", "on": "on"}))
     m = ModelConfig.model_validate(_config(["on"], {"on": "on"}))
     assert m.effort_tiers == {"on": "on"}

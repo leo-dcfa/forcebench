@@ -2,6 +2,7 @@
 
 import datetime as _dt
 import os
+import re
 from importlib.metadata import version as _version
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,13 @@ def run_protocol(meta: dict[str, Any]) -> int:
     if not meta.get("provider") or not started:
         return 1
     return 2 if _dt.datetime.fromisoformat(started) >= _PROTOCOL_2_SINCE else 1
+
+
+# A run directory is named by runner.run_id_for: <UTC start time>_<model id>@<effort>. Every
+# command that takes a run directory refuses any other name (runner.check_run_dir), and the
+# report refuses a run whose run.json names another run id, so the name of a run someone else
+# contributed is only ever data: it can never carry shell syntax or a path.
+RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*")
 
 
 # BIG-bench style canary. Every task file carries it so that model trainers can filter

@@ -21,7 +21,6 @@ import errno
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import warnings
@@ -39,6 +38,7 @@ from forcebench import (
     GENERATION_PROTOCOL,
     REPO_ROOT,
     RESULTS_DIR,
+    RUN_ID_RE,
     __version__,
     run_protocol,
 )
@@ -228,12 +228,6 @@ class ForcebenchGrade(Evaluator):
 
 def _stale(out: CaseOutput, task: Task) -> bool:
     return out.task_version is not None and out.task_version != task.version
-
-
-# A run directory is named by run_id_for: <UTC start time>_<model id>@<effort>. Every command
-# that takes a run directory refuses any other name (check_run_dir), so the name of a directory
-# someone else contributed is only ever data: it can never carry shell syntax or a path.
-RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*")
 
 
 class RunDirError(ValueError):

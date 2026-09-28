@@ -82,10 +82,10 @@ class ModelConfig(BaseModel):
             raise ValueError(f"{self.id}: effort_tiers missing {sorted(missing)}")
         switch = set(self.efforts) <= THINKING_SWITCH
         for label, tier in self.effort_tiers.items():
-            if tier == "on" and not switch:
+            if tier == "on" and not (switch and label == "on"):
                 raise ValueError(
-                    f"{self.id}: tier 'on' is for a plain thinking switch (efforts 'off' and 'on' "
-                    "only); map graded effort levels to low, medium, high or max"
+                    f"{self.id}: tier 'on' is for the 'on' of a plain thinking switch (efforts "
+                    "'off' and 'on' only); map graded effort levels to low, medium, high or max"
                 )
             if switch and label == "on" and tier != "on":
                 raise ValueError(

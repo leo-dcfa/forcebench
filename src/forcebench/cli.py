@@ -22,6 +22,8 @@ app = typer.Typer(no_args_is_help=True, help="Forcebench: AI models vs real Sale
 orgs_app = typer.Typer(no_args_is_help=True, help="Manage grader scratch orgs.")
 app.add_typer(orgs_app, name="orgs")
 console = Console()
+# Exit status of `grade <run> --no-wait` when the run was busy and not graded (sysexits.h).
+EX_TEMPFAIL = 75
 
 SuiteOpt = Annotated[list[str] | None, typer.Option("--suite", "-s", help="Suite id (repeatable).")]
 TaskOpt = Annotated[list[str] | None, typer.Option("--task", "-t", help="Task id (repeatable).")]
@@ -238,11 +240,12 @@ def _results_errors() -> Iterator[None]:
     """Report a refused run or results directory (a run directory that is not a run id, or a
     symbolic link where results are read or written) as a message and exit status 1."""
     from forcebench.fsutil import ResultsDirError
+    from forcebench.report import RunDataError
     from forcebench.runner import RunDirError
 
     try:
         yield
-    except (RunDirError, ResultsDirError) as e:
+    except (RunDirError, ResultsDirError, RunDataError) as e:
         console.print(str(e), style="red", markup=False, soft_wrap=True)
         raise typer.Exit(1) from None
 
@@ -266,10 +269,8 @@ def orgs_list() -> None:
     no longer used)."""
     from forcebench import org
 
-    with _org_errors():
-        orgs = org.available_orgs()
-    for profile, aliases in orgs.items():
-        console.print(f"{profile}: {', '.join(aliases)}")
+    # Pending entries first: they are read from a local file (no sf call), and they exist while
+    # a Dev Hub is logged in, when listing the registered orgs refuses.
     for p in org.pending_orgs():
         if p.expired():
             console.print(
@@ -288,6 +289,10 @@ def orgs_list() -> None:
                 markup=False,
                 soft_wrap=True,
             )
+    with _org_errors():
+        orgs = org.available_orgs()
+    for profile, aliases in orgs.items():
+        console.print(f"{profile}: {', '.join(aliases)}")
 
 
 @orgs_app.command("register")
@@ -471,7 +476,8 @@ def grade_cmd(
         typer.Option(
             "--no-wait",
             help="Skip the run if another forcebench process is writing it (generating or "
-            "grading it) instead of waiting for it. --all never waits.",
+            "grading it) instead of waiting for it, and exit with status 75 (try again later). "
+            "--all never waits, and exits 0 having skipped such runs.",
         ),
     ] = False,
 ) -> None:
@@ -521,8 +527,9 @@ def grade_cmd(
             except RunBusyError:
                 busy.append(d.name)
                 console.print(
-                    f"skipping {d.name}: being generated (another forcebench process is "
-                    "writing it); it is left as it is, grade it once that has finished",
+                    f"skipping {d.name}: being generated (or graded) by another forcebench "
+                    "process, which holds its lock; it is left as it is, grade it once that has "
+                    "finished",
                     style="yellow",
                     markup=False,
                     soft_wrap=True,
@@ -537,6 +544,8 @@ def grade_cmd(
             f"graded {len(run_dirs) - len(busy)} runs, skipped {len(busy)} being generated",
             markup=False,
         )
+    elif busy:
+        raise typer.Exit(EX_TEMPFAIL)  # the one run asked for was not graded: try again later
 
 
 @app.command()
@@ -633,7 +642,8 @@ def report(
     with _results_errors():
         check_results_dir(results_dir)
     if check:
-        problems = check_leaderboard(suites, out)
+        with _results_errors():
+            problems = check_leaderboard(suites, out)
         for p in problems:
             console.print(f"  {p}", markup=False, soft_wrap=True)
         if problems:
@@ -646,5 +656,6 @@ def report(
             raise typer.Exit(1)
         console.print(f"{out} is up to date", markup=False, soft_wrap=True)
         return
-    write_leaderboard(suites, out)
+    with _results_errors():
+        write_leaderboard(suites, out)
     console.print(f"wrote {out}", markup=False, soft_wrap=True)
