@@ -29,6 +29,22 @@ jobs:
         run: |
           uv run ruff check
           uv run ruff format --check
+      - name: Type check
+        # pyright, configured in pyproject.toml ([tool.pyright]). The files listed had type errors
+        # when this check was added and are skipped until they pass; every other file, new ones
+        # included, must pass. Take a file off the list once it is fixed.
+        env:
+          PYRIGHT_BASELINE: |-
+            src/forcebench/data/scratch-def-build.py
+            src/forcebench/graders/ci.py
+            src/forcebench/graders/org.py
+            src/forcebench/graders/scratch_def.py
+            src/forcebench/graders/sf_cli.py
+            tests/test_ci_grader.py
+            tests/test_scratch_def.py
+            tests/test_sf_cli.py
+            tests/test_tasks.py
+        run: git ls-files 'src/*.py' 'tests/*.py' | grep -vxF "$PYRIGHT_BASELINE" | xargs uvx pyright@1.1.414
       - name: Unit tests
         run: uv run pytest -q
       - name: Oracle-validate tasks that need no org

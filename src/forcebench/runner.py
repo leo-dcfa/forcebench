@@ -549,7 +549,7 @@ async def _evaluate(run_dir, tasks, samples, env, fn, concurrency, progress, mer
     outputs: dict[str, CaseOutput] = {c.name: c.output for c in report.cases}
     lines = []
     for case in cases:
-        key = case.name
+        key = case.inputs  # the case key, as is its name
         task_id, _, sample = key.partition("#")
         t = by_id[task_id]
         out = outputs.get(key)

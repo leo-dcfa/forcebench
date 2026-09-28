@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel
 
@@ -14,6 +14,7 @@ from forcebench.models import ModelConfig, Provider
 if TYPE_CHECKING:
     from pydantic_ai import Agent, AgentRunResult
     from pydantic_ai.messages import ModelResponse
+    from pydantic_ai.settings import ModelSettings
 
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
@@ -183,7 +184,8 @@ class Client:
         """One model call. Driving the run node by node streams every model request through
         `streamed` and keeps the last response, so a failure can be classified by how the
         reply ended (its finish reason)."""
-        async with agent.iter(user, model_settings=self.settings) as run:
+        settings = cast("ModelSettings", self.settings)  # plus provider fields (extra_body)
+        async with agent.iter(user, model_settings=settings) as run:
             async for node in run:
                 if agent.is_model_request_node(node):
                     async with node.stream(run.ctx) as events:

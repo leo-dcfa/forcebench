@@ -97,7 +97,9 @@ def model(monkeypatch):
     return fake
 
 
-def _generate(model, run_dir, tasks, model_id=MODEL, effort="low", **kw):
+def _generate(
+    model, run_dir, tasks, model_id: str | None = MODEL, effort: str | None = "low", **kw
+):
     import asyncio
 
     from forcebench.runner import generate

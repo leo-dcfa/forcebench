@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
@@ -33,7 +34,9 @@ async def _noop():
 def _sse(deltas: list[dict], finish_reason: str | None = "stop") -> str:
     """A streamed reply as vLLM sends it. Without a finish reason the stream just stops, as when
     the server dies mid-answer: no final chunk, no usage, no [DONE]."""
-    chunks = [{"choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in deltas]
+    chunks: list[dict[str, Any]] = [
+        {"choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in deltas
+    ]
     if finish_reason is not None:
         chunks.append({"choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason}]})
         chunks.append({"choices": [], "usage": {"prompt_tokens": 10, "completion_tokens": 64}})
@@ -80,7 +83,7 @@ class _FakeServer:
                 self.end_headers()
                 self.wfile.write(reply.encode())
 
-            def log_message(self, *args):
+            def log_message(self, format: str, *args: Any) -> None:
                 pass
 
         self.httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
