@@ -79,6 +79,19 @@ def _settings(m: ModelConfig, effort: str) -> dict[str, Any]:
     return settings
 
 
+def _check_settings(m: ModelConfig, p: Provider, effort: str, settings: dict[str, Any]) -> None:
+    """Refuse settings the provider would silently drop. pydantic-ai's Google model has no
+    ``extra_body``: sampling keys other than temperature/top_p/seed and every effort field
+    would never reach the API, while the run records them as sent."""
+    if p.kind == "google" and settings.get("extra_body"):
+        raise ValueError(
+            f"{m.id}@{effort}: a Google provider cannot send extra request-body fields "
+            f"{sorted(settings['extra_body'])} (from `sampling` and `efforts.{effort}`); "
+            "pydantic-ai's Google model ignores extra_body. Map them to Google model settings "
+            "(e.g. google_thinking_config) in llm.py before using this configuration."
+        )
+
+
 def recorded_request(m: ModelConfig, effort: str) -> dict[str, Any]:
     """The request as a run records it (run.json ``request``): the model settings sent, and
     how they are sent (streamed, SDK retries off; see Client)."""
@@ -215,6 +228,7 @@ class Client:
             raise KeyError(f"{m.id} has no effort {effort!r}; have {sorted(m.efforts)}")
         self.m, self.effort, self.retries = m, effort, retries
         self.settings = _settings(m, effort)
+        _check_settings(m, p, effort, self.settings)
         self._model = _build_model(m, p, timeout)
         self._agent_cls = Agent
 
