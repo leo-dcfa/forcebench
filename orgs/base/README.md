@@ -10,16 +10,20 @@ runs queries against the deterministic seed dataset described here.
 # new org: creates it from config/project-scratch-def.json, runs setup.sh, registers it
 uv run forcebench orgs create base fb-grader-2 --dev-hub <dev-hub-alias>
 
-# reset an existing org (idempotent: wipes the seeded objects and reloads them)
-FB_ORG=fb-grader-1 bash orgs/base/setup.sh
+# reset an existing org (idempotent: wipes the seeded objects and reloads them),
+# in the sandbox (make sandbox-shell)
+FB_ORG=fb-grader-1 uv run bash orgs/base/setup.sh
 ```
 
-`setup.sh` refuses to run against anything that is not an active scratch org. It:
+`setup.sh` runs only inside the Forcebench sandbox container, and because it deletes data,
+only against a registered `base` grader org (`forcebench orgs list`) or the one
+`forcebench orgs create base` is provisioning (`../guard.sh`, `docs/sandbox.md`). It:
 
 1. deploys `force-app` (schema and settings below) and assigns the `Forcebench_Base_Data`
    permission set to the running user,
-2. deletes every record of the seeded objects (`data/wipe.apex`), including the sample
-   Account, Cases and Entitlement that new Developer Edition scratch orgs come with,
+2. deletes every record of the seeded objects (`data/seed.py wipe`, which re-checks the lock and
+   runs `data/wipe.apex`), including the sample Account, Cases and Entitlement that new
+   Developer Edition scratch orgs come with,
 3. generates an `sf data import tree` plan from `data/seed.py` and imports it,
 4. runs generated anonymous Apex that activates the standard price book, creates price book
    entries and opportunity line items, and re-saves all opportunities (see *Fiscal year*),

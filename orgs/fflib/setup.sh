@@ -8,18 +8,16 @@
 set -euo pipefail
 
 : "${FB_ORG:?FB_ORG must name the target scratch org alias}"
+# Safety: inside the sandbox only, and only against a scratch org in its audited login store
+# (see ../guard.sh), before any sf command.
+# shellcheck source=SCRIPTDIR/../guard.sh
+. "$(dirname "$0")/../guard.sh"
+fb_guard "$FB_ORG"
 
 MOCKS_REPO="apex-enterprise-patterns/fflib-apex-mocks"
 MOCKS_SHA="d81e9e1833e27e6d704281ae7ffa39cbc304edea"
 COMMON_REPO="apex-enterprise-patterns/fflib-apex-common"
 COMMON_SHA="c91fa6f32781c02969dc57d9fd1453478b541f6a"
-
-# Safety: refuse to touch anything that is not a scratch org.
-display=$(sf org display --target-org "$FB_ORG" --json 2>/dev/null || true)
-if ! printf '%s' "$display" | grep -Eq '"isScratch"[[:space:]]*:[[:space:]]*true|"devHubId"[[:space:]]*:[[:space:]]*"[^"]+"|"instanceUrl"[[:space:]]*:[[:space:]]*"[^"]*\.scratch\.'; then
-  echo "refusing to run: $FB_ORG is not a scratch org" >&2
-  exit 1
-fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
