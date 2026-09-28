@@ -173,6 +173,27 @@ def test_entry_without_a_complete_suite_is_not_scored(suites):
     assert "overall_complete_suites" not in e
 
 
+# --------------------------------------------------------------------------- effort tiers
+
+
+def test_a_thinking_switch_is_tier_on_even_in_runs_that_recorded_max(suites):
+    """Runs of a plain thinking switch recorded before the tier "on" existed called it "max";
+    the report publishes them, and new runs, as "on"."""
+    model = {**_meta()["model"], "efforts": {"off": {}, "on": {}}}
+    old = _meta(effort="on", effort_tier="max", model=model)
+    assert build_entry([(old, _all())], suites)["effort_tier"] == "on"
+    new = _meta(effort="on", effort_tier="on", model=model)
+    assert build_entry([(new, _all())], suites)["effort_tier"] == "on"
+    off = _meta(effort="off", effort_tier="off", model=model)
+    assert build_entry([(off, _all())], suites)["effort_tier"] == "off"
+
+
+def test_graded_effort_levels_keep_their_recorded_tier(suites):
+    model = {**_meta()["model"], "efforts": {"low": {}, "xhigh": {}}}
+    xhigh = _meta(effort="xhigh", effort_tier="max", model=model)
+    assert build_entry([(xhigh, _all())], suites)["effort_tier"] == "max"
+
+
 # --------------------------------------------------------------------------- versions
 
 
@@ -379,6 +400,7 @@ def test_fixture_ranks_complete_entries_only():
     assert c["overall_complete_suites"]["suites"] == ["alpha"]
     assert c["suites"]["beta"]["complete"] is False and c["pending"] == 1  # a stale answer
     assert [u["config_id"] for u in data["unscored"]] == ["model-e@on"]  # legacy only
+    assert data["unscored"][0]["effort_tier"] == "on", "a thinking switch, recorded as max"
     md = (FIXTURE / "results" / "LEADERBOARD.md").read_text()
     row = next(line for line in md.splitlines() if "| Model C |" in line)
     assert row.startswith("| — |") and "| — | partial (1/2 suites complete) |" in row

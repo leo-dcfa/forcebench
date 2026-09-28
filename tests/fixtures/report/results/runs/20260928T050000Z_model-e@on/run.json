@@ -12,10 +12,15 @@
     "quant": "Q4",
     "engine": "vLLM",
     "open_weights": true,
-    "local": true
+    "local": true,
+    "efforts": {
+      "off": {"chat_template_kwargs": {"enable_thinking": false}},
+      "on": {"chat_template_kwargs": {"enable_thinking": true}}
+    },
+    "effort_tiers": {"off": "off", "on": "max"}
   },
   "effort": "on",
-  "effort_tier": "high",
+  "effort_tier": "max",
   "protocol": 1,
   "samples": 1,
   "task_ids": [
