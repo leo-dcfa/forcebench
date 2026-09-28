@@ -45,6 +45,8 @@ ExcludeGraderOpt = Annotated[
 def _check_graders(*options: tuple[str, list[str] | None]) -> None:
     """Refuse a grader type that does not exist: a misspelt --grader would select nothing, and
     a pass meant to grade those tasks would silently grade none."""
+    if not any(names for _, names in options):
+        return
     known = registered()
     for hint, names in options:
         unknown = sorted(set(names or ()) - set(known))
