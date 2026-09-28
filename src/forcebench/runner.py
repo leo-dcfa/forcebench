@@ -15,6 +15,7 @@ Run layout (``results/runs/<run_id>/``):
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime as dt
 import errno
 import hashlib
@@ -24,7 +25,7 @@ import re
 import shutil
 import subprocess
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -43,7 +44,7 @@ from forcebench import (
 )
 from forcebench.answer_files import format_error, path_problem
 from forcebench.answers import SYSTEM_PROMPT, Answer, extract, render_prompt
-from forcebench.fsutil import atomic_write_text, exclusive_lock
+from forcebench.fsutil import LockBusyError, atomic_write_text, exclusive_lock
 from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
@@ -309,15 +310,33 @@ def write_run(run_dir: Path, meta: dict[str, Any]) -> None:
     atomic_write_text(run_dir / "run.json", json.dumps(meta, indent=2) + "\n")
 
 
-def run_lock(run_dir: Path):
+class RunBusyError(RuntimeError):
+    """Another forcebench process holds the run's lock (it is being generated, graded or
+    invalidated), and the caller asked not to wait for it."""
+
+
+@contextlib.contextmanager
+def run_lock(run_dir: Path, *, wait: bool = True) -> Iterator[None]:
     """An exclusive lock on a run, held while a command writes it (generating, grading,
     invalidating), so two processes never interleave their writes of its files. A second
-    command on the same run waits for the first to finish. Readers (``report``) take no lock:
-    run.json and cases.jsonl are only ever replaced atomically. The run directory must exist."""
-    return exclusive_lock(
-        run_dir / LOCK_FILE,
-        waiting=f"waiting for another forcebench process working on {run_dir.name} to finish",
-    )
+    command on the same run waits for the first to finish, or with ``wait=False`` raises
+    RunBusyError without touching the run. Readers (``report``) take no lock: run.json and
+    cases.jsonl are only ever replaced atomically. The run directory must exist."""
+    with contextlib.ExitStack() as stack:
+        try:
+            stack.enter_context(
+                exclusive_lock(
+                    run_dir / LOCK_FILE,
+                    waiting=f"waiting for another forcebench process working on {run_dir.name} "
+                    "to finish",
+                    wait=wait,
+                )
+            )
+        except LockBusyError:
+            raise RunBusyError(
+                f"{run_dir.name} is being generated (or graded) by another forcebench process"
+            ) from None
+        yield
 
 
 def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any]) -> None:
@@ -551,15 +570,18 @@ async def grade(
     progress: bool = True,
     only_suites: set[str] | None = None,
     exclude_suites: set[str] | None = None,
+    *,
+    wait: bool = True,
 ) -> Path:
     """Phase 2: grade stored answers (in the sandbox for org tasks). Safe to repeat.
 
     With only_suites/exclude_suites, only those tasks are (re-)graded and merged into the
     existing cases.jsonl, e.g. LWC in the offline container and everything else outside it.
-    The run is locked (``run_lock``) while it is graded.
+    The run is locked (``run_lock``) while it is graded; while another process holds the lock
+    this waits for it, or with ``wait=False`` raises RunBusyError and grades nothing.
     """
     check_run_dir(run_dir)
-    with run_lock(run_dir):
+    with run_lock(run_dir, wait=wait):
         return await _grade(run_dir, tasks, env, concurrency, progress, only_suites, exclude_suites)
 
 

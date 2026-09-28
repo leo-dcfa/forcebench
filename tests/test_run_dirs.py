@@ -3,10 +3,14 @@ name that is not a run id, and `make regrade-all` never hands a name to a shell.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
+import os
 import re
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -117,6 +121,61 @@ def test_grade_all_grades_run_directories_and_leaves_the_rest_alone(
     assert case["passed"] is True
     assert (bad / "cases.jsonl").read_text() == "", "the refused directory is not touched"
     assert not (bad / ".lock").exists()
+
+
+@contextlib.contextmanager
+def _held_elsewhere(run: Path) -> Iterator[None]:
+    """Hold the run's lock as another process would (a separate open file: flock locks belong
+    to the open file, so this process's own attempt to take it is refused too)."""
+    fd = os.open(run / runner.LOCK_FILE, os.O_RDWR | os.O_CREAT)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield
+    finally:
+        os.close(fd)
+
+
+def test_grade_all_skips_a_run_being_generated_instead_of_waiting(tmp_path, make_task, monkeypatch):
+    """The maintainer's grader loop (grade --all) must not stall behind a run whose lock a
+    generation holds: that run is reported as skipped, left untouched, and the rest graded."""
+    task = make_task({"format": "text"})
+    monkeypatch.setattr(runner, "RUNS_DIR", tmp_path)
+    monkeypatch.setattr("forcebench.cli.select_tasks", lambda *a, **k: ([], [task]))
+    busy = _finished_run(tmp_path, GOOD, task.id)
+    other = _finished_run(tmp_path, "20260928T000001Z_m@low", task.id)
+    with _held_elsewhere(busy):
+        result = CliRunner().invoke(app, ["grade", "--all", "--no-org"])
+    assert result.exit_code == 0, result.output
+    assert f"skipping {GOOD}: being generated" in result.output
+    assert "graded 1 runs, skipped 1 being generated" in result.output
+    assert (busy / "cases.jsonl").read_text() == "", "the busy run is not touched"
+    assert not (busy / "artifacts").exists()
+    [case] = [json.loads(x) for x in (other / "cases.jsonl").read_text().splitlines()]
+    assert case["passed"] is True
+    # Once the generation has finished, the next pass grades it.
+    assert CliRunner().invoke(app, ["grade", "--all", "--no-org"]).exit_code == 0
+    assert (busy / "cases.jsonl").read_text()
+
+
+def test_grade_no_wait_skips_a_busy_run(tmp_path, make_task, monkeypatch):
+    task = make_task({"format": "text"})
+    monkeypatch.setattr("forcebench.cli.select_tasks", lambda *a, **k: ([], [task]))
+    run = _finished_run(tmp_path, GOOD, task.id)
+    with _held_elsewhere(run):
+        result = CliRunner().invoke(app, ["grade", str(run), "--no-org", "--no-wait"])
+    assert result.exit_code == 0, result.output
+    assert "being generated" in result.output
+    assert (run / "cases.jsonl").read_text() == ""
+
+
+async def test_grading_a_busy_run_without_waiting_raises_before_touching_it(tmp_path, make_task):
+    from forcebench.graders import GradeEnv
+
+    task = make_task({"format": "text"})
+    run = _finished_run(tmp_path, GOOD, task.id)
+    with _held_elsewhere(run), pytest.raises(runner.RunBusyError, match="being generated"):
+        await runner.grade(run, [task], GradeEnv(work_dir=tmp_path / "w"), wait=False)
+    assert (run / "cases.jsonl").read_text() == ""
 
 
 @pytest.mark.parametrize(

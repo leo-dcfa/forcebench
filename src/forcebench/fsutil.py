@@ -24,7 +24,7 @@ import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
-__all__ = ["atomic_write_text", "exclusive_lock"]
+__all__ = ["LockBusyError", "atomic_write_text", "exclusive_lock"]
 
 
 def _fsync_dir(directory: Path) -> None:
@@ -63,17 +63,23 @@ def atomic_write_text(path: Path, text: str) -> None:
     _fsync_dir(path.parent)
 
 
+class LockBusyError(RuntimeError):
+    """Another process holds the lock, and the caller asked not to wait for it
+    (``exclusive_lock(..., wait=False)``)."""
+
+
 # Locks this process holds, by path. flock locks belong to an open file description, so taking
 # the same lock again in this process would wait for itself forever: that is refused instead.
 _held: set[str] = set()
 
 
 @contextlib.contextmanager
-def exclusive_lock(path: Path, waiting: str | None = None) -> Iterator[None]:
+def exclusive_lock(path: Path, waiting: str | None = None, *, wait: bool = True) -> Iterator[None]:
     """Hold an exclusive ``flock`` on ``path`` (created if missing) for the ``with`` block.
 
-    While another process holds it, this waits, saying so once on stderr (``waiting``). Taking a
-    lock this process already holds raises RuntimeError rather than deadlocking.
+    While another process holds it, this waits, saying so once on stderr (``waiting``); with
+    ``wait=False`` it raises LockBusyError instead, having taken nothing. Taking a lock this
+    process already holds raises RuntimeError rather than deadlocking.
     """
     key = os.path.realpath(path)
     if key in _held:
@@ -83,6 +89,8 @@ def exclusive_lock(path: Path, waiting: str | None = None) -> Iterator[None]:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            if not wait:
+                raise LockBusyError(f"another process holds the lock {path}") from None
             if waiting:
                 print(waiting, file=sys.stderr, flush=True)
             fcntl.flock(fd, fcntl.LOCK_EX)

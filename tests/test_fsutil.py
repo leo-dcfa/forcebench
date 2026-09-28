@@ -13,7 +13,7 @@ import textwrap
 import pytest
 
 from forcebench import fsutil
-from forcebench.fsutil import atomic_write_text, exclusive_lock
+from forcebench.fsutil import LockBusyError, atomic_write_text, exclusive_lock
 
 
 def _leftovers(directory) -> list[str]:
@@ -130,6 +130,19 @@ def test_taking_a_held_lock_again_in_this_process_is_refused_not_a_deadlock(tmp_
         pass
     with exclusive_lock(lock):  # released despite the error
         pass
+
+
+def test_without_waiting_a_held_lock_is_refused_and_nothing_is_taken(tmp_path):
+    lock = tmp_path / ".lock"
+    fd = os.open(lock, os.O_RDWR | os.O_CREAT)  # another open file: as another process holds it
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(LockBusyError), exclusive_lock(lock, wait=False):
+            pytest.fail("the block ran without the lock")
+    finally:
+        os.close(fd)
+    with exclusive_lock(lock, wait=False):  # free again: taken at once
+        assert _locked_elsewhere(lock)
 
 
 def test_a_second_process_waits_for_the_lock(tmp_path):

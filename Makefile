@@ -82,7 +82,8 @@ lint:
 	uv run ruff check && uv run ruff format --check
 
 # Run directory names never reach a shell: `grade --all` lists results/runs itself and refuses
-# any directory whose name is not a run id (runner.RUN_ID_RE), e.g. from a contributed run.
+# any directory whose name is not a run id (runner.RUN_ID_RE), e.g. from a contributed run. A run
+# another forcebench process is writing (being generated) is skipped, not waited for.
 regrade-all: ## Re-grade every finished run (after task or grader fixes; no model calls)
 	$(SANDBOX) $(IMAGE) uv run forcebench grade --all --exclude-suite lwc
 	$(OFFLINE) $(IMAGE) /opt/venv/bin/python -m forcebench grade --all --suite lwc --no-org
