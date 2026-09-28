@@ -76,7 +76,14 @@ def test_choice_fallbacks(five, reply, expected):
         "The answer is not A.",
         "Each option is A production-ready choice.",
         "Both A and C are wrong.",
+        "We can rule out both A and C.",
+        "First, we can rule out option A.",
+        "Another option is B.",
+        # a reply cut off mid-sentence
+        "**Option A.** Uses a before-save flow, which cannot",
         "The correct option is C.\n\nThat said, a lot depends on the data volume.",
+        # prose on the line after an empty `Answer:` is not an option list
+        "**Answer:**\nI chose it because it is bulk-safe.",
         # a letter that is not an option
         "The correct option is Z.",
         "\\boxed{Z}",
@@ -87,10 +94,47 @@ def test_choice_fallbacks_never_read_prose(nine, reply):
     assert a.choices == [] and a.error, a.choices
 
 
+@pytest.mark.parametrize(
+    ("reply", "expected"),
+    [
+        # prose after an empty answer line never beats an earlier answer or adds options
+        ("Answer: B\n\nCorrect answer:\n\nA and C are distractors, B is right.", ["B"]),
+        ("Answer: B\n\n**Final Answer:**\nI chose B because it is bulk-safe.", ["B"]),
+        ("**Answer:**\nA and B both exceed the limit, so the answer is C.", ["C"]),
+        # but an option list on its own line counts, also as a bullet or quote
+        ("Answer:\n- B", ["B"]),
+        ("Answer:\n> B", ["B"]),
+        ("Answer:\nB is correct.", ["B"]),
+        # a bracketed letter inside an aside is not an option
+        ("Answer: B, D (A is a distractor)", ["B", "D"]),
+        ("Answer: B, D (A)", ["A", "B", "D"]),
+    ],
+)
+def test_choice_answer_line_edge_cases(nine, reply, expected):
+    a = extract(nine, reply)
+    assert a.error is None, a.error
+    assert a.choices == expected
+
+
 def test_pronoun_after_a_real_option_is_dropped(nine):
     assert extract(nine, "Answer: A, I think").choices == ["A"]
     assert extract(nine, "Answer: A and I are correct").choices == ["A", "I"]
     assert extract(nine, "Answer: **I**").choices == ["I"]
+    assert extract(nine, "Answer: I would pick B").error
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "A should be selected",
+        "A would be best",
+        "A with a trigger",
+        "A seems right",
+        "A in this case",
+    ],
+)
+def test_option_a_before_a_verb_or_preposition_is_an_option(nine, value):
+    assert extract(nine, f"Answer: {value}").choices == ["A"]
 
 
 def test_text_answer_on_the_next_line_and_final_answer(make_task):
