@@ -42,5 +42,7 @@ def test_nothing_provisional_when_every_entry_is_complete_or_too_few_suites_are_
 
 def test_ties_share_a_rank():
     data = _data([_entry("a", 0.5, incomplete=["s0"]), _entry("b", 0.5), _entry("c", 0.4)])
-    ranks = {k: v["rank"] for k, v in provisional(data)["full"]["entries"].items()}
+    prov = provisional(data)
+    assert prov is not None
+    ranks = {k: v["rank"] for k, v in prov["full"]["entries"].items()}
     assert ranks == {"a": 1, "b": 1, "c": 3}
