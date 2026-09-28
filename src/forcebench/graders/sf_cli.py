@@ -108,6 +108,7 @@ from typing import Any
 from forcebench import PACKAGE_DIR
 from forcebench.answers import Answer
 from forcebench.graders import Check, Grade, GradeEnv, TaskError, grader
+from forcebench.graders._shell import FD_MARK, LITERAL_DOLLAR, OPERATORS, REDIRECTS, tokenize
 from forcebench.tasks import Task
 
 MANIFEST_PATH = PACKAGE_DIR / "data" / "sf-commands.json"
@@ -135,13 +136,7 @@ DEPRECATED_CONFIG_KEYS = {
 # Global flags the sf launcher strips before oclif parses (bin/run.js preprocessCliFlags),
 # with the number of values each takes.
 _LAUNCHER_FLAGS = {"--dev-debug": 0, "--debug-filter": 1}
-# Private-use markers set by _prescan: a `$` the shell passes literally ('$X', \$X), and the
-# file descriptor written directly before a redirect (`2>&1`, `1> out.txt`).
-LITERAL_DOLLAR = "\ue000"
-FD_MARK = "\ue001"
 
-_SHELL_OPS = frozenset({"&&", "||", ";", "|", "&", "|&", ";;"})
-_REDIRECTS = frozenset({">", ">>", "<", ">&", "&>", "&>>", ">|", "<<", "<<<", "<&"})
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _URL_RE = re.compile(r"^[a-z][a-z0-9+.-]*://", re.I)
 _NEG_NUMBER_RE = re.compile(r"^-\d")
@@ -439,72 +434,23 @@ class Segment:
     stdout: str | None = None
 
 
-def _prescan(line: str) -> str:
-    """Mark what posix shlex loses: a `$` inside single quotes or escaped with a backslash (the
-    shell passes it literally, so `'$KEY'` is not the variable), and file-descriptor digits
-    written directly before a redirect (`2>&1`). Also cut a `#` comment, which bash only starts
-    at the beginning of a word (`--path /x#frag` keeps its `#`)."""
-    out: list[str] = []
-    quote: str | None = None
-    word_start = True
-    i, n = 0, len(line)
-    while i < n:
-        ch = line[i]
-        if quote == "'":
-            if ch == "'":
-                quote = None
-            out.append(LITERAL_DOLLAR if ch == "$" else ch)
-            i += 1
-            continue
-        if ch == "\\" and i + 1 < n:
-            nxt = line[i + 1]
-            out += [ch, LITERAL_DOLLAR if nxt == "$" else nxt]
-            i += 2
-            word_start = False
-            continue
-        if quote == '"':
-            if ch == '"':
-                quote = None
-            out.append(ch)
-            i += 1
-            continue
-        if ch in "'\"":
-            quote = ch
-        elif ch == "#" and word_start:
-            break
-        elif ch.isdigit() and word_start:
-            j = i
-            while j < n and line[j].isdigit():
-                j += 1
-            if j < n and line[j] in "<>":
-                out.append(FD_MARK + line[i:j])
-                i, word_start = j, False
-                continue
-        word_start = ch.isspace() or ch in ";&|()<>"
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
 def split_segments(line: str) -> list[Segment]:
-    """shlex-split a shell line into commands at ``&&``, ``||``, ``;`` and ``|``, pulling out
-    redirections. Raises ValueError on unbalanced quotes."""
-    lex = shlex.shlex(_prescan(line), posix=True, punctuation_chars=True)
-    lex.whitespace_split = True
-    lex.commenters = ""
-    tokens = list(lex)
+    """Split a shell line (lexed like bash, see ``graders/_shell.py``) into commands at
+    ``&&``, ``||``, ``;`` and ``|``, pulling out redirections. Raises ValueError on unbalanced
+    quotes."""
+    tokens = tokenize(line)
     segments = [Segment()]
     i = 0
     while i < len(tokens):
         tok = tokens[i]
-        if tok in _SHELL_OPS:
+        if tok in OPERATORS:
             last = segments[-1]
             if tok == "|" and len(last.tokens) == 2 and last.tokens[0] == "cat":
                 # `cat file | sf ...` feeds the file on stdin, like `sf ... < file`
                 segments[-1] = Segment(stdin=last.tokens[1])
             else:
                 segments.append(Segment())
-        elif tok in _REDIRECTS:
+        elif tok in REDIRECTS:
             fd = segments[-1].tokens.pop()[1:] if _is_fd(tokens, i) else ""
             target = tokens[i + 1] if i + 1 < len(tokens) else ""
             i += 1  # the redirect target

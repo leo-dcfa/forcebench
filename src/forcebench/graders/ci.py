@@ -12,12 +12,15 @@ What is parsed
   booleans) and duplicate keys are rejected, as GitHub does. The workflow must have ``on`` and
   ``jobs``, every job ``runs-on`` and ``steps`` (or a reusable ``uses``), every step exactly one
   of ``uses``/``run``, and ``needs`` must name existing jobs without cycles.
-- **Shell** in ``run:`` steps (and whole ``.sh`` answers) is split into commands: ``\\``
-  continuations are joined, comments and heredoc bodies are skipped, ``&&``, ``||``, ``;``,
-  ``|`` and ``&`` separate commands, redirections are dropped, ``if``/``then``/``do``/``!``/
-  ``{``/``(`` prefixes are stripped, and ``$(...)`` / backtick substitutions are extracted as
-  commands of their own that run before the line that contains them. ``${{ ... }}``
-  expressions are opaque values, written back as ``${{ expr }}`` with single spaces.
+- **Shell** in ``run:`` steps (and whole ``.sh`` answers) is lexed as ``sf_cli`` lexes it
+  (``graders/_shell.py``: ``#`` starts a comment only at the start of a word, so ``${VAR#v}``
+  keeps its ``#``; a ``$`` in single quotes or escaped stays literal, so ``'$VAR'`` is not the
+  variable) and split into commands: ``\\`` continuations are joined, comments and heredoc
+  bodies are skipped, ``&&``, ``||``, ``;``, ``|`` and ``&`` separate commands, redirections
+  are dropped, ``if``/``then``/``do``/``!``/``{``/``(`` prefixes are stripped, and ``$(...)`` /
+  backtick substitutions are extracted as commands of their own that run before the line that
+  contains them. ``${{ ... }}`` expressions are opaque values, written back as ``${{ expr }}``
+  with single spaces.
 - **Variables** are resolved where the value is known: ``$VAR``/``${VAR}``/``${{ env.VAR }}``
   take their value from the step, job and workflow ``env`` (in that precedence) and from plain
   ``VAR=value``/``export VAR=value`` lines earlier in the same script. So
@@ -57,8 +60,10 @@ params
         before the first command, plus ``pipefail`` if any gating command is piped.
     rules: ``json_rules`` rules applied to the parsed workflow (``on`` normalised to a mapping
         of event -> config), e.g. ``{path: concurrency.cancel-in-progress, equals: true}``.
-    text: [{name, any: [regex], none: [regex]}] raw-text checks; at least one ``any`` regex
-        must match and no ``none`` regex may match (Python ``re``, use ``(?i)`` etc. inline).
+    text: [{name, any: [regex], none: [regex]}] text checks on the file without its YAML and
+        shell comments; at least one ``any`` regex must match and no ``none`` regex may match
+        (Python ``re``, use ``(?i)`` etc. inline). ``secrets`` references in comments do not
+        count either.
     expect: list of expectations. Each must be satisfied by at least one item of the file.
     forbid: list of specs (as in ``expect``, constraints ignored): no item may match any.
     scenarios: list of event simulations (workflows only), see below.
@@ -140,7 +145,6 @@ import datetime as dt
 import json
 import math
 import re
-import shlex
 from dataclasses import dataclass, field
 from functools import cache
 from typing import Any
@@ -148,7 +152,7 @@ from typing import Any
 import yaml
 
 from forcebench.answers import Answer
-from forcebench.graders import Check, Grade, GradeEnv, TaskError, grader, sf_cli
+from forcebench.graders import Check, Grade, GradeEnv, TaskError, _shell, grader, sf_cli
 from forcebench.graders._rules import check_rules
 from forcebench.tasks import Task
 
@@ -320,9 +324,6 @@ _GITHUB_ENV_VARS = {
 
 # --------------------------------------------------------------------------- shell parsing
 
-_OPS = ("&&", "||", ";;", "|&", ";", "|", "&")
-_REDIRS = ("&>>", "<<<", "&>", ">>", "<<", ">&", "<&", ">|", "<>", "<", ">")
-_PUNCT_TOKEN_RE = re.compile(r"^[();<>|&]+$")
 _PREFIX_WORDS = frozenset(
     {"if", "then", "else", "elif", "do", "while", "until", "!", "{", "(", "time", "exec"}
 )
@@ -349,42 +350,18 @@ class ShellCmd:
     script_exits: bool = False  # the script has an explicit non-zero exit
 
 
-def _split_punct(tok: str) -> list[str]:
-    """Split a run of shell punctuation (``)||``) into operators."""
-    out, i = [], 0
-    while i < len(tok):
-        for op in (*_OPS, *_REDIRS, "(", ")"):
-            if tok.startswith(op, i):
-                out.append(op)
-                i += len(op)
-                break
-        else:
-            out.append(tok[i])
-            i += 1
-    return out
-
-
-def _tokenize(line: str) -> list[str]:
-    lex = shlex.shlex(line, posix=True, punctuation_chars=True)
-    lex.whitespace_split = True
-    out: list[str] = []
-    for tok in lex:
-        out.extend(_split_punct(tok) if _PUNCT_TOKEN_RE.match(tok) else [tok])
-    return out
-
-
 def _segments(tokens: list[str]) -> list[tuple[list[str], str | None]]:
     segs: list[tuple[list[str], str | None]] = []
     cur: list[str] = []
     i = 0
     while i < len(tokens):
         t = tokens[i]
-        if t in _OPS or t in (")", "}"):
-            segs.append((cur, t if t in _OPS else ";"))
+        if t in _shell.OPERATORS or t in (")", "}"):
+            segs.append((cur, t if t in _shell.OPERATORS else ";"))
             cur = []
-        elif t in _REDIRS:
+        elif t in _shell.REDIRECTS:
             i += 1  # skip the redirect target
-        elif t.isdigit() and i + 1 < len(tokens) and tokens[i + 1] in _REDIRS:
+        elif t.startswith(_shell.FD_MARK):
             pass  # file descriptor of `2>&1`
         else:
             cur.append(t)
@@ -460,6 +437,14 @@ def _extract_substitutions(line: str) -> tuple[str, list[str]]:
     return "".join(out), subs
 
 
+def _lex(line: str) -> tuple[list[str], list[str]]:
+    """The words of a shell line, lexed like ``sf_cli`` does (``graders/_shell.py``), with
+    substitutions as ``__SUBn__`` placeholders, and the substitution bodies. Raises ValueError
+    on unbalanced quotes."""
+    main, subs = _extract_substitutions(_shell.prescan(line))
+    return _shell.split_words(main), subs
+
+
 def _apply_set(tokens: list[str], state: dict[str, bool]) -> None:
     args = tokens[1:]
     i = 0
@@ -518,6 +503,7 @@ class ScriptParser:
     def parse(self) -> list[ShellCmd]:
         text = re.sub(r"\\\r?\n", " ", self.script)
         lines = text.split("\n")
+        code: list[str] = []  # the lines that run: no comments, no heredoc bodies
         i = 0
         while i < len(lines):
             line_no = i
@@ -529,7 +515,7 @@ class ScriptParser:
             # a quoted string may span lines
             while True:
                 try:
-                    _tokenize(_extract_substitutions(buf)[0])
+                    _lex(buf)
                     break
                 except ValueError:
                     if i >= len(lines) or i - line_no > 200:
@@ -541,7 +527,8 @@ class ScriptParser:
                     i += 1
             if not buf:
                 continue
-            heredoc = _HEREDOC_RE.search(buf)
+            code.append(_shell.prescan(buf))
+            heredoc = _HEREDOC_RE.search(code[-1])
             self._line(buf, line_no, None)
             if heredoc:
                 delim = heredoc.group(2)
@@ -550,16 +537,16 @@ class ScriptParser:
                 i += 1
         if self.cmds:
             last_line = max(c.line_no for c in self.cmds)
-            exits = bool(re.search(r"\bexit\s+([1-9]|\"?\$)|\bfalse\b", self.script))
+            exits = bool(re.search(r"\bexit\s+([1-9]|\"?\$)|\bfalse\b", "\n".join(code)))
             for c in self.cmds:
                 c.last = c.line_no == last_line
                 c.script_exits = exits
         return self.cmds
 
     def _line(self, line: str, line_no: int, subst: str | None) -> None:
-        main, subs = _extract_substitutions(line)
         try:
-            segs = _segments(_tokenize(main))
+            words, subs = _lex(line)
+            segs = _segments(words)
         except ValueError as e:
             if re.search(r"(^|[\s;|&(])sfdx?\s", line):
                 self.problems.append(f"cannot parse shell line ({e}): {line.strip()[:120]}")
@@ -734,7 +721,7 @@ def _cmd_items(
                 toks = [*toks[: k + 1], "sf", *toks[k + 2 :]]
                 k += 1
         exe = toks[k].rsplit("/", 1)[-1]
-        text = " ".join(toks[k:])
+        text = _shell.unmark(" ".join(toks[k:]))
         if exe in ("sf", "sfdx"):
             pc = sf_cli.parse_command(_fix_stdin_flag(toks[k:]), m, text, allow_dep)
             items.append(Item("sf", job, step, pos, text, pc=pc, cmd=c))
@@ -1854,12 +1841,15 @@ def _grade_file(text: str, params: dict[str, Any], kind: str) -> list[Check]:
         checks.extend(_credential_checks(text))
     if kind == "workflow" and params.get("script_injection", True):
         checks.extend(_injection_checks(unit))
+    # What the text checks see: the file without YAML and shell comments (text in a comment
+    # neither satisfies nor violates a requirement).
+    code = "\n".join(_shell.strip_comment(line) for line in text.split("\n"))
     for name in _as_list(params.get("secrets")):
         pat = rf"\$\{{\{{\s*secrets(\.{re.escape(name)}\b|\[\s*'{re.escape(name)}'\s*\])"
         checks.append(
             Check(
                 name=f"uses secret {name}",
-                passed=re.search(pat, text) is not None,
+                passed=re.search(pat, code) is not None,
                 detail=f"`${{{{ secrets.{name} }}}}` not referenced",
             )
         )
@@ -1874,8 +1864,8 @@ def _grade_file(text: str, params: dict[str, Any], kind: str) -> list[Check]:
     for i, spec in enumerate(params.get("text") or [], 1):
         label = spec.get("name") or f"text check {i}"
         anys = spec.get("any") or []
-        ok = not anys or any(re.search(p, text) for p in anys)
-        bad = [p for p in spec.get("none") or [] if re.search(p, text)]
+        ok = not anys or any(re.search(p, code) for p in anys)
+        bad = [p for p in spec.get("none") or [] if re.search(p, code)]
         why = (["required text not found"] if not ok else []) + [
             f"forbidden text /{p}/ found" for p in bad
         ]
