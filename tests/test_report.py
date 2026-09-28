@@ -10,12 +10,13 @@ an intended change: FORCEBENCH_UPDATE_FIXTURES=1 uv run pytest tests/test_report
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from forcebench import BENCHMARK_VERSION
+from forcebench import BENCHMARK_VERSION, REPO_ROOT
 from forcebench.report import (
     SCHEMA_VERSION,
     build_entry,
@@ -528,3 +529,24 @@ def test_report_check_command(fixture_copy, monkeypatch):
     assert (
         CliRunner().invoke(app, ["report", "--check", "--results-dir", str(results)]).exit_code == 0
     )
+
+
+def test_ci_checks_the_committed_leaderboard_after_the_unit_tests():
+    import yaml
+
+    workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text())
+    runs = [step.get("run", "") for step in workflow["jobs"]["check"]["steps"]]
+    check = runs.index("uv run forcebench report --check")
+    assert check > runs.index("uv run pytest -q")
+
+
+def test_publish_results_checks_the_leaderboard_before_committing():
+    if not shutil.which("make"):
+        pytest.skip("make not installed")
+    dry = subprocess.run(
+        ["make", "-n", "--no-print-directory", "-C", str(REPO_ROOT), "publish-results"],
+        capture_output=True, text=True, check=True,
+    ).stdout.splitlines()  # fmt: skip
+    check = dry.index("uv run forcebench report --check")
+    commit = next(i for i, line in enumerate(dry) if line.startswith("git add results"))
+    assert dry.index("uv run forcebench report") < check < commit
