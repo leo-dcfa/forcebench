@@ -177,3 +177,9 @@ def test_no_make_target_substitutes_a_run_directory_into_a_recipe():
     pattern = re.search(r"^RUN_ID_PATTERN = (.+)$", makefile, re.M)
     assert pattern
     assert pattern.group(1).replace("[0-9]", r"\d") == RUN_ID_RE.pattern
+
+
+def test_grading_a_run_that_does_not_exist_creates_nothing(tmp_path):
+    result = CliRunner().invoke(app, ["grade", str(tmp_path / GOOD), "--no-org"])
+    assert result.exit_code != 0
+    assert not (tmp_path / GOOD).exists()

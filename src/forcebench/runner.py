@@ -304,8 +304,7 @@ def run_lock(run_dir: Path):
     """An exclusive lock on a run, held while a command writes it (generating, grading,
     invalidating), so two processes never interleave their writes of its files. A second
     command on the same run waits for the first to finish. Readers (``report``) take no lock:
-    run.json and cases.jsonl are only ever replaced atomically."""
-    run_dir.mkdir(parents=True, exist_ok=True)
+    run.json and cases.jsonl are only ever replaced atomically. The run directory must exist."""
     return exclusive_lock(
         run_dir / LOCK_FILE,
         waiting=f"waiting for another forcebench process working on {run_dir.name} to finish",
@@ -362,6 +361,7 @@ async def generate(
         m = registry.get(model_id)
         run_dir = RUNS_DIR / run_id_for(m, effort or m.default_effort)
     check_run_dir(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
     with run_lock(run_dir):
         return await _generate(
             registry, model_id, effort, tasks,
