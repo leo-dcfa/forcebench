@@ -48,6 +48,10 @@ direct-glm:
   kind: openai_compatible
   base_url_env: FORCEBENCH_GLM_BASE_URL
   api_key_env: FORCEBENCH_GLM_API_KEY
+direct-glm-jspark3:
+  kind: openai_compatible
+  base_url_env: FORCEBENCH_GLM_JSPARK3_BASE_URL
+  api_key_env: FORCEBENCH_GLM_JSPARK3_API_KEY
 direct-ds41:
   kind: openai_compatible
   base_url_env: FORCEBENCH_DS41_BASE_URL
