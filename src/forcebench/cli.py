@@ -416,6 +416,14 @@ def run(
     grade: Annotated[
         bool, typer.Option("--grade/--no-grade", help="Grade after generating (default: yes).")
     ] = True,
+    endpoint_model: Annotated[
+        str | None,
+        typer.Option(
+            "--endpoint-model",
+            help="Call the model under this name instead of its config's: the same weights served "
+            "another way. Recorded with the run (with --resume: the run's).",
+        ),
+    ] = None,
 ) -> None:
     """Generate answers for a model configuration, then grade them (results/runs/<run_id>)."""
     from forcebench.fsutil import ResultsDirError
@@ -449,6 +457,7 @@ def run(
             run_dir = await do_generate(
                 reg, model, e, tasks,
                 samples=samples, concurrency=concurrency, run_dir=resume, subset=subset,
+                endpoint_model=endpoint_model,
             )  # fmt: skip
             console.print(f"generated {run_dir}")
             if grade and env is not None:

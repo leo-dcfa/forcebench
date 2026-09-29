@@ -360,6 +360,7 @@ def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any])
         "protocol": run_protocol(started),
         "request": started.get("request"),
         "system prompt": started.get("system_prompt_sha"),
+        "endpoint model": started.get("endpoint_model"),
     }
     diffs = [f"{k} {was[k]!r} (resume asked for {v!r})" for k, v in asked.items() if was[k] != v]
     if diffs:
@@ -380,6 +381,7 @@ async def generate(
     concurrency: int = 4,
     run_dir: Path | None = None,
     subset: str | None = None,
+    endpoint_model: str | None = None,
     progress: bool = True,
 ) -> Path:
     """Phase 1: get every answer from the model (and nothing else), resumably.
@@ -388,8 +390,11 @@ async def generate(
     test runs, and so answers can be re-graded later without calling the model again.
 
     A ``run_dir`` that already has a run.json is resumed with the settings it was started with:
-    model, effort, subset, samples and request fields left out (None) come from run.json, and
-    any given must match it, as must the system prompt (ResumeError otherwise).
+    model, effort, subset, samples, endpoint model and request fields left out (None) come from
+    run.json, and any given must match it, as must the system prompt (ResumeError otherwise).
+
+    ``endpoint_model`` calls the model under another name than its config's: the same weights
+    served another way (e.g. split across more machines). The run records the name it called.
 
     The run is locked (``run_lock``) for the whole generation.
     """
@@ -405,7 +410,7 @@ async def generate(
         return await _generate(
             registry, model_id, effort, tasks,
             samples=samples, concurrency=concurrency, run_dir=run_dir, subset=subset,
-            progress=progress,
+            endpoint_model=endpoint_model, progress=progress,
         )  # fmt: skip
 
 
@@ -419,6 +424,7 @@ async def _generate(
     concurrency: int,
     run_dir: Path,
     subset: str | None,
+    endpoint_model: str | None,
     progress: bool,
 ) -> Path:
     started = read_run(run_dir)
@@ -436,12 +442,18 @@ async def _generate(
     if model_id is None:
         raise ValueError("a new run needs a model id")
     m = registry.get(model_id)
+    if started:
+        # A run from before endpoint names were recorded called its config's.
+        started = {"endpoint_model": m.endpoint_model, **started}
+        endpoint_model = endpoint_model or started["endpoint_model"]
+    if endpoint_model:
+        m = m.model_copy(update={"endpoint_model": endpoint_model})
     effort = effort or m.default_effort
     samples = samples if samples is not None else 1
     subset = subset or "full"
     if started:
         asked = {"model": m.id, "effort": effort, "subset": subset, "samples": samples}
-        asked |= {"protocol": GENERATION_PROTOCOL}
+        asked |= {"protocol": GENERATION_PROTOCOL, "endpoint model": m.endpoint_model}
         if "system_prompt_sha" in started:
             asked["system prompt"] = _sha(SYSTEM_PROMPT)
         _check_resume(run_dir, started, asked)
@@ -475,6 +487,7 @@ async def _generate(
             "effort_tier": m.effort_tiers[effort],
             "provider": m.provider,
             "provider_kind": registry.providers[m.provider].kind,
+            "endpoint_model": m.endpoint_model,  # the name it was called under (see generate)
             "request": recorded_request(m, effort),
             "protocol": GENERATION_PROTOCOL,
             "system_prompt_sha": _sha(SYSTEM_PROMPT),

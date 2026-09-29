@@ -346,3 +346,36 @@ def test_protocol_of_runs_from_before_it_was_recorded(meta, protocol):
     from forcebench import run_protocol
 
     assert run_protocol(meta) == protocol
+
+
+def test_a_run_records_the_endpoint_model_it_called(model, make_task, tmp_path):
+    reg = model.registry
+    meta = _meta(_generate(model, tmp_path / RUN, [_task(make_task)]))
+    assert meta["endpoint_model"] == reg.get(MODEL).endpoint_model
+    other = tmp_path / RUN.replace("000000Z", "000001Z")
+    meta = _meta(_generate(model, other, [_task(make_task)], endpoint_model="same-weights-x3"))
+    assert meta["endpoint_model"] == "same-weights-x3"
+    assert meta["config_id"] == f"{MODEL}@low", "the same configuration, served another way"
+
+
+def test_resume_keeps_the_endpoint_model_and_refuses_another(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], endpoint_model="x3")
+    _generate(model, run_dir, [_task(make_task)], model_id=None, effort=None)
+    assert _meta(run_dir)["endpoint_model"] == "x3", "omitted: the run's"
+    with pytest.raises(ResumeError, match="endpoint model"):
+        _generate(model, run_dir, [_task(make_task)], endpoint_model="x2")
+
+
+def test_a_run_from_before_endpoint_names_resumes_with_its_configs(model, make_task, tmp_path):
+    from forcebench.runner import ResumeError
+
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
+    meta = _meta(run_dir)
+    del meta["endpoint_model"]  # recorded before endpoint names were
+    (run_dir / "run.json").write_text(json.dumps(meta))
+    with pytest.raises(ResumeError, match="endpoint model"):
+        _generate(model, run_dir, [_task(make_task)], endpoint_model="x3")
+    _generate(model, run_dir, [_task(make_task)])
+    assert _meta(run_dir)["endpoint_model"] == model.registry.get(MODEL).endpoint_model
