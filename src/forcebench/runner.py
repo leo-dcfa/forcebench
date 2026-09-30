@@ -67,6 +67,7 @@ from forcebench.models import ModelConfig, Registry
 from forcebench.pool import (
     Exposure,
     PrivatePool,
+    check_no_proxy,
     check_no_telemetry,
     check_tiers,
     record_exposure,
@@ -307,13 +308,15 @@ def check_run_pool(
 ) -> None:
     """Refuse to work on a run as a member of the wrong pool: a private run without the private
     pool, a public run with it, a private run anywhere but in the private pool's results/runs,
-    tasks of the other pool, or private work while telemetry export may be configured."""
+    tasks of the other pool, or private work while telemetry export or a proxy may be
+    configured."""
     visibility = "private" if private is not None else "public"
     if meta and run_visibility(meta) != visibility:
         found = run_visibility(meta)
         raise RunDirError(f"{run_dir.name} is a {found} run: work on it with --pool {found}")
     if private is not None:
         check_no_telemetry()
+        check_no_proxy()
         if not run_dir.resolve().is_relative_to(private.runs_dir.resolve()):
             raise RunDirError(
                 f"refusing {run_dir.name}: private runs are kept only in the private pool's "
