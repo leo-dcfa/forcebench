@@ -137,6 +137,12 @@ uv run forcebench report --pool private                        # results/leaderb
 - **Publishing stages an explicit list.** `make publish-results` runs `forcebench report
   --stage`, which stages only the leaderboard, `LEADERBOARD.md`, and `run.json` and
   `cases.jsonl` of each run the leaderboard is built from, never the rest of `results/`.
+- **`forcebench leakcheck`**, which CI runs, applies allowlist rules to every file git tracks.
+  The rules need no secrets, and a finding names the file, line and rule, never what matched:
+  - **canary:** the only canary GUID is the public one (the tests' made-up ones are allowed under
+    `tests/`);
+  - **task:** task directories hold only `.yaml` task files, each with the public canary on its
+    first line, `visibility: public` once, and no `tier`.
 - **`leaderboard.json` says `"visibility": "public"`**, and the website refuses to build from
   anything else.
 - **`make bundle`** archives only this repository's `results/runs`, and stops at a run there that
