@@ -862,14 +862,30 @@ def report(
             "leaderboard, written only in that pool.",
         ),
     ] = "public",
+    stage: Annotated[
+        bool,
+        typer.Option(
+            "--stage",
+            help="Write nothing; once the leaderboard is up to date, stage with git add exactly "
+            "what may be published: it, LEADERBOARD.md, and run.json and cases.jsonl of each "
+            "run it is built from. Nothing else under results/ is staged (make publish-results).",
+        ),
+    ] = False,
 ) -> None:
     """Aggregate all runs into results/leaderboard.json (and LEADERBOARD.md). Only public runs
     of public tasks are ever published: anything else refuses the whole report."""
     from forcebench.fsutil import check_results_dir
-    from forcebench.report import check_leaderboard, known_task_ids, write_leaderboard
+    from forcebench.report import (
+        check_leaderboard,
+        known_task_ids,
+        publishable_files,
+        write_leaderboard,
+    )
 
     if pool not in ("public", "private"):
         raise typer.BadParameter("public or private", param_hint="--pool")
+    if stage and pool != "public":
+        raise typer.BadParameter("only public results are ever staged", param_hint="--stage")
     if pool == "private":
         if results_dir is not None:
             raise typer.BadParameter(
@@ -890,7 +906,7 @@ def report(
     out = results_dir / "leaderboard.json"
     with _results_errors():
         check_results_dir(results_dir)
-    if check:
+    if check or stage:
         with _results_errors():
             problems = check_leaderboard(suites, out, visibility=pool, known=known)
         for p in problems:
@@ -903,6 +919,18 @@ def report(
                 soft_wrap=True,
             )
             raise typer.Exit(1)
+        if stage:
+            with _results_errors():
+                files = publishable_files(suites, out, known=known)
+            import subprocess
+
+            subprocess.run(
+                ["git", "-C", str(results_dir), "add", "--", *map(str, files)],
+                check=True,
+                env={**os.environ, "GIT_LITERAL_PATHSPECS": "1"},
+            )
+            console.print(f"staged {len(files)} files for publishing", markup=False)
+            return
         console.print(f"{out} is up to date", markup=False, soft_wrap=True)
         return
     with _results_errors():

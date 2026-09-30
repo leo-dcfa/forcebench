@@ -133,9 +133,11 @@ bundle: ## Zip each run's full replies and artifacts into dist/runs/ (a private 
 	  (cd -- "$$d" && zip -qr "$(CURDIR)/dist/runs/$$n.zip" raw artifacts 2>/dev/null) \
 	    && echo "dist/runs/$$n.zip"; done
 
-# The check rebuilds the leaderboard in memory and compares it with what `report` just wrote:
-# a run changed since (or a symlinked results/, or a malformed run) stops the target before
-# anything is committed. Nothing is locked, so do not grade while publishing.
-publish-results: report ## Commit results/ (run regrade-all first); push is up to you
-	uv run forcebench report --check
-	git add results && git commit -m "Update results" || true
+# `report --stage` rebuilds the leaderboard in memory and compares it with what `report` just
+# wrote: a run changed since (or a symlinked results/, a malformed run, or any run that may not
+# be published) stops the target before anything is staged. It then stages exactly what may be
+# published: the leaderboard, LEADERBOARD.md, and run.json and cases.jsonl of each run it is
+# built from; never the rest of results/. Nothing is locked, so do not grade while publishing.
+publish-results: report ## Commit the public results (run regrade-all first); push is up to you
+	uv run forcebench report --stage
+	git diff --cached --quiet || git commit -m "Update results"
