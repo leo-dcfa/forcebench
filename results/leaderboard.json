@@ -1,6 +1,7 @@
 {
  "schema_version": 2,
  "benchmark": "forcebench",
+ "visibility": "public",
  "version": "0.1.0",
  "generated_at": "2026-09-30T05:37:17+00:00",
  "tasks_sha": "21fe52ce6d1f04b7",

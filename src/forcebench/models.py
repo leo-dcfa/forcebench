@@ -36,6 +36,16 @@ class Provider(BaseModel):
     base_url: str | None = None
     base_url_env: str | None = None
     api_key_env: str | None = None
+    # A server the operator runs, on this machine or a private network; never a vendor's API.
+    # Off unless the provider says so. Private-pool tasks of tier `private` go only to such a
+    # server, and only while its base URL resolves to a private address (pool.served_locally).
+    local: bool = False
+
+    @model_validator(mode="after")
+    def _local_is_a_server(self) -> Provider:
+        if self.local and self.kind != "openai_compatible":
+            raise ValueError("only an OpenAI-compatible server the operator runs can be local")
+        return self
 
     def resolved_base_url(self) -> str | None:
         if self.base_url_env and os.environ.get(self.base_url_env):
