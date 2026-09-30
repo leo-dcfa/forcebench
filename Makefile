@@ -64,7 +64,12 @@ TTY := $(shell [ -t 0 ] && echo -it)
 # The run id runner.run_id_for makes (runner.RUN_ID_RE), as an ERE.
 RUN_ID_PATTERN = [0-9]{8}T[0-9]{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*
 
-.PHONY: help sandbox-build sandbox-shell sandbox-import sandbox-provision orgs run grade validate report test lint regrade-all bundle publish-results
+.PHONY: hooks help sandbox-build sandbox-shell sandbox-import sandbox-provision orgs run grade validate report test lint regrade-all bundle publish-results
+
+# The pre-commit hook refuses a commit that would publish anything from the private pool
+# (forcebench leakcheck --staged). core.hooksPath is shared by every worktree of this clone.
+hooks: ## Install the pre-commit hook (.githooks/pre-commit) for this clone
+	git config core.hooksPath .githooks
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'

@@ -469,16 +469,25 @@ def private_expose(
 
 
 @app.command()
-def leakcheck() -> None:
+def leakcheck(
+    staged: Annotated[
+        bool,
+        typer.Option(
+            "--staged",
+            help="Check what is staged for the next commit instead of every tracked file (the "
+            "pre-commit hook, .githooks/pre-commit).",
+        ),
+    ] = False,
+) -> None:
     """Check that nothing from the private pool is in this repository: allowlist rules over every
     file git tracks here (docs/private-pool.md), which need no secrets, so CI runs them; and,
     where the private pool is configured, its own denylist. Exits 1 on any finding; findings
     never quote what they matched."""
-    from forcebench.leakcheck import check_tracked
+    from forcebench.leakcheck import check_staged, check_tracked
     from forcebench.leakcheck.private import denylist
 
     with _pool_errors():  # a private pool that is configured but broken: no silent pass
-        findings = check_tracked()
+        findings = check_staged() if staged else check_tracked()
         against_pool = denylist() is not None
     for f in findings:
         console.print(str(f), markup=False, soft_wrap=True)
