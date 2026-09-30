@@ -23,6 +23,7 @@ import yaml
 
 from forcebench import SUITES_DIR
 from forcebench.leakcheck import Finding, line_of, rule
+from forcebench.pool import configured_private_dir, load_private_pool
 
 _CLASS_RE = re.compile(r"\bFB_[A-Za-z0-9_]+")
 _REMOTE_RE = re.compile(r"[:/]([\w.-]+)/([\w.-]+?)(?:\.git)?/?$")
@@ -80,8 +81,6 @@ def _copies(root: Path) -> frozenset[str]:
 def denylist() -> Denylist | None:
     """The configured private pool's denylist, or None where there is no pool. A pool that is
     configured but cannot be loaded raises PrivatePoolError: better no check than a silent one."""
-    from forcebench.pool import configured_private_dir, load_private_pool
-
     configured = configured_private_dir()
     if configured is None:
         return None
