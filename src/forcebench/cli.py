@@ -898,6 +898,14 @@ def report(
             "run it is built from. Nothing else under results/ is staged (make publish-results).",
         ),
     ] = False,
+    commit: Annotated[
+        bool,
+        typer.Option(
+            "--commit",
+            help="With --stage: then commit exactly those paths (git commit -- <paths>), leaving "
+            "anything else that is staged as it is; nothing when they are unchanged.",
+        ),
+    ] = False,
 ) -> None:
     """Aggregate all runs into results/leaderboard.json (and LEADERBOARD.md). Only public runs
     of public tasks are ever published: anything else refuses the whole report."""
@@ -913,6 +921,8 @@ def report(
         raise typer.BadParameter("public or private", param_hint="--pool")
     if stage and pool != "public":
         raise typer.BadParameter("only public results are ever staged", param_hint="--stage")
+    if commit and not stage:
+        raise typer.BadParameter("--commit commits what --stage stages", param_hint="--commit")
     if pool == "private":
         if results_dir is not None:
             raise typer.BadParameter(
@@ -948,16 +958,34 @@ def report(
             )
             raise typer.Exit(1)
         if stage:
-            with _results_errors():
-                files = publishable_files(suites, out, known=known)
             import subprocess
 
-            subprocess.run(
-                ["git", "-C", str(results_dir), "add", "--", *map(str, files)],
-                check=True,
-                env={**os.environ, "GIT_LITERAL_PATHSPECS": "1"},
+            from forcebench.report import removed_publishable
+
+            with _results_errors():
+                files = publishable_files(suites, out, known=known)
+            removed = removed_publishable(results_dir)
+            paths = [str(p) for p in (*files, *removed)]
+            git = ["git", "-C", str(results_dir)]
+            env = {**os.environ, "GIT_LITERAL_PATHSPECS": "1"}
+            subprocess.run([*git, "add", "--", *paths], check=True, env=env)
+            console.print(
+                f"staged {len(files)} files and {len(removed)} removals for publishing",
+                markup=False,
             )
-            console.print(f"staged {len(files)} files for publishing", markup=False)
+            if commit:
+                unchanged = (
+                    subprocess.run(
+                        [*git, "diff", "--cached", "--quiet", "--", *paths], env=env
+                    ).returncode
+                    == 0
+                )
+                if unchanged:
+                    console.print("nothing to commit", markup=False)
+                else:
+                    msg = ["-m", "Update results"]
+                    subprocess.run([*git, "commit", "-q", *msg, "--", *paths], check=True, env=env)
+                    console.print("committed the published results", markup=False)
             return
         console.print(f"{shown} is up to date", markup=False, soft_wrap=True)
         return
