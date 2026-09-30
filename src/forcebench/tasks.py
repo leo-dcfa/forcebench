@@ -218,7 +218,7 @@ def _load_private(pool: PrivatePool, public: dict[str, Suite]) -> dict[str, list
                 f"takes its name and description from the public one), not {', '.join(extra)}"
             )
         for task_path in sorted((suite_dir / "tasks").glob("*.yaml")):
-            task = load_task(task_path, "private", pool.canary_guid)
+            task = _load_private_task(task_path, pool)
             if task.suite != suite_dir.name:
                 raise ValueError(f"{task_path}: suite {task.suite!r} != {suite_dir.name!r}")
             by_suite.setdefault(task.suite, []).append(task)
@@ -243,6 +243,32 @@ def _load_private(pool: PrivatePool, public: dict[str, Suite]) -> dict[str, list
             f"private pool: {EXPOSURE_FILE} lists tasks the pool does not have: {', '.join(stray)}"
         )
     return by_suite
+
+
+def _load_private_task(path: Path, pool: PrivatePool) -> Task:
+    """load_task for a private task, whose errors say where and what is wrong but never quote
+    the file: pydantic and YAML errors echo the values and lines they failed on, which could
+    be prompt text or hidden tests."""
+    from pydantic import ValidationError
+
+    from forcebench.pool import PrivatePoolError
+
+    where = f"private pool: suites/{path.parent.parent.name}/tasks/{path.name}"
+    try:
+        return load_task(path, "private", pool.canary_guid)
+    except ValidationError as e:
+        # pydantic keeps the failing value in `input` (left out); `msg` states the rule.
+        issues = "; ".join(
+            f"{'.'.join(str(x) for x in err['loc']) or '(file)'}: {err['msg']}"
+            for err in e.errors(include_input=False, include_url=False, include_context=False)
+        )
+        raise PrivatePoolError(f"{where} is not a valid task ({issues})") from None
+    except yaml.YAMLError as e:
+        mark = getattr(e, "problem_mark", None)
+        at = f" at line {mark.line + 1}" if mark is not None else ""
+        raise PrivatePoolError(f"{where} is not valid YAML{at}") from None
+    except ValueError as e:  # load_task's own checks, which name fields, not values
+        raise PrivatePoolError(f"{where}: {str(e).split(': ', 1)[-1]}") from None
 
 
 def load_suites(
