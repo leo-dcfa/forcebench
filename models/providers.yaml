@@ -1,21 +1,26 @@
 # How to reach each provider. Endpoints and keys come from the environment (.env), never
-# from this repo.
+# from this repo. `local: true` marks a server you run yourself, on this machine or a private
+# network; it is off unless set, and a vendor API or a hosted router must never have it.
 local:            # any OpenAI-compatible server or proxy you run yourself (vLLM, SGLang, LiteLLM, ...)
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_LOCAL_BASE_URL
   api_key_env: FORCEBENCH_LOCAL_API_KEY
 mtplx:            # MTPLX (MLX) server, called directly
   kind: openai_compatible
+  local: true
   base_url: http://127.0.0.1:8000/v1
   base_url_env: FORCEBENCH_MTPLX_BASE_URL
   api_key_env: FORCEBENCH_MTPLX_API_KEY
 splash:           # Splash (MLX) server, called directly
   kind: openai_compatible
+  local: true
   base_url: http://127.0.0.1:8001/v1
   base_url_env: FORCEBENCH_SPLASH_BASE_URL
   api_key_env: FORCEBENCH_SPLASH_API_KEY
 lmstudio:
   kind: openai_compatible
+  local: true
   base_url: http://localhost:1234/v1
   base_url_env: FORCEBENCH_LMSTUDIO_BASE_URL
   api_key_env: FORCEBENCH_LMSTUDIO_API_KEY
@@ -38,37 +43,46 @@ google:
 # measurement). Endpoints and keys live in .env; see .env.example.
 direct-qwen27b:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_QWEN27B_BASE_URL
   api_key_env: FORCEBENCH_QWEN27B_API_KEY
 direct-flashnext:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_FLASHNEXT_BASE_URL
   api_key_env: FORCEBENCH_FLASHNEXT_API_KEY
 direct-glm:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_GLM_BASE_URL
   api_key_env: FORCEBENCH_GLM_API_KEY
 direct-glm-jspark3:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_GLM_JSPARK3_BASE_URL
   api_key_env: FORCEBENCH_GLM_JSPARK3_API_KEY
 direct-ds41:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_DS41_BASE_URL
   api_key_env: FORCEBENCH_DS41_API_KEY
 direct-ds41x3:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_DS41X3_BASE_URL
   api_key_env: FORCEBENCH_DS41X3_API_KEY
 direct-ds4v:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_DS4V_BASE_URL
   api_key_env: FORCEBENCH_DS4V_API_KEY
 direct-mimo:
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_MIMO_BASE_URL
   api_key_env: FORCEBENCH_MIMO_API_KEY
 direct-gpu:       # the single-GPU vLLM server; it serves one model at a time
   kind: openai_compatible
+  local: true
   base_url_env: FORCEBENCH_GPU_BASE_URL
   api_key_env: FORCEBENCH_GPU_API_KEY

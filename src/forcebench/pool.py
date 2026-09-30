@@ -24,13 +24,16 @@ model APIs, each such run recorded in exposure.yaml before anything is sent.
 from __future__ import annotations
 
 import datetime as dt
+import ipaddress
 import os
+import socket
 import subprocess
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -258,10 +261,49 @@ def record_exposure(
 # --------------------------------------------------------------------------- who may see it
 
 
+# Where a server the operator runs can be: this machine, a private network (RFC 1918,
+# link-local, IPv6 unique-local) or the shared address space that Tailscale-style private
+# networks use. host.docker.internal is Docker's name for the machine running the container.
+_LOCAL_NETWORKS = tuple(
+    ipaddress.ip_network(n)
+    for n in (
+        "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16",
+        "100.64.0.0/10", "::1/128", "fc00::/7", "fe80::/10",
+    )
+)  # fmt: skip
+_DOCKER_HOST = "host.docker.internal"
+
+
+def _local_address(address: str) -> bool:
+    ip = ipaddress.ip_address(address.split("%", 1)[0])  # an IPv6 zone id is not part of it
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return any(ip in n for n in _LOCAL_NETWORKS if n.version == ip.version)
+
+
+def local_host(host: str) -> bool:
+    """Whether every address ``host`` resolves to is on this machine or a private network. A
+    name that does not resolve is not local."""
+    if not host:
+        return False
+    if host.lower().rstrip(".") == _DOCKER_HOST:
+        return True
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(host, None)}
+    except (OSError, UnicodeError):
+        return False
+    return bool(addresses) and all(_local_address(str(a)) for a in addresses)
+
+
 def served_locally(m: ModelConfig, provider: Provider) -> bool:
-    """A model on a server the operator runs: configured ``local`` and reached through an
-    OpenAI-compatible server, never a vendor's own API."""
-    return m.local and provider.kind == "openai_compatible"
+    """A model on a server the operator runs. Everything must say so: the model config
+    (``local``), its provider (``local``, off unless set), which must be an OpenAI-compatible
+    server rather than a vendor's API, and where the base URL actually points (local_host).
+    Anything less counts as hosted: a tier-private task is refused, and a semi-private one is
+    recorded in the exposure log."""
+    if not (m.local and provider.local and provider.kind == "openai_compatible"):
+        return False
+    return local_host(urlparse(provider.resolved_base_url() or "").hostname or "")
 
 
 def check_tiers(tasks: Iterable[Task], m: ModelConfig, provider: Provider) -> None:
