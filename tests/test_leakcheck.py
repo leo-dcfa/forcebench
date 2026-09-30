@@ -6,20 +6,18 @@ import pytest
 from typer.testing import CliRunner
 
 from forcebench import CANARY, REPO_ROOT
-from forcebench.leakcheck import (
-    Finding,
-    check,
-    check_tracked,
-    only_the_public_canary,
-    public_task_files,
-    read_text,
-)
+from forcebench.leakcheck import Finding, all_rules, check, check_tracked, read_text
+from forcebench.leakcheck.tasks import only_the_public_canary, public_task_files
 
 PRIVATE_GUID = "5d2c9a41-7f3e-4b8a-9c1d-2e6f0a4b8c3d"  # stands in for a real pool's canary
 
 
 def test_this_repository_passes():
     assert check_tracked() == []
+
+
+def test_every_rule_module_is_loaded():
+    assert {only_the_public_canary, public_task_files} <= set(all_rules())
 
 
 @pytest.mark.parametrize(
