@@ -15,6 +15,8 @@ from typing import Any
 
 from forcebench import CANARY_GUID
 from forcebench.leakcheck import Finding, rule
+from forcebench.report import known_task_ids
+from forcebench.tasks import EVERY_STATUS, load_suites
 
 _RUN_FILE_RE = re.compile(r"results/(?:runs|invalid)/[^/]+/(?:run\.json|cases\.jsonl)")
 _OTHER_FILES = frozenset(
@@ -25,9 +27,6 @@ _OTHER_FILES = frozenset(
 @functools.cache
 def public_task_ids() -> frozenset[str]:
     """Every public task id, removed ones (suites/prompt-hashes.json) included."""
-    from forcebench.report import known_task_ids
-    from forcebench.tasks import EVERY_STATUS, load_suites
-
     return frozenset(known_task_ids(load_suites(statuses=EVERY_STATUS)))
 
 
