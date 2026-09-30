@@ -123,6 +123,35 @@ def test_a_link_outside_that_leads_into_the_public_tree_is_refused(tmp_path):
         check_private_dir(tmp_path / "link", public)
 
 
+def test_another_spelling_of_the_public_tree_is_still_the_public_tree(tmp_path):
+    """On a case-insensitive volume (macOS by default) another capitalisation names the same
+    directory, and so does macOS's /System/Volumes/Data form: both are compared by the file
+    system, not by spelling."""
+    public = tmp_path / "Public"
+    (public / "inner").mkdir(parents=True)
+    spellings = []
+    other_case = tmp_path / "PUBLIC" / "inner"
+    if other_case.exists():  # the volume ignores case
+        spellings.append(other_case)
+    data = Path("/System/Volumes/Data" + str(public.resolve())) / "inner"
+    if data.exists():
+        spellings.append(data)
+    if not spellings:
+        pytest.skip("neither a case-insensitive volume nor macOS firmlinks here")
+    for private in spellings:
+        with pytest.raises(PrivatePoolError, match="inside this repository"):
+            check_private_dir(private, public)
+        with pytest.raises(PrivatePoolError, match="contains this repository"):
+            check_private_dir(private.parent.parent, public)
+
+
+def test_refusals_never_print_the_private_path(tmp_path):
+    missing = tmp_path / "somewhere-secret"
+    with pytest.raises(PrivatePoolError) as err:
+        check_private_dir(missing, tmp_path / "public")
+    assert "somewhere-secret" not in str(err.value)
+
+
 def test_this_repository_is_checked_by_default():
     with pytest.raises(PrivatePoolError, match="inside this repository"):
         check_private_dir(REPO_ROOT / "suites")

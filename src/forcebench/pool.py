@@ -147,29 +147,56 @@ def _public_trees(root: Path) -> list[Path]:
     return list(dict.fromkeys(trees))
 
 
+def _within(path: Path, tree: Path) -> bool:
+    """Whether ``path`` is ``tree`` or inside it, judged by the file system rather than by how
+    the paths are spelt: each existing directory from ``path`` up is compared with ``tree`` by
+    device and inode. Another capitalisation on a case-insensitive volume, or macOS's
+    /System/Volumes/Data form of a path, is then still recognised."""
+    try:
+        target = tree.stat()
+    except OSError:
+        return False
+    for p in (path, *path.parents):
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        if (st.st_dev, st.st_ino) == (target.st_dev, target.st_ino):
+            return True
+    return False
+
+
+def inside_public_tree(path: Path, public_root: Path = REPO_ROOT) -> bool:
+    """Whether ``path`` (as named or resolved) is inside this repository's working tree."""
+    named, resolved = Path(os.path.normpath(path.absolute())), path.resolve()
+    return any(
+        p.is_relative_to(tree) or _within(p, tree)
+        for tree in _public_trees(public_root)
+        for p in (named, resolved)
+    )
+
+
 def check_private_dir(path: Path, public_root: Path = REPO_ROOT) -> Path:
     """The private directory, resolved. Refused (PrivatePoolError) unless it is an absolute path
     to a directory outside this repository's working tree that does not contain it either: a
     folder inside the public tree is one ``git add -f``, one tool that ignores .gitignore or
-    one mount of the repository away from being published."""
+    one mount of the repository away from being published. Messages never print the path."""
     if not path.is_absolute():
         raise PrivatePoolError(f"{PRIVATE_DIR_ENV} must be an absolute path")
-    named = Path(os.path.normpath(path))
+    if inside_public_tree(path, public_root):
+        raise PrivatePoolError(
+            f"{PRIVATE_DIR_ENV} is inside this repository's working tree; the private pool must "
+            "live outside it"
+        )
     resolved = path.resolve()
     for tree in _public_trees(public_root):
-        for p in (named, resolved):
-            if p.is_relative_to(tree):
-                raise PrivatePoolError(
-                    f"{PRIVATE_DIR_ENV} is inside this repository's working tree ({tree}); the "
-                    "private pool must live outside it"
-                )
-            if tree.is_relative_to(p):
-                raise PrivatePoolError(
-                    f"{PRIVATE_DIR_ENV} contains this repository ({tree}); the private pool must "
-                    "be a directory of its own, outside it"
-                )
+        if tree.is_relative_to(resolved) or _within(tree, resolved):
+            raise PrivatePoolError(
+                f"{PRIVATE_DIR_ENV} contains this repository; the private pool must be a "
+                "directory of its own, outside it"
+            )
     if not resolved.is_dir():
-        raise PrivatePoolError(f"{PRIVATE_DIR_ENV} is not a directory: {path}")
+        raise PrivatePoolError(f"{PRIVATE_DIR_ENV} is not a directory")
     return resolved
 
 
@@ -360,7 +387,7 @@ def init_private_dir(root: Path) -> PrivatePool:
     root = check_private_dir(root)
     existing = sorted(p.name for p in root.iterdir() if p.name != ".git")
     if existing:
-        raise PrivatePoolError(f"{root} is not empty ({', '.join(existing)})")
+        raise PrivatePoolError(f"the directory is not empty ({', '.join(existing)})")
     guid = str(uuid.uuid4())
     atomic_write_text(root / POOL_FILE, f"canary_guid: {guid}\n")
     write_exposure(root / EXPOSURE_FILE, {})
@@ -389,7 +416,7 @@ def docker_args(use: DockerUse, pool: PrivatePool | None = None) -> list[str]:
     pool = pool or load_private_pool()
     for p in (pool.root, pool.suites_dir, pool.runs_dir):
         if ":" in str(p) or "," in str(p):
-            raise PrivatePoolError(f"cannot mount {p}: a path with ':' or ','")
+            raise PrivatePoolError("cannot mount the private pool: its path has ':' or ','")
     if not pool.suites_dir.is_dir():
         raise PrivatePoolError("the private pool has no suites/ directory")
     try:
