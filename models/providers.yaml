@@ -56,6 +56,10 @@ direct-ds41:
   kind: openai_compatible
   base_url_env: FORCEBENCH_DS41_BASE_URL
   api_key_env: FORCEBENCH_DS41_API_KEY
+direct-ds41x3:
+  kind: openai_compatible
+  base_url_env: FORCEBENCH_DS41X3_BASE_URL
+  api_key_env: FORCEBENCH_DS41X3_API_KEY
 direct-ds4v:
   kind: openai_compatible
   base_url_env: FORCEBENCH_DS4V_BASE_URL
