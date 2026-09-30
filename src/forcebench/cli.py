@@ -468,6 +468,25 @@ def private_expose(
     console.print(f"recorded {party} ({kind}) for {n} private tasks", markup=False)
 
 
+@app.command()
+def leakcheck() -> None:
+    """Check that nothing from the private pool is in this repository: allowlist rules over every
+    file git tracks here (docs/private-pool.md). They need no secrets, so CI runs them. Exits 1
+    on any finding; findings never quote what they matched."""
+    from forcebench.leakcheck import check_tracked
+
+    findings = check_tracked()
+    for f in findings:
+        console.print(str(f), markup=False, soft_wrap=True)
+    if findings:
+        console.print(
+            f"{len(findings)} leakcheck findings: nothing from the private pool may be published",
+            style="red",
+        )
+        raise typer.Exit(1)
+    console.print("leakcheck: nothing found")
+
+
 @app.command("models")
 def list_models() -> None:
     """List model configurations and their effort levels."""
