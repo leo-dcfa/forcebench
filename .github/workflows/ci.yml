@@ -47,6 +47,10 @@ jobs:
         run: git ls-files 'src/*.py' 'tests/*.py' | grep -vxF "$PYRIGHT_BASELINE" | xargs uvx pyright@1.1.414
       - name: Unit tests
         run: uv run pytest -q
+      - name: Nothing from the private pool
+        # Allowlist rules over every tracked file (src/forcebench/leakcheck.py): only the public
+        # canary, only public task files. They need no secrets.
+        run: uv run forcebench leakcheck
       - name: Leaderboard is up to date
         # results/leaderboard.json and LEADERBOARD.md must be what `forcebench report` builds
         # from the committed runs and tasks (apart from generated_at): a change to the report,
