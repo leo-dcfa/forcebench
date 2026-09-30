@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from forcebench.leakcheck import check
+from forcebench.cli import app
+from forcebench.leakcheck import check, check_tracked
 from forcebench.leakcheck.private import denylist, nothing_from_the_private_pool
 from forcebench.pool import init_private_dir
 
@@ -89,8 +90,6 @@ def test_without_a_pool_there_is_nothing_to_find(monkeypatch):
 
 
 def test_the_command_says_what_it_checked_and_fails_on_a_broken_pool(pool, monkeypatch, tmp_path):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.console.width", 200)
     ok = CliRunner().invoke(app, ["leakcheck"])
     assert ok.exit_code == 0, ok.output
@@ -102,8 +101,6 @@ def test_the_command_says_what_it_checked_and_fails_on_a_broken_pool(pool, monke
 
 
 def test_the_repository_names_nothing_from_the_made_up_pool(pool):
-    from forcebench.leakcheck import check_tracked
-
     assert [f for f in check_tracked() if f.rule == "private"] == []
 
 
