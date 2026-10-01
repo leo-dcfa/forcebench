@@ -81,3 +81,17 @@ def test_results_hold_only_their_own_files(path):
 
 def test_malformed_json_is_a_finding_not_a_crash():
     assert _check(RUN, "{not json")[0].detail == "not valid JSON"
+
+
+def test_the_agent_tracks_files_are_results_too():
+    """The agent track keeps its runs and leaderboard under results/agent/ (docs/agent-track.md),
+    checked like the single-turn track's."""
+    run = json.dumps({"task_ids": [_public_id()]})
+    assert not _check("results/agent/runs/20260930T000000Z_m@low/run.json", run)
+    good = {"visibility": "public", "tasks": [{"id": _public_id()}], "entries": []}
+    assert not _check("results/agent/leaderboard.json", json.dumps(good))
+    assert not _check("results/agent/LEADERBOARD.md", "# results\n")
+    leaky = json.dumps({"visibility": "private"})
+    assert _check("results/agent/runs/20260930T000000Z_m@low/run.json", leaky)
+    assert _check("results/agent/leaderboard.json", json.dumps({**good, "visibility": None}))
+    assert _check("results/agent/notes.txt", "x")
