@@ -27,6 +27,27 @@ models:
       max: {output_config: {effort: max}}
     effort_tiers: {low: low, medium: medium, high: high, max: max}
 
+  # Thinking is always on (a request that disables it is refused); effort steers it, and the
+  # API default is medium (one level below the other models).
+  - id: claude-opus-5.5
+    provider: anthropic
+    endpoint_model: claude-opus-5-5
+    display: Claude Opus 5.5
+    family: Claude
+    base_model: Claude-Opus-5.5
+    quant: Hosted
+    engine: Anthropic API
+    open_weights: false
+    local: false
+    context: 1000000
+    default_effort: medium
+    efforts:
+      low: {output_config: {effort: low}}
+      medium: {output_config: {effort: medium}}
+      high: {output_config: {effort: high}}
+      max: {output_config: {effort: max}}
+    effort_tiers: {low: low, medium: medium, high: high, max: max}
+
   # Extended thinking only (no adaptive thinking, no effort parameter): thinking is off unless
   # the request enables it with a budget. Run as a thinking switch, like the open models that
   # have one; "on" gives it half the output budget to think in.
