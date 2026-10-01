@@ -32,6 +32,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    # The traces tests need the `traces` extra's client, so a plain `uv sync` can run every test.
+    "huggingface-hub>=0.35",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.9",
