@@ -61,6 +61,11 @@ direct-glm-jspark3:
   local: true
   base_url_env: FORCEBENCH_GLM_JSPARK3_BASE_URL
   api_key_env: FORCEBENCH_GLM_JSPARK3_API_KEY
+direct-glm-tensorfold:
+  kind: openai_compatible
+  local: true
+  base_url_env: FORCEBENCH_GLM_TENSORFOLD_BASE_URL
+  api_key_env: FORCEBENCH_GLM_TENSORFOLD_API_KEY
 direct-ds41:
   kind: openai_compatible
   local: true
