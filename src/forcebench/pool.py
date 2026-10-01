@@ -72,6 +72,8 @@ class PoolConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     canary_guid: str = Field(pattern=_GUID_PATTERN)
+    # Whether the contamination study's aggregates may be published (docs/contamination-study.md).
+    publish_contamination: bool = False
 
 
 ExposureKind = Literal["authoring", "model-api", "vendor-eval", "other"]
@@ -95,6 +97,7 @@ class PrivatePool:
     root: Path
     canary_guid: str
     exposure: dict[str, list[Exposure]]
+    publish_contamination: bool = False
 
     @property
     def canary(self) -> str:
@@ -245,7 +248,8 @@ def load_private_pool(root: Path | None = None) -> PrivatePool:
         raise PrivatePoolError(f"{POOL_FILE}: {_quiet(e)}") from None
     if cfg.canary_guid == CANARY_GUID:
         raise PrivatePoolError("the private pool's canary GUID must not be the public one")
-    return PrivatePool(root, cfg.canary_guid, read_exposure(root / EXPOSURE_FILE))
+    exposure = read_exposure(root / EXPOSURE_FILE)
+    return PrivatePool(root, cfg.canary_guid, exposure, cfg.publish_contamination)
 
 
 def read_exposure(path: Path) -> dict[str, list[Exposure]]:
