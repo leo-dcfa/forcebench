@@ -489,7 +489,9 @@ async def generate(
         model = model_id or started.get("model", {}).get("id")
         if model:
             m = registry.get(model)
-            check_tiers(tasks, m, registry.provider_for(m))
+            name = endpoint_model or started.get("endpoint_model")
+            called = m.model_copy(update={"endpoint_model": name}) if name else m
+            check_tiers(tasks, called, registry.provider_for(m), configured=m)
     run_dir.mkdir(parents=True, exist_ok=True)
     with run_lock(run_dir):
         return await _generate(
@@ -554,7 +556,7 @@ async def _generate(
     provider = registry.provider_for(m)
     if private is not None:
         # Before anything is sent: who may see these tasks, and a record of who now has.
-        check_tiers(tasks, m, provider)
+        check_tiers(tasks, m, provider, configured=registry.get(model_id))
         if not served_locally(m, provider):
             record_exposure(
                 private,

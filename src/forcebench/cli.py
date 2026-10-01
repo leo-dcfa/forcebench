@@ -649,10 +649,11 @@ def run(
     # graded first only for the private one to be refused.
     from forcebench.pool import check_tiers
 
+    called = m.model_copy(update={"endpoint_model": endpoint_model}) if endpoint_model else m
     for in_pool, tasks, _ in plan:
         if in_pool is not None:
             with _pool_errors():
-                check_tiers(tasks, m, reg.provider_for(m))
+                check_tiers(tasks, called, reg.provider_for(m), configured=m)
     env = make_env(use_orgs=not no_org) if grade else None
 
     # Every effort in one event loop: the grading environment's per-org semaphores (and the
