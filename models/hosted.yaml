@@ -26,3 +26,23 @@ models:
       high: {output_config: {effort: high}}
       max: {output_config: {effort: max}}
     effort_tiers: {low: low, medium: medium, high: high, max: max}
+
+  # Extended thinking only (no adaptive thinking, no effort parameter): thinking is off unless
+  # the request enables it with a budget. Run as a thinking switch, like the open models that
+  # have one; "on" gives it half the output budget to think in.
+  - id: claude-haiku-4.5
+    provider: anthropic
+    endpoint_model: claude-haiku-4-5-20251001
+    display: Claude Haiku 4.5
+    family: Claude
+    base_model: Claude-Haiku-4.5
+    quant: Hosted
+    engine: Anthropic API
+    open_weights: false
+    local: false
+    context: 200000
+    default_effort: "on"
+    efforts:
+      "off": {}
+      "on": {thinking: {type: enabled, budget_tokens: 16384}}
+    effort_tiers: {"off": "off", "on": "on"}
