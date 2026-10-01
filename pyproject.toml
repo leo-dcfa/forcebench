@@ -37,8 +37,45 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N"]
+# PLC0415: imports go at the top of the module, never inside a function.
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N", "PLC0415"]
 ignore = ["E501"]
+
+# Files that had imports inside functions when PLC0415 was turned on. They are moved to the top
+# file by file; take a file off this list once it passes. Every other file, new ones included,
+# must pass now.
+[tool.ruff.lint.per-file-ignores]
+"orgs/base/data/seed.py" = ["PLC0415"]
+"src/forcebench/answers.py" = ["PLC0415"]
+"src/forcebench/cli.py" = ["PLC0415"]
+"src/forcebench/graders/__init__.py" = ["PLC0415"]
+"src/forcebench/graders/basic.py" = ["PLC0415"]
+"src/forcebench/graders/lwc.py" = ["PLC0415"]
+"src/forcebench/graders/sf_cli.py" = ["PLC0415"]
+"src/forcebench/llm.py" = ["PLC0415"]
+"src/forcebench/org.py" = ["PLC0415"]
+"src/forcebench/pool.py" = ["PLC0415"]
+"src/forcebench/report.py" = ["PLC0415"]
+"src/forcebench/tasks.py" = ["PLC0415"]
+"tests/test_agent_runs.py" = ["PLC0415"]
+"tests/test_answer_paths.py" = ["PLC0415"]
+"tests/test_answers.py" = ["PLC0415"]
+"tests/test_fsutil.py" = ["PLC0415"]
+"tests/test_hedged_answers.py" = ["PLC0415"]
+"tests/test_leakcheck.py" = ["PLC0415"]
+"tests/test_llm_client.py" = ["PLC0415"]
+"tests/test_org_lock.py" = ["PLC0415"]
+"tests/test_pool.py" = ["PLC0415"]
+"tests/test_prompt_manifest.py" = ["PLC0415"]
+"tests/test_report.py" = ["PLC0415"]
+"tests/test_review_answers.py" = ["PLC0415"]
+"tests/test_review_round2.py" = ["PLC0415"]
+"tests/test_run_dirs.py" = ["PLC0415"]
+"tests/test_runner_integrity.py" = ["PLC0415"]
+"tests/test_safety_review.py" = ["PLC0415"]
+"tests/test_scratch_def.py" = ["PLC0415"]
+"tests/test_sf_cli.py" = ["PLC0415"]
+"tests/test_tasks.py" = ["PLC0415"]
 
 [tool.ruff.format]
 quote-style = "double"
