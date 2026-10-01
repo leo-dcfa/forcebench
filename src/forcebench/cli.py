@@ -471,11 +471,15 @@ def private_expose(
 @app.command()
 def leakcheck() -> None:
     """Check that nothing from the private pool is in this repository: allowlist rules over every
-    file git tracks here (docs/private-pool.md). They need no secrets, so CI runs them. Exits 1
-    on any finding; findings never quote what they matched."""
+    file git tracks here (docs/private-pool.md), which need no secrets, so CI runs them; and,
+    where the private pool is configured, its own denylist. Exits 1 on any finding; findings
+    never quote what they matched."""
     from forcebench.leakcheck import check_tracked
+    from forcebench.leakcheck.private import denylist
 
-    findings = check_tracked()
+    with _pool_errors():  # a private pool that is configured but broken: no silent pass
+        findings = check_tracked()
+        against_pool = denylist() is not None
     for f in findings:
         console.print(str(f), markup=False, soft_wrap=True)
     if findings:
@@ -484,7 +488,14 @@ def leakcheck() -> None:
             style="red",
         )
         raise typer.Exit(1)
-    console.print("leakcheck: nothing found")
+    console.print(
+        "leakcheck: nothing found"
+        + (
+            ", checked against the private pool as well"
+            if against_pool
+            else " (allowlist rules; no private pool here to check against)"
+        )
+    )
 
 
 @app.command("models")
