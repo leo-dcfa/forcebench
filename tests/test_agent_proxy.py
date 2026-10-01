@@ -1,7 +1,15 @@
 """The model proxy for agent runs (forcebench.agent.proxy): what it changes in each request, the
 budget it enforces, and what it records."""
 
-from forcebench.agent.proxy import Budget, merge, rewrite, usage_from_sse
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
+from urllib import error, request
+
+import pytest
+
+from forcebench.agent.proxy import Budget, Proxy, make_handler, merge, rewrite, usage_from_sse
 
 
 def test_the_configuration_wins_over_the_harness():
@@ -58,3 +66,98 @@ def test_usage_and_finish_reason_are_read_from_a_stream():
     usage, finish = usage_from_sse(lines)
     assert usage == {"prompt_tokens": 5, "completion_tokens": 7}
     assert finish == "stop"
+
+
+class _Upstream(BaseHTTPRequestHandler):
+    """A model server that records what it was asked and streams a short reply."""
+
+    seen: ClassVar[list[dict]] = []
+
+    def log_message(self, format, *args):
+        pass
+
+    def do_POST(self):
+        self.seen.append(
+            {"path": self.path, "auth": self.headers.get("Authorization"),
+             "body": json.loads(self.rfile.read(int(self.headers["Content-Length"])))}
+        )  # fmt: skip
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        for chunk in (
+            {"choices": [{"delta": {"content": "Answer: B"}}]},
+            {"choices": [{"delta": {}, "finish_reason": "stop"}]},
+            {"choices": [], "usage": {"prompt_tokens": 11, "completion_tokens": 3}},
+        ):
+            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+        self.wfile.write(b"data: [DONE]\n\n")
+
+
+@pytest.fixture
+def servers(tmp_path):
+    _Upstream.seen = []
+    up = ThreadingHTTPServer(("127.0.0.1", 0), _Upstream)
+    threading.Thread(target=up.serve_forever, daemon=True).start()
+    log = tmp_path / "requests.jsonl"
+    proxy = Proxy(
+        {
+            "FB_UPSTREAM": f"http://127.0.0.1:{up.server_port}/v1",
+            "FB_UPSTREAM_KEY": "secret",
+            "FB_MODEL": "served-name",
+            "FB_INJECT": json.dumps({"chat_template_kwargs": {"reasoning_effort": "high"}}),
+            "FB_MAX_TOKENS": "32768",
+            "FB_MAX_REQUESTS": "1",
+            "FB_LOG": str(log),
+        }
+    )
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(proxy))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}/v1", log
+    srv.shutdown()
+    up.shutdown()
+
+
+def _post(url: str, body: dict) -> tuple[int, bytes]:
+    req = request.Request(
+        url + "/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"}
+    )
+    try:
+        with request.urlopen(req, timeout=10) as r:
+            return r.status, r.read()
+    except error.HTTPError as e:
+        return e.code, e.read()
+
+
+def test_a_request_goes_through_rewritten_and_is_logged(servers):
+    url, log = servers
+    status, body = _post(url, {"model": "model", "messages": [], "stream": True, "temperature": 0})
+    assert status == 200 and b"Answer: B" in body
+    sent = _Upstream.seen[0]
+    assert sent["path"] == "/v1/chat/completions"
+    assert sent["auth"] == "Bearer secret"  # the key is added here; the agent never has it
+    assert sent["body"]["model"] == "served-name"
+    assert sent["body"]["chat_template_kwargs"] == {"reasoning_effort": "high"}
+    assert "temperature" not in sent["body"]
+    rec = json.loads(log.read_text().splitlines()[0])
+    assert (rec["status"], rec["prompt_tokens"], rec["completion_tokens"], rec["finish_reason"]) == (
+        200, 11, 3, "stop",
+    )  # fmt: skip
+
+
+def test_a_spent_budget_ends_the_session(servers):
+    url, log = servers
+    assert _post(url, {"messages": [], "stream": True})[0] == 200
+    status, body = _post(url, {"messages": [], "stream": True})
+    assert status == 400 and b"budget exhausted" in body
+    assert len(_Upstream.seen) == 1, "nothing more reaches the model"
+    assert "refused" in json.loads(log.read_text().splitlines()[-1])
+
+
+def test_only_chat_completions_are_proxied(servers):
+    url, _ = servers
+    req = request.Request(url.replace("/v1", "/admin"), b"{}", {"Content-Type": "application/json"})
+    with pytest.raises(error.HTTPError) as e:
+        request.urlopen(req, timeout=10)
+    assert e.value.code == 404 and not _Upstream.seen
+    with request.urlopen(url + "/models", timeout=10) as r:
+        assert json.loads(r.read())["data"][0]["id"] == "model"
