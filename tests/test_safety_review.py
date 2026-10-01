@@ -280,7 +280,12 @@ def test_offline_container_mounts_only_code_tasks_and_the_runs():
     for dry in (_make_dry_run(), _make_dry_run("regrade-all")):
         argv = _docker_line(dry, offline=True)
         mounts = {dst: (src, ro) for src, dst, ro in _mounts(argv)}
-        assert mounts == {**code_and_tasks, "/work/results/runs": (f"{root}/results/runs", False)}
+        runs = {"/work/results/runs": (f"{root}/results/runs", False)}
+        # Agent-track runs (docs/agent-track.md) are graded the same way, and their directory is
+        # mounted only when it exists.
+        if (REPO_ROOT / "results" / "agent" / "runs").is_dir():
+            runs["/work/results/agent/runs"] = (f"{root}/results/agent/runs", False)
+        assert mounts == {**code_and_tasks, **runs}
         assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
         assert "FORCEBENCH_LWC_OFFLINE=1" in argv
         assert not any(".env" in a for a in argv)
