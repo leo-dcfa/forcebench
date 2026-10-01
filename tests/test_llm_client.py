@@ -1,13 +1,15 @@
 """The client builds a real pydantic-ai agent (catches API drift) and classifies failures."""
 
+import http.server
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any
 
 import pytest
 
 from forcebench.llm import Client
-from forcebench.models import load_registry
+from forcebench.models import ModelConfig, Provider, load_registry
 
 
 @pytest.fixture
@@ -66,9 +68,6 @@ class _FakeServer:
     one repeats)."""
 
     def __init__(self, *replies: str | _Drop | _Status):
-        import http.server
-        import threading
-
         self.requests = 0
         server = self
 
@@ -247,8 +246,6 @@ async def test_retries_stop_at_the_limit_and_leave_the_answer_unscored(monkeypat
 
 
 def _google_config(**overrides: Any):
-    from forcebench.models import ModelConfig, Provider
-
     m = ModelConfig.model_validate(
         {
             "id": "gemini-test",

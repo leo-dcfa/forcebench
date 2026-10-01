@@ -17,6 +17,7 @@ from forcebench.agent.harness import (
     usage,
     write_workspace,
 )
+from forcebench.agent.skills import load_pack
 from forcebench.models import load_registry
 
 
@@ -166,8 +167,6 @@ def test_a_run_records_which_agent_answered():
 
 
 def test_a_run_with_skills_records_the_pack_and_shows_it():
-    from forcebench.agent.skills import load_pack
-
     pack = load_pack("sf-skills")
     d = Opencode(skills=pack).describe("sha256:abc")
     assert d["skills"] == pack.describe()

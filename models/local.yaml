@@ -178,6 +178,28 @@ models:
       max: {chat_template_kwargs: {enable_thinking: true, reasoning_effort: max}}
     effort_tiers: {"off": "off", low: low, high: high, max: max}
 
+  # The same EXL3 checkpoint served by TensorFold (two GB10s, one rank each), with its own CUDA
+  # kernels: the dense trunk requantised to 4 bits at load, DFlash2 speculative decoding. Its
+  # server thinks by default; without an effort GLM's template uses max.
+  - id: glm-5.3-flash-exl3-4bpw-tensorfold
+    provider: direct-glm-tensorfold
+    endpoint_model: GLM-5.3-Flash-EXL3
+    display: GLM-5.3 Flash
+    family: GLM-5.3
+    base_model: GLM-5.3-Flash
+    quant: EXL3 4.0bpw
+    engine: TensorFold
+    notes: Same EXL3 4.0bpw routed-expert files as glm-5.3-flash-exl3-4bpw; 4-bit dense trunk (FP8 head), FP8 KV cache.
+    context: 1048576
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: high
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      low: {chat_template_kwargs: {reasoning_effort: low}}
+      high: {chat_template_kwargs: {reasoning_effort: high}}
+      max: {chat_template_kwargs: {reasoning_effort: max}}
+    effort_tiers: {"off": "off", low: low, high: high, max: max}
+
   # ---------------------------------------------------------------- DeepSeek V4 family
   - id: deepseek-v4.1-flash-exl3-2.9bpw
     provider: direct-ds41

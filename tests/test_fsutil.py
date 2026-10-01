@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import fcntl
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -12,8 +14,10 @@ import textwrap
 
 import pytest
 
-from forcebench import fsutil
+from forcebench import fsutil, runner
 from forcebench.fsutil import LockBusyError, atomic_write_text, exclusive_lock
+from forcebench.graders import GradeEnv
+from forcebench.llm import Generation
 
 
 def _leftovers(directory) -> list[str]:
@@ -171,12 +175,6 @@ def test_a_second_process_waits_for_the_lock(tmp_path):
 
 
 def test_grading_holds_the_run_lock_and_writes_cases_atomically(tmp_path, make_task, monkeypatch):
-    import asyncio
-
-    from forcebench import runner
-    from forcebench.graders import GradeEnv
-    from forcebench.llm import Generation
-
     task = make_task({"format": "text"})
     run_dir = tmp_path / "20260928T000000Z_qwen3.8-27b-awq-int4@low"
     (run_dir / "raw").mkdir(parents=True)
@@ -196,8 +194,10 @@ def test_grading_holds_the_run_lock_and_writes_cases_atomically(tmp_path, make_t
 
     monkeypatch.setattr(runner, "atomic_write_text", spy)
     asyncio.run(runner.grade(run_dir, [task], GradeEnv(work_dir=tmp_path / "w"), progress=False))
-    assert writes == ["cases.jsonl", "run.json"]
-    assert held == [True, True], "every write happens under the run lock"
+    # The grading pass's timing summary (artifacts/grading/<start>.json), then the run's files.
+    assert re.fullmatch(r"\d{8}T\d{6}Z\.json", writes[0]), writes
+    assert writes[1:] == ["cases.jsonl", "run.json"]
+    assert held == [True, True, True], "every write happens under the run lock"
     assert not _locked_elsewhere(run_dir / runner.LOCK_FILE), "released afterwards"
     [case] = [json.loads(x) for x in (run_dir / "cases.jsonl").read_text().splitlines()]
     assert case["passed"] is True

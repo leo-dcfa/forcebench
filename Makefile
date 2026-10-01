@@ -68,7 +68,12 @@ TTY := $(shell [ -t 0 ] && echo -it)
 # The run id runner.run_id_for makes (runner.RUN_ID_RE), as an ERE.
 RUN_ID_PATTERN = [0-9]{8}T[0-9]{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*
 
-.PHONY: help sandbox-build sandbox-shell sandbox-import sandbox-provision orgs run grade validate report test lint regrade-all bundle publish-results
+.PHONY: hooks help sandbox-build sandbox-shell sandbox-import sandbox-provision orgs run grade validate report test lint regrade-all bundle publish-results
+
+# The pre-commit hook refuses a commit that would publish anything from the private pool
+# (forcebench leakcheck --staged). core.hooksPath is shared by every worktree of this clone.
+hooks: ## Install the pre-commit hook (.githooks/pre-commit) for this clone
+	git config core.hooksPath .githooks
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -153,8 +158,9 @@ bundle: ## Zip each run's full replies and artifacts into dist/runs/ (a private 
 # `report --stage` rebuilds the leaderboard in memory and compares it with what `report` just
 # wrote: a run changed since (or a symlinked results/, a malformed run, or any run that may not
 # be published) stops the target before anything is staged. It then stages exactly what may be
-# published: the leaderboard, LEADERBOARD.md, and run.json and cases.jsonl of each run it is
-# built from; never the rest of results/. Nothing is locked, so do not grade while publishing.
+# published: the leaderboard, LEADERBOARD.md, run.json and cases.jsonl of each run it is built
+# from and of each run in invalid/, and removals of such files (a run moved to invalid/); never
+# the rest of results/. --commit then commits exactly those paths, and nothing else that happens
+# to be staged. Nothing is locked, so do not grade while publishing.
 publish-results: report ## Commit the public results (run regrade-all first); push is up to you
-	uv run forcebench report --stage
-	git diff --cached --quiet || git commit -m "Update results"
+	uv run forcebench report --stage --commit

@@ -1,9 +1,9 @@
 # How to reach each provider. Endpoints and keys come from the environment (.env), never
 # from this repo. `local: true` marks a server you run yourself, on this machine or a private
-# network; it is off unless set, and a vendor API or a hosted router must never have it.
+# network, with no routes to hosted models; it is off unless set. A vendor API, a hosted router,
+# or a proxy that can forward to one (LiteLLM with hosted models) must never have it.
 local:            # any OpenAI-compatible server or proxy you run yourself (vLLM, SGLang, LiteLLM, ...)
-  kind: openai_compatible
-  local: true
+  kind: openai_compatible   # not `local: true`: a proxy may route some names to hosted models
   base_url_env: FORCEBENCH_LOCAL_BASE_URL
   api_key_env: FORCEBENCH_LOCAL_API_KEY
 mtplx:            # MTPLX (MLX) server, called directly
@@ -61,6 +61,11 @@ direct-glm-jspark3:
   local: true
   base_url_env: FORCEBENCH_GLM_JSPARK3_BASE_URL
   api_key_env: FORCEBENCH_GLM_JSPARK3_API_KEY
+direct-glm-tensorfold:
+  kind: openai_compatible
+  local: true
+  base_url_env: FORCEBENCH_GLM_TENSORFOLD_BASE_URL
+  api_key_env: FORCEBENCH_GLM_TENSORFOLD_API_KEY
 direct-ds41:
   kind: openai_compatible
   local: true

@@ -18,6 +18,8 @@ from typer.testing import CliRunner
 
 from forcebench import REPO_ROOT, runner
 from forcebench.cli import app
+from forcebench.fsutil import ResultsDirError, check_results_dir
+from forcebench.graders import GradeEnv
 from forcebench.llm import Generation
 from forcebench.models import ModelConfig, load_registry
 from forcebench.runner import RUN_ID_RE, RunDirError, check_run_dir, gradable_runs, run_id_for
@@ -169,8 +171,6 @@ def test_grade_no_wait_skips_a_busy_run(tmp_path, make_task, monkeypatch):
 
 
 async def test_grading_a_busy_run_without_waiting_raises_before_touching_it(tmp_path, make_task):
-    from forcebench.graders import GradeEnv
-
     task = make_task({"format": "text"})
     run = _finished_run(tmp_path, GOOD, task.id)
     with _held_elsewhere(run), pytest.raises(runner.RunBusyError, match="being generated"):
@@ -310,9 +310,6 @@ def test_report_refuses_a_symlinked_results_directory(linked_results):
 
 
 async def test_the_runner_refuses_a_symlinked_results_directory(linked_results, make_task):
-    from forcebench.fsutil import ResultsDirError
-    from forcebench.graders import GradeEnv
-
     _, run = linked_results
     with pytest.raises(ResultsDirError, match="symbolic link"):
         await runner.grade(run, [make_task({"format": "text"})], GradeEnv())
@@ -324,8 +321,6 @@ async def test_the_runner_refuses_a_symlinked_results_directory(linked_results, 
 
 
 def test_plain_or_missing_results_directories_are_accepted(tmp_path):
-    from forcebench.fsutil import check_results_dir
-
     check_results_dir(tmp_path / "absent")
     (tmp_path / "results" / "runs").mkdir(parents=True)
     check_results_dir(tmp_path / "results")

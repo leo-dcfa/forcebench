@@ -14,15 +14,18 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from forcebench import BENCHMARK_VERSION, REPO_ROOT
+from forcebench.cli import app
 from forcebench.report import (
     SCHEMA_VERSION,
     RunDataError,
     build_entry,
     build_leaderboard,
     check_leaderboard,
+    load_runs,
     render_markdown,
     tasks_sha,
     write_leaderboard,
@@ -289,8 +292,6 @@ def test_a_run_whose_id_is_not_its_run_id_directory_is_refused(tmp_path, suites,
 
 
 def test_report_refuses_a_run_with_a_forged_id(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     meta_path = results / "runs" / "20260928T030000Z_model-c@medium" / "run.json"
@@ -553,8 +554,6 @@ def test_check_needs_a_leaderboard(fixture_copy):
 
 
 def test_report_check_command(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     before = {p: p.read_bytes() for p in results.rglob("*") if p.is_file()}
@@ -576,8 +575,6 @@ def test_report_check_command(fixture_copy, monkeypatch):
 
 
 def test_ci_checks_the_committed_leaderboard_after_the_unit_tests():
-    import yaml
-
     workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text())
     runs = [step.get("run", "") for step in workflow["jobs"]["check"]["steps"]]
     check = runs.index("uv run forcebench report --check")
@@ -591,10 +588,9 @@ def test_publish_results_checks_the_leaderboard_before_committing():
         ["make", "-n", "--no-print-directory", "-C", str(REPO_ROOT), "publish-results"],
         capture_output=True, text=True, check=True,
     ).stdout.splitlines()  # fmt: skip
-    stage = dry.index("uv run forcebench report --stage")
-    commit = next(i for i, line in enumerate(dry) if "git commit" in line)
-    assert dry.index("uv run forcebench report") < stage < commit
-    assert not any("git add" in line for line in dry), "only report --stage stages anything"
+    publish = dry.index("uv run forcebench report --stage --commit")
+    assert dry.index("uv run forcebench report") < publish
+    assert not any(line.startswith("git ") for line in dry), "only report stages and commits"
 
 
 # --------------------------------------------------------------------------- what may be published
@@ -651,8 +647,6 @@ def test_the_private_leaderboard_takes_private_runs_only(tmp_path, suites):
 
 
 def test_report_command_refuses_a_private_run_in_the_public_results(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     meta_path = results / "runs" / "20260928T030000Z_model-c@medium" / "run.json"
@@ -691,8 +685,6 @@ def _git(root: Path, *args: str) -> str:
 
 
 def test_stage_adds_exactly_what_may_be_published(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     if not shutil.which("git"):
         pytest.skip("git not installed")
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
@@ -718,8 +710,6 @@ def test_stage_adds_exactly_what_may_be_published(fixture_copy, monkeypatch):
 
 
 def test_stage_stages_nothing_when_a_private_run_is_in_the_results(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     if not shutil.which("git"):
         pytest.skip("git not installed")
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
@@ -733,6 +723,75 @@ def test_stage_stages_nothing_when_a_private_run_is_in_the_results(fixture_copy,
     assert result.exit_code == 1
     assert "refusing to publish anything" in " ".join(result.output.split())
     assert _git(fixture_copy, "diff", "--cached", "--name-only") == ""
+
+
+def _commit_all(root: Path) -> None:
+    _git(root, "add", "-A")
+    _git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+
+
+@pytest.fixture
+def published(fixture_copy, monkeypatch):
+    """The fixture tree as a git repository whose results are all committed."""
+    if not shutil.which("git"):
+        pytest.skip("git not installed")
+    monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
+    for var, value in (("NAME", "t"), ("EMAIL", "t@t")):
+        monkeypatch.setenv(f"GIT_AUTHOR_{var}", value)
+        monkeypatch.setenv(f"GIT_COMMITTER_{var}", value)
+    _git(fixture_copy, "init", "-q")
+    _commit_all(fixture_copy)
+    return fixture_copy
+
+
+def _publish(root: Path, *extra: str):
+    return CliRunner().invoke(
+        app, ["report", "--stage", *extra, "--results-dir", str(root / "results")]
+    )
+
+
+def test_a_run_moved_to_invalid_is_published_as_a_move(published):
+    results = published / "results"
+    run = sorted(p for p in (results / "runs").iterdir() if (p / "cases.jsonl").exists())[0]
+    (results / "invalid").mkdir()
+    run.rename(results / "invalid" / run.name)
+    (results / "invalid" / "README.md").write_text("# Invalid runs\n")
+    (results / "stray.txt").write_text("x\n")
+    _git(published, "add", "results/stray.txt")
+    _git(published, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "stray")
+    (results / "stray.txt").unlink()  # a removal of a file publishing never commits
+    # The leaderboard no longer has the moved run: rebuild it, then stage.
+
+    assert CliRunner().invoke(app, ["report", "--results-dir", str(results)]).exit_code == 0
+    result = _publish(published)
+    assert result.exit_code == 0, result.output
+    staged = _git(published, "diff", "--cached", "--name-status", "--no-renames").splitlines()
+    assert f"D\tresults/runs/{run.name}/run.json" in staged
+    assert f"A\tresults/invalid/{run.name}/run.json" in staged
+    assert "A\tresults/invalid/README.md" in staged
+    assert not any("stray.txt" in line for line in staged)
+
+
+def test_commit_commits_exactly_what_may_be_published(published):
+    (published / "unrelated.md").write_text("someone else's work in progress\n")
+    _git(published, "add", "unrelated.md")
+    results = published / "results"
+    (results / "LEADERBOARD.md").write_text((results / "LEADERBOARD.md").read_text() + "\n")
+    result = _publish(published, "--commit")
+    assert result.exit_code == 1, "LEADERBOARD.md no longer matches the leaderboard"
+
+    assert CliRunner().invoke(app, ["report", "--results-dir", str(results)]).exit_code == 0
+    result = _publish(published, "--commit")
+    assert result.exit_code == 0, result.output
+    committed = _git(published, "show", "--name-only", "--format=", "HEAD").split()
+    assert committed and all(p.startswith("results/") for p in committed)
+    assert _git(published, "diff", "--cached", "--name-only").split() == ["unrelated.md"]
+    again = _publish(published, "--commit")
+    assert again.exit_code == 0 and "nothing to commit" in again.output
+
+
+def test_commit_needs_stage():
+    assert CliRunner().invoke(app, ["report", "--commit"]).exit_code == 2
 
 
 # --------------------------------------------------------------------------- agent track
@@ -749,8 +808,6 @@ _AGENT = {
 def test_each_track_refuses_the_other_tracks_runs(tmp_path, suites):
     """Single-turn and agent runs are separate leaderboards (docs/agent-track.md): an agent run
     copied among single-turn runs, or the reverse, refuses the whole report."""
-    from forcebench.report import RunDataError, load_runs
-
     single = tmp_path / "runs"
     _write_run(single, _meta("r1"), _all())
     _write_run(single, _meta("r2", track="agent", agent=_AGENT), _all())

@@ -18,6 +18,7 @@ from forcebench import SUITES_DIR, runner
 from forcebench.answer_files import AnswerPathError
 from forcebench.answers import extract
 from forcebench.cli import app
+from forcebench.fsutil import exclusive_lock
 from forcebench.graders import _REGISTRY, Grade, GradeEnv, grade, lwc, scratch_def
 from forcebench.llm import Generation
 from forcebench.runner import RunDirError, check_run_dir
@@ -194,8 +195,6 @@ def test_grading_never_rewrites_artifacts_through_a_symlink(tmp_path, make_task)
 
 
 def test_the_lock_is_never_taken_through_a_symlink(tmp_path):
-    from forcebench.fsutil import exclusive_lock
-
     (tmp_path / ".lock").symlink_to(tmp_path / "somewhere-else")
     with pytest.raises(OSError), exclusive_lock(tmp_path / ".lock"):
         pass

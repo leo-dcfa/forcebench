@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
+from forcebench.graders import GradeEnv
 from forcebench.graders.sf_cli import (
     build_manifest,
     grade_commands,
@@ -14,6 +17,8 @@ from forcebench.graders.sf_cli import (
     parse_line,
     split_line,
 )
+from forcebench.tasks import load_suites
+from forcebench.validate import validate_tasks
 
 
 @pytest.fixture(scope="module")
@@ -514,12 +519,6 @@ def test_grade_params_top_level_any_of(m):
 
 def test_cli_suite_oracles():
     """Every cli task: reference and alternatives pass, empty and negatives fail."""
-    import asyncio
-
-    from forcebench.graders import GradeEnv
-    from forcebench.tasks import load_suites
-    from forcebench.validate import validate_tasks
-
     (suite,) = load_suites(["cli"])
     results = asyncio.run(validate_tasks(suite.tasks, GradeEnv()))
     problems = {r.task.id: r.problems for r in results if r.problems or r.skipped}

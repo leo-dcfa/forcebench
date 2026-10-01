@@ -21,12 +21,19 @@ dependencies = [
 [project.scripts]
 forcebench = "forcebench.cli:app"
 
+[project.optional-dependencies]
+traces = [
+    "huggingface-hub>=0.35",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.12,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    # The traces tests need the `traces` extra's client, so a plain `uv sync` can run every test.
+    "huggingface-hub>=0.35",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.9",
@@ -37,8 +44,26 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N"]
+# PLC0415: imports go at the top of the module, never inside a function.
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N", "PLC0415"]
 ignore = ["E501"]
+
+# Files that had imports inside functions when PLC0415 was turned on. They are moved to the top
+# file by file; take a file off this list once it passes. Every other file, new ones included,
+# must pass now.
+[tool.ruff.lint.per-file-ignores]
+"orgs/base/data/seed.py" = ["PLC0415"]
+"src/forcebench/answers.py" = ["PLC0415"]
+"src/forcebench/cli.py" = ["PLC0415"]
+"src/forcebench/graders/__init__.py" = ["PLC0415"]
+"src/forcebench/graders/basic.py" = ["PLC0415"]
+"src/forcebench/graders/lwc.py" = ["PLC0415"]
+"src/forcebench/graders/sf_cli.py" = ["PLC0415"]
+"src/forcebench/llm.py" = ["PLC0415"]
+"src/forcebench/org.py" = ["PLC0415"]
+"src/forcebench/pool.py" = ["PLC0415"]
+"src/forcebench/report.py" = ["PLC0415"]
+"src/forcebench/tasks.py" = ["PLC0415"]
 
 [tool.ruff.format]
 quote-style = "double"
