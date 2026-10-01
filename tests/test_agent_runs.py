@@ -78,3 +78,34 @@ def test_agent_runs_use_public_tasks_only(agent_runs, make_task):
     reg, *_ = agent_runs
     with pytest.raises(ValueError, match="public tasks only"):
         _generate(reg, [make_task({"format": "text"})], agent=Opencode(), private=object())  # type: ignore[arg-type]
+
+
+def test_a_skill_pack_is_prepared_recorded_and_kept_on_resume(agent_runs, make_task, monkeypatch):
+    import json
+
+    from forcebench import runner
+    from forcebench.agent.skills import load_pack
+    from forcebench.runner import ResumeError
+
+    prepared: list[str] = []
+    monkeypatch.setattr(runner, "prepare_skills", lambda pack: prepared.append(pack.name))
+    reg, _, _, calls = agent_runs
+    task = make_task({"format": "text"})
+    pack = load_pack("sf-skills")
+    run_dir = _generate(reg, [task], agent=Opencode(skills=pack))
+    assert prepared == ["sf-skills"], "fetched and checked before the first task"
+    assert (
+        json.loads((run_dir / "run.json").read_text())["agent"]["skills"]["sha256"] == pack.sha256
+    )
+    with pytest.raises(ResumeError, match="agent"):
+        _generate(reg, [task], agent=Opencode(), run_dir=run_dir)  # without the pack
+    assert calls == ["test-task"]
+
+
+def test_skills_need_an_agent():
+    from typer.testing import CliRunner
+
+    from forcebench.cli import app
+
+    result = CliRunner().invoke(app, ["run", "-m", MODEL, "--skills", "sf-skills", "--no-grade"])
+    assert result.exit_code != 0 and "add --agent" in result.output
