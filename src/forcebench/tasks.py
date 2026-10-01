@@ -96,6 +96,8 @@ class Task(BaseModel):
     visibility: Visibility = "public"
     tier: Tier | None = None  # private tasks only, and required for them
     status: Status = "active"
+    # Public tasks that were private until this date (forcebench private retire).
+    retired_from_private: dt.date | None = None
     canary: str
 
     prompt: str
@@ -135,6 +137,10 @@ class Task(BaseModel):
                 )
             if self.tier is None:
                 raise ValueError("a private task needs a tier: private or semi-private")
+            if self.retired_from_private is not None:
+                raise ValueError(
+                    "retired_from_private is for tasks that have joined the public set"
+                )
         return self
 
 
