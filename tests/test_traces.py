@@ -116,7 +116,7 @@ def test_push_checks_every_file_and_record(built):
 
 
 class FakeHub:
-    def __init__(self, private=False, gated=False):
+    def __init__(self, private: bool = False, gated: bool | str = False):
         self.info = SimpleNamespace(private=private, gated=gated)
         self.uploads: list[dict] = []
 
