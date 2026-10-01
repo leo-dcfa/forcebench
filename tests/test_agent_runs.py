@@ -3,6 +3,7 @@ what they record, and that a run is never resumed with another agent or none. Th
 faked here; tests/test_agent_harness.py covers it."""
 
 import asyncio
+import re
 
 import pytest
 
@@ -107,5 +108,11 @@ def test_skills_need_an_agent():
 
     from forcebench.cli import app
 
-    result = CliRunner().invoke(app, ["run", "-m", MODEL, "--skills", "sf-skills", "--no-grade"])
-    assert result.exit_code != 0 and "add --agent" in result.output
+    # A usage error is drawn in a box as wide as the terminal: wide and plain, so it stays one line.
+    result = CliRunner().invoke(
+        app,
+        ["run", "-m", MODEL, "--skills", "sf-skills", "--no-grade"],
+        env={"COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb"},
+    )
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)  # colour codes even so, where forced
+    assert result.exit_code == 2 and "add --agent" in plain
