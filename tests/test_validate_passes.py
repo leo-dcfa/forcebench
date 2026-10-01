@@ -47,6 +47,9 @@ def test_make_validate_runs_lwc_only_in_the_offline_container():
     runs = grade_offline.index("-v", grade_offline.index("PYTHONPATH=/work/src"))
     assert grade_offline[runs + 1].endswith("/results/runs:/work/results/runs")
     without_runs = grade_offline[:runs] + grade_offline[runs + 2 :]
+    if "-v" in without_runs[runs : runs + 1]:  # results/agent/runs, mounted when it exists
+        assert without_runs[runs + 1].endswith("/results/agent/runs:/work/results/agent/runs")
+        without_runs = without_runs[:runs] + without_runs[runs + 2 :]
     assert offline[: offline.index("-m")] == without_runs[: without_runs.index("-m")]
 
 
