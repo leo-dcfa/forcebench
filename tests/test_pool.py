@@ -982,3 +982,17 @@ def test_the_litellm_proxy_provider_is_not_local():
     from forcebench.models import load_registry
 
     assert not load_registry().providers["local"].local
+
+
+@pytest.mark.parametrize("var", ["HTTPS_PROXY", "http_proxy", "ALL_PROXY"])
+def test_private_runs_refuse_a_proxy(pool_dir, fake_model, monkeypatch, var):
+    monkeypatch.setenv(var, "http://proxy.example:3128")
+    with pytest.raises(PrivatePoolError, match=var):
+        _gen(fake_model, _private_tasks(), private=load_private_pool())
+    assert not fake_model.prompts
+
+
+def test_public_runs_are_not_affected_by_a_proxy(fake_model, monkeypatch, make_task):
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:3128")
+    _gen(fake_model, [make_task({"format": "text"})])
+    assert fake_model.prompts
