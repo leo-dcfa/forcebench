@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from forcebench import CANARY, REPO_ROOT, org
+from forcebench import validate as validate_mod
 from forcebench.answers import extract
 from forcebench.graders import GradeEnv, grade, lwc
 from forcebench.graders import org as org_grader
@@ -164,8 +165,6 @@ async def test_authored_answers_skip_the_gate_but_keep_permission_flags(gate):
 
 
 async def test_validate_grades_inside_authored_answers_and_nothing_leaks(monkeypatch):
-    from forcebench import validate as validate_mod
-
     seen: list[bool] = []
 
     async def fake_validate_task(task, env):

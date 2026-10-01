@@ -14,15 +14,18 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from forcebench import BENCHMARK_VERSION, REPO_ROOT
+from forcebench.cli import app
 from forcebench.report import (
     SCHEMA_VERSION,
     RunDataError,
     build_entry,
     build_leaderboard,
     check_leaderboard,
+    load_runs,
     render_markdown,
     tasks_sha,
     write_leaderboard,
@@ -289,8 +292,6 @@ def test_a_run_whose_id_is_not_its_run_id_directory_is_refused(tmp_path, suites,
 
 
 def test_report_refuses_a_run_with_a_forged_id(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     meta_path = results / "runs" / "20260928T030000Z_model-c@medium" / "run.json"
@@ -553,8 +554,6 @@ def test_check_needs_a_leaderboard(fixture_copy):
 
 
 def test_report_check_command(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     before = {p: p.read_bytes() for p in results.rglob("*") if p.is_file()}
@@ -576,8 +575,6 @@ def test_report_check_command(fixture_copy, monkeypatch):
 
 
 def test_ci_checks_the_committed_leaderboard_after_the_unit_tests():
-    import yaml
-
     workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text())
     runs = [step.get("run", "") for step in workflow["jobs"]["check"]["steps"]]
     check = runs.index("uv run forcebench report --check")
@@ -650,8 +647,6 @@ def test_the_private_leaderboard_takes_private_runs_only(tmp_path, suites):
 
 
 def test_report_command_refuses_a_private_run_in_the_public_results(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
     results = fixture_copy / "results"
     meta_path = results / "runs" / "20260928T030000Z_model-c@medium" / "run.json"
@@ -690,8 +685,6 @@ def _git(root: Path, *args: str) -> str:
 
 
 def test_stage_adds_exactly_what_may_be_published(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     if not shutil.which("git"):
         pytest.skip("git not installed")
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
@@ -717,8 +710,6 @@ def test_stage_adds_exactly_what_may_be_published(fixture_copy, monkeypatch):
 
 
 def test_stage_stages_nothing_when_a_private_run_is_in_the_results(fixture_copy, monkeypatch):
-    from forcebench.cli import app
-
     if not shutil.which("git"):
         pytest.skip("git not installed")
     monkeypatch.setattr("forcebench.cli.load_suites", lambda *a, **k: _fixture_suites(fixture_copy))
@@ -754,8 +745,6 @@ def published(fixture_copy, monkeypatch):
 
 
 def _publish(root: Path, *extra: str):
-    from forcebench.cli import app
-
     return CliRunner().invoke(
         app, ["report", "--stage", *extra, "--results-dir", str(root / "results")]
     )
@@ -772,7 +761,6 @@ def test_a_run_moved_to_invalid_is_published_as_a_move(published):
     _git(published, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "stray")
     (results / "stray.txt").unlink()  # a removal of a file publishing never commits
     # The leaderboard no longer has the moved run: rebuild it, then stage.
-    from forcebench.cli import app
 
     assert CliRunner().invoke(app, ["report", "--results-dir", str(results)]).exit_code == 0
     result = _publish(published)
@@ -791,7 +779,6 @@ def test_commit_commits_exactly_what_may_be_published(published):
     (results / "LEADERBOARD.md").write_text((results / "LEADERBOARD.md").read_text() + "\n")
     result = _publish(published, "--commit")
     assert result.exit_code == 1, "LEADERBOARD.md no longer matches the leaderboard"
-    from forcebench.cli import app
 
     assert CliRunner().invoke(app, ["report", "--results-dir", str(results)]).exit_code == 0
     result = _publish(published, "--commit")
@@ -804,8 +791,6 @@ def test_commit_commits_exactly_what_may_be_published(published):
 
 
 def test_commit_needs_stage():
-    from forcebench.cli import app
-
     assert CliRunner().invoke(app, ["report", "--commit"]).exit_code == 2
 
 
@@ -823,8 +808,6 @@ _AGENT = {
 def test_each_track_refuses_the_other_tracks_runs(tmp_path, suites):
     """Single-turn and agent runs are separate leaderboards (docs/agent-track.md): an agent run
     copied among single-turn runs, or the reverse, refuses the whole report."""
-    from forcebench.report import RunDataError, load_runs
-
     single = tmp_path / "runs"
     _write_run(single, _meta("r1"), _all())
     _write_run(single, _meta("r2", track="agent", agent=_AGENT), _all())
