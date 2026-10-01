@@ -17,6 +17,7 @@ from forcebench.agent.harness import (
     usage,
     write_workspace,
 )
+from forcebench.agent.skills import load_pack
 from forcebench.models import load_registry
 
 
@@ -163,3 +164,11 @@ def test_a_run_records_which_agent_answered():
     assert (d["name"], d["version"], d["image"]) == ("opencode", "2.0.21", "sha256:abc")
     assert set(d["budget"]) == {"max_requests", "max_output_tokens", "timeout_s"}
     assert label(d) == "opencode 2.0.21" and label(None) is None
+
+
+def test_a_run_with_skills_records_the_pack_and_shows_it():
+    pack = load_pack("sf-skills")
+    d = Opencode(skills=pack).describe("sha256:abc")
+    assert d["skills"] == pack.describe()
+    assert label(d) == "opencode 2.0.21 + sf-skills 1.58.0"
+    assert "skills" not in Opencode().describe("sha256:abc"), "runs without a pack: as before"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import fcntl
 import json
 import os
@@ -13,8 +14,10 @@ import textwrap
 
 import pytest
 
-from forcebench import fsutil
+from forcebench import fsutil, runner
 from forcebench.fsutil import LockBusyError, atomic_write_text, exclusive_lock
+from forcebench.graders import GradeEnv
+from forcebench.llm import Generation
 
 
 def _leftovers(directory) -> list[str]:
@@ -172,12 +175,6 @@ def test_a_second_process_waits_for_the_lock(tmp_path):
 
 
 def test_grading_holds_the_run_lock_and_writes_cases_atomically(tmp_path, make_task, monkeypatch):
-    import asyncio
-
-    from forcebench import runner
-    from forcebench.graders import GradeEnv
-    from forcebench.llm import Generation
-
     task = make_task({"format": "text"})
     run_dir = tmp_path / "20260928T000000Z_qwen3.8-27b-awq-int4@low"
     (run_dir / "raw").mkdir(parents=True)

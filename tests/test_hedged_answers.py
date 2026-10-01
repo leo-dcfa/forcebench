@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 
 from forcebench.answers import extract
 from forcebench.graders import GradeEnv, grade
-from forcebench.graders._hedge import hedge_reason
+from forcebench.graders._hedge import committed, hedge_reason
 from forcebench.graders.basic import short_answer_check
 from forcebench.tasks import all_tasks, load_suites
 
@@ -324,8 +325,6 @@ def test_arithmetic_short_answer_is_graded_on_its_result():
     ["1, " * 50_000, "between 1 " * 20_000 + "and 2", "(" * 50_000 + "1" + ")" * 50_000],
 )
 def test_runaway_answer_lines_are_cheap(value):
-    import time
-
     t0 = time.monotonic()
     hedge_reason(value, "")
     assert time.monotonic() - t0 < 1.0
@@ -349,10 +348,6 @@ def test_runaway_conclusions_equations_and_asides_are_cheap(value):
     """Only the first _LIMIT characters are read, and each conclusion, equation side and aside
     is looked at once. The bound is loose on purpose: CI machines are slow; this catches
     quadratic or worse behaviour, which takes far longer on 4,000 characters."""
-    import time
-
-    from forcebench.graders._hedge import committed
-
     t0 = time.monotonic()
     hedge_reason(value, "")
     committed(value)

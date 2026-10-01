@@ -3,10 +3,13 @@ dataset. Runs on a copy of the report fixture, with made-up raw replies."""
 
 import json
 import shutil
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx2
 import pytest
+from huggingface_hub.errors import HfHubHTTPError
 from typer.testing import CliRunner
 
 from forcebench import CANARY, PACKAGE_DIR
@@ -116,11 +119,15 @@ def test_push_checks_every_file_and_record(built):
 
 
 class FakeHub:
-    def __init__(self, private: bool = False, gated: bool | str = False):
+    def __init__(self, private: bool = False, gated: bool | str = False, status: int = 200):
         self.info = SimpleNamespace(private=private, gated=gated)
+        self.status = status
         self.uploads: list[dict] = []
 
     def dataset_info(self, repo_id):
+        if self.status != 200:
+            response = httpx2.Response(self.status, request=httpx2.Request("GET", "https://hub"))
+            raise HfHubHTTPError("Client Error", response=response)
         return self.info
 
     def upload_folder(self, **kwargs):
@@ -132,6 +139,7 @@ class FakeHub:
     [
         (FakeHub(private=True), True, "private"),
         (FakeHub(gated="manual"), True, "public, gated (manual approval)"),
+        (FakeHub(gated=True), True, "public, gated"),
         (FakeHub(), False, "public and not gated"),
     ],
 )
@@ -159,3 +167,19 @@ def test_the_push_command_needs_its_settings_and_never_prints_the_token(built, m
     refused = CliRunner().invoke(app, ["traces", "push", "--dir", str(out), "--yes"])
     assert refused.exit_code == 1 and "public and not gated" in refused.output
     assert "hf_secret_token_value" not in refused.output and hub.uploads == []
+
+
+@pytest.mark.parametrize("status", [401, 404])
+def test_a_dataset_the_hub_will_not_describe_refuses_the_push(built, status):
+    out, public = built
+    hub = FakeHub(private=True, status=status)
+    with pytest.raises(PushError, match=f"would not describe someone/traces \\({status}\\)"):
+        push(out, "someone/traces", public, hub, "msg")
+    assert hub.uploads == []
+
+
+def test_without_the_traces_extra_the_push_says_how_to_get_it(built, monkeypatch):
+    out, _ = built
+    monkeypatch.setitem(sys.modules, "forcebench.traces_push", None)
+    result = CliRunner().invoke(app, ["traces", "push", "--dir", str(out)])
+    assert result.exit_code == 1 and "--extra traces" in result.output

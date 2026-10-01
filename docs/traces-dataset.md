@@ -30,7 +30,7 @@ Create the dataset on Hugging Face, make it private or turn on gated access, the
 
 ```bash
 # .env: HF_DATASET_REPO=<owner>/<dataset>  HF_TOKEN=<a write token>
-uv run forcebench traces push                  # asks before uploading
+uv run --extra traces forcebench traces push   # asks before uploading
 ```
 
 The push asks Hugging Face for the dataset's state, prints it, and refuses unless it is private

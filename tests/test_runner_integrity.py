@@ -1,12 +1,28 @@
 """Run bookkeeping that the leaderboard's integrity rests on: the generations store, resuming,
 task versions and per-case retry counts."""
 
+import asyncio
 import json
 
 import pytest
+from typer.testing import CliRunner
 
-from forcebench.llm import Generation
-from forcebench.runner import CorruptStoreError, GenerationStore, invalidate, read_records
+from forcebench import GENERATION_PROTOCOL, run_protocol, runner
+from forcebench.answers import render_prompt
+from forcebench.cli import app
+from forcebench.graders import GradeEnv
+from forcebench.llm import Client, Generation
+from forcebench.models import load_registry
+from forcebench.runner import (
+    CorruptStoreError,
+    GenerationStore,
+    ResumeError,
+    _sha,
+    generate,
+    grade,
+    invalidate,
+    read_records,
+)
 
 # A run directory name as runner.run_id_for makes them (commands refuse any other name).
 RUN = "20260928T000000Z_qwen3.8-27b-awq-int4@low"
@@ -99,10 +115,6 @@ class _FakeModel:
 
 @pytest.fixture
 def model(monkeypatch):
-    from forcebench import runner
-    from forcebench.llm import Client
-    from forcebench.models import load_registry
-
     reg = load_registry()
     fake = _FakeModel(reg)
 
@@ -119,21 +131,12 @@ def model(monkeypatch):
 def _generate(
     model, run_dir, tasks, model_id: str | None = MODEL, effort: str | None = "low", **kw
 ):
-    import asyncio
-
-    from forcebench.runner import generate
-
     return asyncio.run(
         generate(model.registry, model_id, effort, tasks, run_dir=run_dir, progress=False, **kw)
     )
 
 
 def _grade(run_dir, tasks):
-    import asyncio
-
-    from forcebench.graders import GradeEnv
-    from forcebench.runner import grade
-
     asyncio.run(grade(run_dir, tasks, GradeEnv(work_dir=run_dir / "work"), progress=False))
     return [json.loads(x) for x in (run_dir / "cases.jsonl").read_text().splitlines()]
 
@@ -143,9 +146,6 @@ def _task(make_task, version: int = 1):
 
 
 def test_generation_records_the_task_version_and_prompt(model, make_task, tmp_path):
-    from forcebench.answers import render_prompt
-    from forcebench.runner import _sha
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (rec,) = read_records(run_dir / "raw" / "generations.jsonl")
     assert rec["task_version"] == 1
@@ -203,8 +203,6 @@ def _meta(run_dir):
 
 
 def test_new_run_records_the_generation_protocol(model, make_task, tmp_path):
-    from forcebench import GENERATION_PROTOCOL, run_protocol
-
     meta = _meta(_generate(model, tmp_path / RUN, [_task(make_task)]))
     assert meta["protocol"] == GENERATION_PROTOCOL == run_protocol(meta)
     assert (meta["request"]["stream"], meta["request"]["sdk_retries"]) == (True, 0)
@@ -231,8 +229,6 @@ def test_resume_takes_omitted_settings_from_the_run(model, make_task, tmp_path):
     ids=lambda c: next(iter(c)),
 )
 def test_resume_refuses_other_settings(model, make_task, tmp_path, change):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     before = (run_dir / "run.json").read_text()
     with pytest.raises(ResumeError, match="cannot resume"):
@@ -242,8 +238,6 @@ def test_resume_refuses_other_settings(model, make_task, tmp_path, change):
 
 
 def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     meta["request"]["temperature"] = 0.2  # e.g. the model's sampling config changed since
@@ -253,8 +247,6 @@ def test_resume_refuses_changed_request_settings(model, make_task, tmp_path):
 
 
 def test_resume_refuses_a_changed_system_prompt(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     meta["system_prompt_sha"] = "0123456789ab"  # the run was started with another prompt
@@ -273,8 +265,6 @@ def test_resume_regenerates_an_answer_to_another_prompt(model, make_task, tmp_pa
 
 
 def test_answers_without_run_json_are_not_resumed(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (run_dir / "run.json").unlink()
     with pytest.raises(ResumeError, match=r"no run\.json"):
@@ -283,8 +273,6 @@ def test_answers_without_run_json_are_not_resumed(model, make_task, tmp_path):
 
 
 def test_resume_refuses_a_run_from_an_older_protocol(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     del meta["protocol"], meta["request"]["stream"], meta["request"]["sdk_retries"]
@@ -301,10 +289,6 @@ def test_resume_with_fewer_tasks_keeps_the_others(model, make_task, tmp_path):
 
 
 def test_cli_resume_with_another_effort_fails_clearly(model, make_task, tmp_path):
-    from typer.testing import CliRunner
-
-    from forcebench.cli import app
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     result = CliRunner().invoke(app, ["run", "--resume", str(run_dir), "-e", "xhigh", "--no-grade"])
     assert result.exit_code == 1
@@ -343,8 +327,6 @@ def test_cli_resume_with_another_effort_fails_clearly(model, make_task, tmp_path
     ],
 )
 def test_protocol_of_runs_from_before_it_was_recorded(meta, protocol):
-    from forcebench import run_protocol
-
     assert run_protocol(meta) == protocol
 
 
@@ -359,8 +341,6 @@ def test_a_run_records_the_endpoint_model_it_called(model, make_task, tmp_path):
 
 
 def test_resume_keeps_the_endpoint_model_and_refuses_another(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], endpoint_model="x3")
     _generate(model, run_dir, [_task(make_task)], model_id=None, effort=None)
     assert _meta(run_dir)["endpoint_model"] == "x3", "omitted: the run's"
@@ -369,8 +349,6 @@ def test_resume_keeps_the_endpoint_model_and_refuses_another(model, make_task, t
 
 
 def test_a_run_from_before_endpoint_names_resumes_with_its_configs(model, make_task, tmp_path):
-    from forcebench.runner import ResumeError
-
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     meta = _meta(run_dir)
     del meta["endpoint_model"]  # recorded before endpoint names were

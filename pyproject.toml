@@ -32,6 +32,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    # The traces tests need the `traces` extra's client, so a plain `uv sync` can run every test.
+    "huggingface-hub>=0.35",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.9",
@@ -62,25 +64,6 @@ ignore = ["E501"]
 "src/forcebench/pool.py" = ["PLC0415"]
 "src/forcebench/report.py" = ["PLC0415"]
 "src/forcebench/tasks.py" = ["PLC0415"]
-"tests/test_agent_runs.py" = ["PLC0415"]
-"tests/test_answer_paths.py" = ["PLC0415"]
-"tests/test_answers.py" = ["PLC0415"]
-"tests/test_fsutil.py" = ["PLC0415"]
-"tests/test_hedged_answers.py" = ["PLC0415"]
-"tests/test_leakcheck.py" = ["PLC0415"]
-"tests/test_llm_client.py" = ["PLC0415"]
-"tests/test_org_lock.py" = ["PLC0415"]
-"tests/test_pool.py" = ["PLC0415"]
-"tests/test_prompt_manifest.py" = ["PLC0415"]
-"tests/test_report.py" = ["PLC0415"]
-"tests/test_review_answers.py" = ["PLC0415"]
-"tests/test_review_round2.py" = ["PLC0415"]
-"tests/test_run_dirs.py" = ["PLC0415"]
-"tests/test_runner_integrity.py" = ["PLC0415"]
-"tests/test_safety_review.py" = ["PLC0415"]
-"tests/test_scratch_def.py" = ["PLC0415"]
-"tests/test_sf_cli.py" = ["PLC0415"]
-"tests/test_tasks.py" = ["PLC0415"]
 
 [tool.ruff.format]
 quote-style = "double"

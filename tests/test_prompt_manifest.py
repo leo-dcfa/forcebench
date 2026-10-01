@@ -9,8 +9,9 @@ from __future__ import annotations
 import json
 
 import pytest
+from typer.testing import CliRunner
 
-from forcebench import prompt_manifest
+from forcebench import cli, prompt_manifest
 from forcebench.answers import prompt_sha, render_prompt
 from forcebench.prompt_manifest import REGENERATE, build, problems, refusals, write
 from forcebench.runner import _sha
@@ -127,10 +128,6 @@ def test_write_refuses_a_changed_prompt_under_the_same_version(make_task, tmp_pa
 
 
 def test_write_manifest_command_refuses_and_writes(make_task, tmp_path, monkeypatch):
-    from typer.testing import CliRunner
-
-    from forcebench import cli
-
     path = tmp_path / "prompt-hashes.json"
     task = make_task({"format": "text"})
     monkeypatch.setattr(prompt_manifest, "MANIFEST", path)

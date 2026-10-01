@@ -1,11 +1,13 @@
 """Leak checks: allowlist rules over what this repository publishes."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from forcebench import CANARY, REPO_ROOT
+from forcebench.cli import app
 from forcebench.leakcheck import Finding, all_rules, check, check_tracked, read_text
 from forcebench.leakcheck.tasks import only_the_public_canary, public_task_files
 
@@ -71,8 +73,6 @@ def test_binary_files_are_not_read(tmp_path: Path):
 
 
 def test_only_tracked_files_are_read(tmp_path: Path):
-    import subprocess
-
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / "tracked.md").write_text(f"canary GUID {PRIVATE_GUID}\n")
     (tmp_path / "untracked.md").write_text(f"canary GUID {PRIVATE_GUID}\n")
@@ -81,8 +81,6 @@ def test_only_tracked_files_are_read(tmp_path: Path):
 
 
 def test_the_command_fails_on_a_finding(monkeypatch):
-    from forcebench.cli import app
-
     monkeypatch.setattr(
         "forcebench.leakcheck.check_tracked", lambda: [Finding("x.md", 3, "canary", "not it")]
     )

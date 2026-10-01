@@ -5,8 +5,10 @@ import json
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from forcebench import org
+from forcebench.cli import app
 from forcebench.org import OrgError, check_command
 
 
@@ -237,10 +239,6 @@ def test_a_pending_entry_of_unknown_age_is_expired(provisioning, entry):
 
 
 def test_orgs_list_shows_pending_and_expired_entries(sandbox, clock):
-    from typer.testing import CliRunner
-
-    from forcebench.cli import app
-
     org._set_pending("fb-old", "base")
     clock["later"] = dt.timedelta(days=2)
     org._set_pending("fb-new", "npsp")
@@ -254,10 +252,6 @@ def test_orgs_list_shows_pending_and_expired_entries(sandbox, clock):
 
 def test_orgs_list_shows_pending_entries_even_while_a_devhub_is_logged_in(provisioning):
     """Pending entries exist while provisioning, when listing the registered orgs refuses."""
-    from typer.testing import CliRunner
-
-    from forcebench.cli import app
-
     org._set_pending("fb-new", "base")
     result = CliRunner().invoke(app, ["orgs", "list"])
     assert result.exit_code == 1
@@ -397,10 +391,6 @@ def test_scratch_instance_urls_are_parsed_strictly():
 
 
 def test_grading_commands_stop_with_a_clear_message_while_a_devhub_is_logged_in(provisioning):
-    from typer.testing import CliRunner
-
-    from forcebench.cli import app
-
     for argv in (["validate", "--suite", "apex"], ["orgs", "list"]):
         result = CliRunner().invoke(app, argv)
         assert result.exit_code == 1, argv

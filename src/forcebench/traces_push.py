@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from huggingface_hub import HfApi
+from huggingface_hub.errors import HfHubHTTPError
 
 from forcebench import CANARY
 
@@ -35,13 +36,18 @@ class Hub(Protocol):
 
 
 def repo_state(api: Hub, repo_id: str) -> tuple[bool, str]:
-    """Whether the dataset may receive the traces, and its state in words."""
-    info = api.dataset_info(repo_id)
+    """Whether the dataset may receive the traces, and its state in words. A dataset Hugging Face
+    will not describe (missing, or the token cannot read it) refuses the push."""
+    try:
+        info = api.dataset_info(repo_id)
+    except HfHubHTTPError as e:
+        status = getattr(e.response, "status_code", "no response")
+        raise PushError(f"refusing: Hugging Face would not describe {repo_id} ({status})") from None
     if getattr(info, "private", False):
         return True, "private"
     gated = getattr(info, "gated", False)
     if gated:
-        return True, f"public, gated ({gated} approval)"
+        return True, "public, gated" + (f" ({gated} approval)" if isinstance(gated, str) else "")
     return False, "public and not gated"
 
 
