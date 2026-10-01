@@ -13,7 +13,7 @@
     "display": "GLM-5.3 Flash",
     "family": "GLM-5.3",
     "base_model": "GLM-5.3-Flash",
-    "quant": "EXL3 4.0bpw",
+    "quant": "EXL3 4.0bpw experts, INT8 dense",
     "engine": "JSpark3 (vLLM + ExLlamaV3)",
     "open_weights": true,
     "local": true,
