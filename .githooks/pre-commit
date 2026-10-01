@@ -1,0 +1,11 @@
+#!/bin/sh
+# Forcebench pre-commit hook: refuse a commit that would publish anything from the private pool.
+# Install it with `make hooks` (git config core.hooksPath .githooks). It checks what is staged,
+# with the allowlist rules and, where FORCEBENCH_PRIVATE_DIR is set, the private pool's own
+# denylist (src/forcebench/leakcheck/). `git commit --no-verify` skips it; CI still runs the
+# allowlist rules on every push.
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-commit: uv is needed to run forcebench leakcheck (https://docs.astral.sh/uv/)" >&2
+  exit 1
+fi
+exec uv run --quiet forcebench leakcheck --staged
