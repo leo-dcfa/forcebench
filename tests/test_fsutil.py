@@ -5,6 +5,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -196,8 +197,10 @@ def test_grading_holds_the_run_lock_and_writes_cases_atomically(tmp_path, make_t
 
     monkeypatch.setattr(runner, "atomic_write_text", spy)
     asyncio.run(runner.grade(run_dir, [task], GradeEnv(work_dir=tmp_path / "w"), progress=False))
-    assert writes == ["cases.jsonl", "run.json"]
-    assert held == [True, True], "every write happens under the run lock"
+    # The grading pass's timing summary (artifacts/grading/<start>.json), then the run's files.
+    assert re.fullmatch(r"\d{8}T\d{6}Z\.json", writes[0]), writes
+    assert writes[1:] == ["cases.jsonl", "run.json"]
+    assert held == [True, True, True], "every write happens under the run lock"
     assert not _locked_elsewhere(run_dir / runner.LOCK_FILE), "released afterwards"
     [case] = [json.loads(x) for x in (run_dir / "cases.jsonl").read_text().splitlines()]
     assert case["passed"] is True
