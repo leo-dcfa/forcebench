@@ -924,6 +924,15 @@ def report(
             "run it is built from. Nothing else under results/ is staged (make publish-results).",
         ),
     ] = False,
+    track: Annotated[
+        str,
+        typer.Option(
+            "--track",
+            help="single (default): single-turn runs, results/leaderboard.json. agent: agent "
+            "runs (results/agent/runs), results/agent/leaderboard.json. Neither accepts the "
+            "other's runs.",
+        ),
+    ] = "single",
 ) -> None:
     """Aggregate all runs into results/leaderboard.json (and LEADERBOARD.md). Only public runs
     of public tasks are ever published: anything else refuses the whole report."""
@@ -937,6 +946,10 @@ def report(
 
     if pool not in ("public", "private"):
         raise typer.BadParameter("public or private", param_hint="--pool")
+    if track not in ("single", "agent"):
+        raise typer.BadParameter("single or agent", param_hint="--track")
+    if track == "agent" and pool != "public":
+        raise typer.BadParameter("agent runs use public tasks only", param_hint="--track")
     if stage and pool != "public":
         raise typer.BadParameter("only public results are ever staged", param_hint="--stage")
     if pool == "private":
@@ -954,7 +967,7 @@ def report(
     else:
         suites = load_suites()
         every = load_suites(statuses=EVERY_STATUS)
-        results_dir = results_dir or RESULTS_DIR
+        results_dir = results_dir or (RESULTS_DIR / "agent" if track == "agent" else RESULTS_DIR)
     known = known_task_ids(every, pool)
     out = results_dir / "leaderboard.json"
     shown = str(out) if pool == "public" else "the private leaderboard"  # never the private path
@@ -962,7 +975,7 @@ def report(
         check_results_dir(results_dir)
     if check or stage:
         with _results_errors():
-            problems = check_leaderboard(suites, out, visibility=pool, known=known)
+            problems = check_leaderboard(suites, out, visibility=pool, known=known, track=track)
         for p in problems:
             console.print(f"  {p}", markup=False, soft_wrap=True)
         if problems:
@@ -975,7 +988,7 @@ def report(
             raise typer.Exit(1)
         if stage:
             with _results_errors():
-                files = publishable_files(suites, out, known=known)
+                files = publishable_files(suites, out, known=known, track=track)
             import subprocess
 
             subprocess.run(
@@ -988,5 +1001,5 @@ def report(
         console.print(f"{shown} is up to date", markup=False, soft_wrap=True)
         return
     with _results_errors():
-        write_leaderboard(suites, out, visibility=pool, known=known)
+        write_leaderboard(suites, out, visibility=pool, known=known, track=track)
     console.print(f"wrote {shown}", markup=False, soft_wrap=True)
