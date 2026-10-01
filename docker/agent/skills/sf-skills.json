@@ -1,0 +1,27 @@
+{
+  "name": "sf-skills",
+  "version": "1.58.0",
+  "source": "https://github.com/forcedotcom/sf-skills",
+  "license": "Apache-2.0",
+  "commit": "d4a9aa448c7b743c1f1da41f41aa9723a6621232",
+  "selection": "Every skill on the suites' subjects: Apex and Apex tests, Lightning Web Components, Flow, SOQL, objects, fields and other metadata, permission sets, the API and metadata references, and deploying and testing with the sf CLI. Not the skills that only operate a live org, nor those for products no suite covers.",
+  "skills": [
+    "automation-flow-generate",
+    "experience-lwc-generate",
+    "experience-lwc-security-validate",
+    "platform-apex-generate",
+    "platform-apex-test-generate",
+    "platform-apex-test-run",
+    "platform-custom-field-generate",
+    "platform-custom-metadata-type-generate",
+    "platform-custom-object-generate",
+    "platform-custom-setting-generate",
+    "platform-data-and-tooling-api-context-get",
+    "platform-metadata-api-context-get",
+    "platform-metadata-deploy",
+    "platform-permission-set-generate",
+    "platform-soql-query",
+    "platform-validation-rule-generate"
+  ],
+  "sha256": "38608da1089ac86657f436c616c8890a584431674a09a0a3cc5ff73cb34ae6ae"
+}
