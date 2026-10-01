@@ -24,7 +24,8 @@ jobs:
         with:
           path: .cache/lwc-jest/node_modules
           key: lwc-jest-${{ runner.os }}-node24-${{ hashFiles('src/forcebench/data/lwc-jest/package-lock.json') }}
-      - run: uv sync --locked
+      # --all-extras: the traces push (huggingface_hub) is tested too.
+      - run: uv sync --locked --all-extras
       - name: Lint
         run: |
           uv run ruff check
