@@ -7,6 +7,10 @@ differs. The agent's container gets the pack read-only, outside its workspace, i
 global skills directory: opencode shows the model each skill's name and description and loads one
 when the model asks for it (its "skill" tool). A run records the pack and is never resumed with
 another one, or none.
+
+A run can also preload skills: the manifest maps each suite to the skills on its subject, and each
+task's message then starts with those skills exactly as opencode's skill tool returns them (a
+``<skill_content>`` block), so the model has them whether or not it would have loaded them.
 """
 
 from __future__ import annotations
@@ -38,6 +42,11 @@ class SkillPack:
     commit: str
     skills: tuple[str, ...]
     sha256: str
+    # Suite -> the skills on its subject, for runs that preload them (chosen by subject, never by task).
+    preload: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    def preload_for(self, suite: str) -> tuple[str, ...]:
+        return dict(self.preload).get(suite, ())
 
     def describe(self) -> dict[str, Any]:
         """What a run records about its pack (a resume must match it)."""
@@ -66,7 +75,11 @@ def load_pack(name: str, packs: Path = PACKS_DIR) -> SkillPack:
         raise ValueError(f"{path.name}: commit must be a full 40-character sha")
     if not skills or any(not _NAME.fullmatch(s) for s in skills) or len(set(skills)) < len(skills):
         raise ValueError(f"{path.name}: skills must be distinct directory names")
-    return SkillPack(name, d["version"], d["source"], d["commit"], skills, d["sha256"])
+    preload = tuple((suite, tuple(ids)) for suite, ids in sorted((d.get("preload") or {}).items()))
+    for suite, ids in preload:
+        if not ids or any(s not in skills for s in ids):
+            raise ValueError(f"{path.name}: preload for {suite} must name skills of the pack")
+    return SkillPack(name, d["version"], d["source"], d["commit"], skills, d["sha256"], preload)
 
 
 def tree_sha256(root: Path) -> str:
@@ -121,3 +134,32 @@ def _check(pack: SkillPack, root: Path) -> None:
         raise RuntimeError(
             f"{pack.name}: the files in {root} hash to {got}, not the manifest's {pack.sha256}"
         )
+
+
+def _body(skill_md: str) -> str:
+    """SKILL.md without its front matter."""
+    if skill_md.startswith("---\n"):
+        end = skill_md.find("\n---", 4)
+        if end >= 0:
+            skill_md = skill_md[end + 4 :]
+    return skill_md.strip()
+
+
+def skill_block(pack_dir: Path, skill: str, mount: str, max_files: int = 10) -> str:
+    """A skill as opencode's skill tool hands it to the model (opencode 2.0.21): its instructions,
+    where it lives in the container, and up to ``max_files`` of its other files."""
+    root = pack_dir / skill
+    files = sorted(
+        p.relative_to(root).as_posix()
+        for p in root.rglob("*")
+        if p.is_file() and p.name != "SKILL.md"
+    )[:max_files]
+    listing = "".join(f"<file>{mount}/{skill}/{f}</file>\n" for f in files)
+    return (
+        f'<skill_content name="{skill}">\n# Skill: {skill}\n\n'
+        f"{_body((root / 'SKILL.md').read_text(encoding='utf-8'))}\n\n"
+        f"Base directory for this skill: {mount}/{skill}\n"
+        "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.\n"
+        "Note: file list is sampled.\n\n"
+        f"<skill_files>\n{listing}</skill_files>\n</skill_content>"
+    )

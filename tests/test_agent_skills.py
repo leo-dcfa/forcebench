@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from forcebench.agent.skills import load_pack, prepare, tree_sha256
+from forcebench.agent.skills import load_pack, prepare, skill_block, tree_sha256
 
 
 def test_the_shipped_pack_is_pinned():
@@ -108,3 +108,32 @@ def test_a_symlink_in_a_pack_is_refused(upstream):
     ).stdout.strip()
     with pytest.raises(RuntimeError, match="symlink"):
         prepare(write(commit=commit, sha256="0" * 64), cache)
+
+
+def test_preloading_names_skills_by_suite(upstream):
+    _, write, _ = upstream
+    pack = write(preload={"apex": ["apex"]})
+    assert pack.preload_for("apex") == ("apex",) and pack.preload_for("lwc") == ()
+    with pytest.raises(ValueError, match="preload for apex"):
+        write(preload={"apex": ["other"]})  # in the repository, not in the pack
+    assert load_pack("sf-skills").preload_for("permissions") == (
+        "platform-permission-set-generate",
+    )
+
+
+def test_a_skill_block_is_what_opencode_hands_the_model(tmp_path):
+    skill = tmp_path / "apex"
+    (skill / "assets").mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        "---\nname: apex\ndescription: d\n---\n\n## Use\n\nWrite Apex.\n"
+    )
+    for i in range(12):
+        (skill / "assets" / f"f{i:02}.cls").write_text("x")
+    block = skill_block(tmp_path, "apex", "/m")
+    assert block.startswith(
+        '<skill_content name="apex">\n# Skill: apex\n\n## Use\n\nWrite Apex.\n\n'
+    )
+    assert "name: apex" not in block, "front matter is left out"
+    assert "Base directory for this skill: /m/apex\n" in block
+    assert block.count("<file>") == 10 and "<file>/m/apex/assets/f00.cls</file>" in block
+    assert "SKILL.md</file>" not in block and block.endswith("</skill_files>\n</skill_content>")

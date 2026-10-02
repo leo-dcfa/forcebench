@@ -13,6 +13,7 @@ from forcebench.agent.harness import (
     label,
     opencode_config,
     parse_events,
+    preload_skills,
     task_message,
     usage,
     write_workspace,
@@ -172,3 +173,21 @@ def test_a_run_with_skills_records_the_pack_and_shows_it():
     assert d["skills"] == pack.describe()
     assert label(d) == "opencode 2.0.21 + sf-skills 1.58.0"
     assert "skills" not in Opencode().describe("sha256:abc"), "runs without a pack: as before"
+
+
+def test_preloaded_skills_are_recorded_shown_and_put_in_front(tmp_path):
+    pack = load_pack("sf-skills")
+    d = Opencode(skills=pack, preload=True).describe("sha256:abc")
+    assert d["skills"]["preload"]["permissions"] == ["platform-permission-set-generate"]
+    assert label(d) == "opencode 2.0.21 + sf-skills 1.58.0, preloaded"
+    assert "preload" not in Opencode(skills=pack).describe("sha256:abc")["skills"]
+    skill = tmp_path / "platform-permission-set-generate"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text("---\nname: p\n---\nGrant access.\n")
+    msg = preload_skills(pack, tmp_path, "permissions", "TASK")
+    assert msg.startswith(
+        '<skill_content name="platform-permission-set-generate">'
+    ) and msg.endswith("\n\nTASK")
+    assert preload_skills(pack, tmp_path, "docs", "TASK") == "TASK", (
+        "a suite with no skill gets none"
+    )
