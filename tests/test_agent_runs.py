@@ -104,3 +104,13 @@ def test_skills_need_an_agent():
     )
     plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)  # colour codes even so, where forced
     assert result.exit_code == 2 and "add --agent" in plain
+
+
+def test_preloading_needs_a_skill_pack():
+    result = CliRunner().invoke(
+        app,
+        ["run", "-m", MODEL, "--agent", "opencode", "--preload-skills", "--no-grade"],
+        env={"COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb"},
+    )
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert result.exit_code == 2 and "add --skills" in plain
