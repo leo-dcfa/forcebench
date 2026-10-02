@@ -68,7 +68,7 @@ TTY := $(shell [ -t 0 ] && echo -it)
 # The run id runner.run_id_for makes (runner.RUN_ID_RE), as an ERE.
 RUN_ID_PATTERN = [0-9]{8}T[0-9]{6}Z_[a-z0-9][a-z0-9.-]*@[a-z0-9][a-z0-9_.-]*
 
-.PHONY: hooks help sandbox-build sandbox-shell sandbox-import sandbox-provision orgs run grade validate report test lint regrade-all bundle publish-results
+.PHONY: hooks help sandbox-build sandbox-shell sandbox-import sandbox-provision devhub-limits orgs run grade validate report test lint regrade-all bundle publish-results
 
 # The pre-commit hook refuses a commit that would publish anything from the private pool
 # (forcebench leakcheck --staged). core.hooksPath is shared by every worktree of this clone.
@@ -90,9 +90,18 @@ sandbox-import: ## Import scratch orgs from $(AUTH_DIR)/<profile>__<alias>.url f
 	  for f in /auth/*__*.url; do b=$$(basename -- "$$f" .url); \
 	    uv run forcebench orgs import "$${b%%__*}" "$${b##*__}" --auth-url-file "$$f"; done'
 
+# Provisioning mode, and the port the Dev Hub's web login calls back on (docker/login/).
+DEVHUB_LOGIN = -p 127.0.0.1:1717:1718 -e FORCEBENCH_PROVISION=1 -e FORCEBENCH_DEVHUB_USERNAME=$(DEVHUB)
+
 sandbox-provision: ## Shell with the Dev Hub allowed, to create scratch orgs (log it out after)
 	@test -n "$(DEVHUB)" || (echo "set DEVHUB=<dev hub username>" && exit 1)
-	$(SANDBOX) -e FORCEBENCH_PROVISION=1 -e FORCEBENCH_DEVHUB_USERNAME=$(DEVHUB) $(IMAGE) bash
+	$(SANDBOX) $(DEVHUB_LOGIN) $(IMAGE) bash
+
+devhub-limits: ## The Dev Hub's scratch-org allocations (you log it in; a throwaway login store)
+	@test -n "$(DEVHUB)" || (echo "set DEVHUB=<dev hub username>" && exit 1)
+	@docker run --rm $(TTY) -v "$(CURDIR)":/work:ro -v forcebench-devhub-limits:/home/node \
+		$(DEVHUB_LOGIN) $(IMAGE) bash docker/login/devhub-limits.sh; \
+		status=$$?; docker volume rm forcebench-devhub-limits >/dev/null; exit $$status
 
 orgs: ## List registered grader orgs
 	$(SANDBOX) $(IMAGE) uv run forcebench orgs list
