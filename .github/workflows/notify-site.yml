@@ -4,7 +4,8 @@ name: notify-site
 on:
   push:
     branches: [main]
-    paths: ["results/leaderboard.json"]
+    # The agent track's results feed the site's coding agent study.
+    paths: ["results/leaderboard.json", "results/agent/leaderboard.json"]
   workflow_dispatch:
 
 permissions:
