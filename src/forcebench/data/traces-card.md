@@ -19,7 +19,7 @@ extra_gated_prompt: >-
   models run on Forcebench's public tasks. Access is granted under the Forcebench Traces Access
   Terms (LICENSE.md): you may use the traces to evaluate models and tools and for research; you
   may not redistribute them, or use them as training data (including fine-tuning, distillation
-  or reward modelling), without a written agreement with Azul Labs. We record the details below
+  or reward modelling), without a written agreement with Azul Labs Pty Ltd. We record the details below
   and your Hugging Face username to manage access, as described at https://forcebench.ai/privacy/.
 extra_gated_fields:
   Name: text

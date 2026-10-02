@@ -3,7 +3,7 @@
 > **DRAFT, pending legal review.** Not yet in force. This text has not been reviewed by a lawyer;
 > do not rely on it, and do not publish the dataset under it, until it has been.
 
-Version 0.1 (draft), 1 October 2026. Licensor: Azul Labs ("we").
+Version 0.2 (draft), 2 October 2026. Licensor: Azul Labs Pty Ltd, Queensland, Australia ("we").
 
 These terms govern the Forcebench reasoning-traces dataset (the "Traces"): the model answers,
 reasoning, grades and run metadata published in this dataset. They do not govern the Forcebench
@@ -32,8 +32,8 @@ attribution to Forcebench.
 - Remove or alter the canary string or the notices in the Traces.
 - Use the Traces to identify, or attempt to identify, any individual.
 
-To ask for a written agreement (for example, for training-data use), contact us via
-[to be confirmed].
+To ask for a written agreement (for example, for training-data use), email
+leo@azl.au.
 
 ## 3. Third-party content
 
@@ -61,3 +61,8 @@ your copies of the Traces. Sections 2, 3 and 5 survive termination.
 
 We may update these terms for future releases of the Traces. The terms published with a release
 govern that release.
+
+## 8. Governing law
+
+These terms are governed by the laws of Queensland, Australia, and you submit to the
+non-exclusive jurisdiction of its courts.
