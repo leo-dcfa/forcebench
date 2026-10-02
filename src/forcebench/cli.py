@@ -826,12 +826,18 @@ def traces_build(
     """Build the reasoning-traces dataset locally from the public runs whose raw replies are here
     (src/forcebench/traces.py). Uploads nothing: pushing is `forcebench traces push`."""
     import json
+    import subprocess
 
     from forcebench import PACKAGE_DIR, REPO_ROOT
-    from forcebench.traces import build
+    from forcebench.traces import build, published_replies
 
     target = out or REPO_ROOT / "dist" / "traces"
     data = PACKAGE_DIR / "data"
+    try:
+        published = published_replies(REPO_ROOT)
+    except (subprocess.CalledProcessError, ValueError) as e:
+        console.print(f"cannot read which replies were published: {e}", style="red", markup=False)
+        raise typer.Exit(1) from None
     with _results_errors():
         summary = build(
             load_suites(),
@@ -839,6 +845,7 @@ def traces_build(
             target,
             (data / "traces-card.md").read_text(),
             (data / "traces-terms.md").read_text(),
+            published,
         )
     table = Table(title=f"traces v{summary['benchmark_version']}: answers per configuration")
     table.add_column("config")
@@ -848,7 +855,8 @@ def traces_build(
     console.print(table)
     console.print(
         f"{summary['records']} answers from {len(summary['runs'])} runs "
-        f"({summary['with_reasoning']} with reasoning), built in {target}",
+        f"({summary['with_reasoning']} with reasoning, {summary['open_material']} open material), "
+        f"built in {target}",
         markup=False,
         soft_wrap=True,
     )
@@ -858,7 +866,7 @@ def traces_build(
             if shown >= show:
                 break
             rec = json.loads(line)
-            for key in ("prompt", "answer", "reasoning"):
+            for key in ("answer", "reasoning"):
                 if isinstance(rec.get(key), str) and len(rec[key]) > 160:
                     rec[key] = rec[key][:160] + f"... [{len(rec[key])} chars]"
             console.print_json(json.dumps(rec))

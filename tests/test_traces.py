@@ -3,6 +3,7 @@ dataset. Runs on a copy of the report fixture, with made-up raw replies."""
 
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,12 +15,12 @@ from huggingface_hub.errors import HfHubHTTPError
 from typer.testing import CliRunner
 
 from forcebench import CANARY, PACKAGE_DIR
-from forcebench.answers import render_prompt
+from forcebench.answers import prompt_sha
 from forcebench.cli import app
 from forcebench.llm import Generation
 from forcebench.report import RunDataError
 from forcebench.tasks import load_suite
-from forcebench.traces import build
+from forcebench.traces import build, published_replies, reply_digest
 from forcebench.traces_push import PushError, check_folder, push, repo_state
 
 FIXTURE = Path(__file__).parent / "fixtures" / "report"
@@ -68,14 +69,16 @@ def _records(out: Path) -> list[dict]:
 
 def test_the_dataset_holds_public_runs_graded_answers_with_their_canary(tree, tmp_path):
     out = tmp_path / "dataset"
-    summary = build(_suites(tree), tree / "results", out, CARD, TERMS)
+    summary = build(_suites(tree), tree / "results", out, CARD, TERMS, set())
     records = _records(out)
     assert summary["runs"] == {RUN: len(records)} and records, "only the run with raw replies"
     rec = records[0]
     assert rec["canary"] == CANARY and rec["reasoning"] == "I think it is x."
     assert not {"provider", "endpoint_model", "request"} & set(rec), "no provider or endpoint"
-    task = next(t for s in _suites(tree) for t in s.tasks if t.id == rec["task_id"])
-    assert rec["prompt"] == render_prompt(task)
+    cases = (tree / "results" / "runs" / RUN / "cases.jsonl").read_text().splitlines()
+    case = next(c for c in map(json.loads, cases) if c["task_id"] == rec["task_id"])
+    assert "prompt" not in rec and rec["prompt_sha"] == case["prompt_sha"], "the hash, no prompt"
+    assert rec["open_material"] is False and rec["hosted_model_output"] is False
     card = (out / "README.md").read_text()
     assert "@@" not in card and CANARY in card and "extra_gated_fields" in card
     assert "https://forcebench.ai/privacy/" in card
@@ -86,14 +89,14 @@ def test_a_private_run_in_the_results_refuses_the_whole_build(tree, tmp_path):
     meta_path = tree / "results" / "runs" / RUN / "run.json"
     meta_path.write_text(json.dumps({**json.loads(meta_path.read_text()), "visibility": "private"}))
     with pytest.raises(RunDataError, match="refusing to publish anything"):
-        build(_suites(tree), tree / "results", tmp_path / "dataset", CARD, TERMS)
+        build(_suites(tree), tree / "results", tmp_path / "dataset", CARD, TERMS, set())
     assert not (tmp_path / "dataset" / "data").exists() or not _records(tmp_path / "dataset")
 
 
 @pytest.fixture
 def built(tree, tmp_path):
     out = tmp_path / "dataset"
-    build(_suites(tree), tree / "results", out, CARD, TERMS)
+    build(_suites(tree), tree / "results", out, CARD, TERMS, set())
     public = {t.id for s in _suites(tree) for t in s.tasks}
     return out, public
 
@@ -107,6 +110,8 @@ def test_push_checks_every_file_and_record(built):
         (lambda r: r.pop("canary"), "canary"),
         (lambda r: r.update(task_id="apex-not-public"), "public task"),
         (lambda r: r.update(provider="somewhere"), "provider"),
+        (lambda r: r.update(prompt="the task"), "reproduces a task's prompt"),
+        (lambda r: r.pop("open_material"), "lacks open_material"),
     ):
         rec = json.loads(good.splitlines()[0])
         change(rec)
@@ -210,3 +215,49 @@ def test_an_upload_the_hub_refuses_is_reported_not_raised(built):
     hub.refuse = True
     with pytest.raises(PushError, match="nothing was committed: Invalid metadata"):
         push(out, "someone/traces", public, hub, "msg")
+
+
+def test_an_answer_recorded_without_its_prompt_hash_gets_the_tasks(tree, tmp_path):
+    path = tree / "results" / "runs" / RUN / "cases.jsonl"
+    cases = [json.loads(x) for x in path.read_text().splitlines()]
+    path.write_text("".join(json.dumps({**c, "prompt_sha": None}) + "\n" for c in cases))
+    raw = tree / "results" / "runs" / RUN / "raw" / "generations.jsonl"
+    lines = [json.loads(x) for x in raw.read_text().splitlines()]
+    raw.write_text("".join(json.dumps({**x, "prompt_sha": None}) + "\n" for x in lines))
+    out = tmp_path / "dataset"
+    build(_suites(tree), tree / "results", out, CARD, TERMS, set())
+    tasks = {t.id: t for s in _suites(tree) for t in s.tasks}
+    records = _records(out)
+    assert records and all(r["prompt_sha"] == prompt_sha(tasks[r["task_id"]]) for r in records)
+
+
+def test_a_reply_once_committed_to_the_repository_is_open_material(tree, tmp_path):
+    raw = tree / "results" / "runs" / RUN / "raw" / "generations.jsonl"
+    first = json.loads(raw.read_text().splitlines()[0])
+    published = {reply_digest(first["key"], Generation.model_validate(first["generation"]))}
+    out = tmp_path / "dataset"
+    summary = build(_suites(tree), tree / "results", out, CARD, TERMS, published)
+    flagged = [r for r in _records(out) if r["open_material"]]
+    assert summary["open_material"] == 1 and len(flagged) == 1
+    assert f"{flagged[0]['task_id']}#{flagged[0]['sample']}" == first["key"]
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def test_published_replies_reads_every_version_ever_committed(tmp_path):
+    repo = tmp_path / "repo"
+    raw = repo / "results" / "runs" / RUN / "raw" / "generations.jsonl"
+    raw.parent.mkdir(parents=True)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "test")
+    replies = [Generation(text=t, reasoning="why", finish_reason="stop") for t in ("a", "b")]
+    for gen in replies:  # two versions of the file, then it is untracked
+        raw.write_text(json.dumps({"key": "t#0", "generation": gen.model_dump()}) + "\n")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", gen.text)
+    _git(repo, "rm", "-q", "--cached", str(raw))
+    _git(repo, "commit", "-q", "-m", "untrack")
+    assert published_replies(repo) == {reply_digest("t#0", g) for g in replies}
