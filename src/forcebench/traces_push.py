@@ -82,9 +82,16 @@ def push(folder: Path, repo_id: str, public_ids: set[str], api: Hub, commit_mess
     if not allowed:
         raise PushError(f"refusing: the dataset {repo_id} is {state}; make it private or gated")
     records = check_folder(folder, public_ids)
-    api.upload_folder(
-        repo_id=repo_id, repo_type="dataset", folder_path=str(folder), commit_message=commit_message
-    )
+    try:
+        api.upload_folder(
+            repo_id=repo_id,
+            repo_type="dataset",
+            folder_path=str(folder),
+            commit_message=commit_message,
+        )
+    except (HfHubHTTPError, ValueError) as e:
+        # The upload is one commit: refused, it leaves the dataset as it was.
+        raise PushError(f"Hugging Face refused the upload, nothing was committed: {e}") from None
     return records
 
 

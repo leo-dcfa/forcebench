@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import httpx2
 import pytest
+import yaml
 from huggingface_hub.errors import HfHubHTTPError
 from typer.testing import CliRunner
 
@@ -122,6 +123,7 @@ class FakeHub:
     def __init__(self, private: bool = False, gated: bool | str = False, status: int = 200):
         self.info = SimpleNamespace(private=private, gated=gated)
         self.status = status
+        self.refuse = False
         self.uploads: list[dict] = []
 
     def dataset_info(self, repo_id):
@@ -131,6 +133,8 @@ class FakeHub:
         return self.info
 
     def upload_folder(self, **kwargs):
+        if self.refuse:
+            raise ValueError("Invalid metadata in README.md.")
         self.uploads.append(kwargs)
 
 
@@ -183,3 +187,26 @@ def test_without_the_traces_extra_the_push_says_how_to_get_it(built, monkeypatch
     monkeypatch.setitem(sys.modules, "forcebench.traces_push", None)
     result = CliRunner().invoke(app, ["traces", "push", "--dir", str(out)])
     assert result.exit_code == 1 and "--extra traces" in result.output
+
+
+def _keys(node) -> list[str]:
+    if isinstance(node, dict):
+        return [k for k, v in node.items() for k in (k, *_keys(v))]
+    if isinstance(node, list):
+        return [k for v in node for k in _keys(v)]
+    return []
+
+
+def test_the_card_metadata_is_what_hugging_face_accepts():
+    """Hugging Face rejects the whole upload if any metadata key holds a dot or a dollar sign."""
+    header = yaml.safe_load(CARD.split("---\n")[1])
+    assert header["extra_gated_fields"] and header["license"] == "other"
+    assert not [k for k in _keys(header) if "." in str(k) or "$" in str(k)]
+
+
+def test_an_upload_the_hub_refuses_is_reported_not_raised(built):
+    out, public = built
+    hub = FakeHub(private=True)
+    hub.refuse = True
+    with pytest.raises(PushError, match="nothing was committed: Invalid metadata"):
+        push(out, "someone/traces", public, hub, "msg")

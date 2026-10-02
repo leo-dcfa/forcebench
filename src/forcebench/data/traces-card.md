@@ -33,7 +33,8 @@ extra_gated_fields:
     - Research
     - Training data
     - Other
-  I agree to the Forcebench Traces Access Terms and to the use of this information as described at https://forcebench.ai/privacy/: checkbox
+  # Hugging Face refuses metadata keys with a dot or a dollar sign: no URL in a field's label.
+  I agree to the Forcebench Traces Access Terms and to the use of this information described in the privacy notice above: checkbox
 extra_gated_button_content: Agree and request access
 ---
 
