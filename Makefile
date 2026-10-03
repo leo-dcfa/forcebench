@@ -90,8 +90,12 @@ sandbox-import: ## Import scratch orgs from $(AUTH_DIR)/<profile>__<alias>.url f
 	  for f in /auth/*__*.url; do b=$$(basename -- "$$f" .url); \
 	    uv run forcebench orgs import "$${b%%__*}" "$${b##*__}" --auth-url-file "$$f"; done'
 
-# Provisioning mode, and the port the Dev Hub's web login calls back on (docker/login/).
-DEVHUB_LOGIN = -p 127.0.0.1:1717:1718 -e FORCEBENCH_PROVISION=1 -e FORCEBENCH_DEVHUB_USERNAME=$(DEVHUB)
+# Provisioning mode, and the port the Dev Hub's web login calls back on (docker/login/). The
+# login goes to the Dev Hub's own My Domain, FORCEBENCH_DEVHUB_URL in .env (or DEVHUB_URL=...),
+# else login.salesforce.com.
+DEVHUB_URL ?= $(shell sed -n 's/^FORCEBENCH_DEVHUB_URL=//p' .env 2>/dev/null | tail -1)
+DEVHUB_LOGIN = -p 127.0.0.1:1717:1718 -e FORCEBENCH_PROVISION=1 -e FORCEBENCH_DEVHUB_USERNAME=$(DEVHUB) \
+	-e FORCEBENCH_DEVHUB_URL=$(DEVHUB_URL)
 
 sandbox-provision: ## Shell with the Dev Hub allowed, to create scratch orgs (log it out after)
 	@test -n "$(DEVHUB)" || (echo "set DEVHUB=<dev hub username>" && exit 1)

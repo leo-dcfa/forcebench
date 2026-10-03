@@ -108,6 +108,10 @@ Salesforce's documentation), and per-org limits cap each org's daily work. Read 
 make devhub-limits DEVHUB=<dev hub username>  # open the URL it prints and log in
 ```
 
+The login goes to the Dev Hub's My Domain, `FORCEBENCH_DEVHUB_URL` in `.env` (or
+`DEVHUB_URL=https://<my domain>.my.salesforce.com` on the command line), else
+`login.salesforce.com`.
+
 It logs the Dev Hub in to a throwaway login store (never the grading one, so grading carries on),
 prints `ActiveScratchOrgs`, `DailyScratchOrgs` and `Package2VersionCreates`, then logs it out and
 deletes the store.

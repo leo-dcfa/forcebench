@@ -154,8 +154,10 @@ Grader orgs are scratch orgs created from a Dev Hub you own, from the profiles i
 
 `sf` 2.x has no device login, so `docker/login/login-devhub.sh` uses the web flow: it prints
 the login URL for your browser, and the login's redirect to `localhost:1717` reaches the
-container through that port, published on 127.0.0.1 only. Any user but `DEVHUB` is logged
-straight out again.
+container through that port, published on 127.0.0.1 only. It logs in at the Dev Hub's My Domain,
+`FORCEBENCH_DEVHUB_URL` in `.env` (or `DEVHUB_URL=https://<my domain>.my.salesforce.com`), else
+`login.salesforce.com`, and refuses any address that is not a Salesforce login. Any user but
+`DEVHUB`, or an org other than that My Domain, is logged straight out again.
 
 ```bash
 make sandbox-provision DEVHUB=you@your-devhub.com
