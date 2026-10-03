@@ -14,8 +14,8 @@ models:
     display: Claude Sonnet 5.5
     family: Claude
     base_model: Claude-Sonnet-5.5
-    quant: Hosted
-    engine: Anthropic API
+    quant: Unknown
+    engine: Unknown
     open_weights: false
     local: false
     context: 1000000
@@ -34,8 +34,8 @@ models:
     display: Claude Fable 5.1
     family: Claude
     base_model: Claude-Fable-5.1
-    quant: Hosted
-    engine: Anthropic API
+    quant: Unknown
+    engine: Unknown
     open_weights: false
     local: false
     context: 1000000
@@ -55,8 +55,8 @@ models:
     display: Claude Opus 5.5
     family: Claude
     base_model: Claude-Opus-5.5
-    quant: Hosted
-    engine: Anthropic API
+    quant: Unknown
+    engine: Unknown
     open_weights: false
     local: false
     context: 1000000
@@ -77,8 +77,8 @@ models:
     display: Claude Haiku 4.5
     family: Claude
     base_model: Claude-Haiku-4.5
-    quant: Hosted
-    engine: Anthropic API
+    quant: Unknown
+    engine: Unknown
     open_weights: false
     local: false
     context: 200000
