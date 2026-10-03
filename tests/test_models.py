@@ -21,7 +21,8 @@ def test_every_thinking_switch_in_the_registry_is_tier_on():
     switches = [m for m in load_registry().models.values() if set(m.efforts) <= THINKING_SWITCH]
     assert switches, "the registry has thinking-switch models (Gemma, Qwen3.6, MiMo)"
     for m in switches:
-        assert m.effort_tiers == {"off": "off", "on": "on"}, m.id
+        # Both sides of the switch, or one of them (a served model whose switch is fixed, say).
+        assert m.effort_tiers == {e: e for e in m.efforts}, m.id
 
 
 def test_no_model_claims_max_for_a_thinking_switch():

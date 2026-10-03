@@ -91,3 +91,9 @@ direct-gpu:       # the single-GPU vLLM server; it serves one model at a time
   local: true
   base_url_env: FORCEBENCH_GPU_BASE_URL
   api_key_env: FORCEBENCH_GPU_API_KEY
+gateway:          # a third-party OpenAI-compatible gateway; its address is private (.env only)
+  kind: openai_compatible
+  local: false
+  base_url_env: FORCEBENCH_GATEWAY_BASE_URL
+  api_key_env: FORCEBENCH_GATEWAY_API_KEY
+
