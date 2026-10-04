@@ -836,9 +836,12 @@ def test_the_agent_leaderboard_names_the_agent(tmp_path, suites):
 
 def test_answers_without_reported_usage_are_left_out_of_the_token_mean(suites):
     # Every prompt has tokens: a case with none at all came from a server that reports no usage.
-    unreported = {"input_tokens": 0, "output_tokens": 0}
-    cases = [_case("a-0", input_tokens=50, output_tokens=300), _case("a-1", **unreported),
-             _case("b-0", input_tokens=50, output_tokens=100), _case("b-1", **unreported)]  # fmt: skip
+    cases = [
+        _case("a-0", input_tokens=50, output_tokens=300),
+        _case("a-1", input_tokens=0, output_tokens=0),
+        _case("b-0", input_tokens=50, output_tokens=100),
+        _case("b-1", input_tokens=0, output_tokens=0),
+    ]
     e = build_entry([(_meta(), cases)], suites)
     assert e["tokens"]["output_mean"] == 200.0, "the mean of the two reported answers, not of four"
 
