@@ -34,6 +34,36 @@ class Generation(BaseModel):
     error: str | None = None
 
 
+def _count_hidden_output() -> None:
+    """Keep the thinking a server leaves out of completion_tokens. pydantic-ai keeps prompt and
+    completion tokens but drops total_tokens, and some OpenAI-compatible servers (Gemini's) count
+    the model's thinking only in the total. The difference is recorded in the usage details as
+    hidden_output_tokens, so an answer's output includes everything the model generated."""
+    import pydantic_ai.models.openai as oai
+
+    if getattr(oai._map_usage, "forcebench_hidden_output", False):
+        return
+    original = oai._map_usage
+
+    def mapped(response: Any, *args: Any, **kwargs: Any) -> Any:
+        used = original(response, *args, **kwargs)
+        raw = getattr(response, "usage", None)
+        total, prompt, completion = (
+            getattr(raw, k, None) for k in ("total_tokens", "prompt_tokens", "completion_tokens")
+        )
+        if total and prompt is not None and completion is not None and total > prompt + completion:
+            hidden = used.details.get("hidden_output_tokens", 0) + total - prompt - completion
+            used.details["hidden_output_tokens"] = hidden
+        return used
+
+    mapped.forcebench_hidden_output = True  # type: ignore[attr-defined]
+    oai._map_usage = mapped
+
+
+def _hidden(used: Any) -> int:
+    return int((getattr(used, "details", None) or {}).get("hidden_output_tokens", 0))
+
+
 def _build_model(m: ModelConfig, p: Provider, timeout: float):
     """Build the pydantic-ai model with SDK retries OFF: a retry silently restarts the answer,
     and retrying only the answers that take long biases results towards short answers."""
@@ -43,6 +73,7 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
             from pydantic_ai.models.openai import OpenAIChatModel
             from pydantic_ai.providers.openai import OpenAIProvider
 
+            _count_hidden_output()
             base_url = p.resolved_base_url()
             if p.kind == "openai_compatible" and not base_url:
                 raise RuntimeError(f"no base URL: set {p.base_url_env}")
@@ -287,7 +318,7 @@ class Client:
                         input_tokens=used.input_tokens or 0,
                         output_tokens=(self.settings["max_tokens"] or 0)
                         if budget
-                        else used.output_tokens or 0,
+                        else (used.output_tokens or 0) + _hidden(used),
                         finish_reason=f"error: {type(e).__name__}: {e}"[:500],
                         latency_s=elapsed,
                         attempts=attempt,
@@ -309,8 +340,12 @@ class Client:
                 text=r.output if isinstance(r.output, str) else str(r.output),
                 reasoning=reasoning,
                 input_tokens=usage.input_tokens or 0,
-                output_tokens=usage.output_tokens or 0,
-                reasoning_tokens=int((usage.details or {}).get("reasoning_tokens", 0)),
+                # Everything the model generated, the thinking a server left out of its
+                # completion tokens included (_count_hidden_output).
+                output_tokens=(usage.output_tokens or 0) + _hidden(usage),
+                reasoning_tokens=max(
+                    int((usage.details or {}).get("reasoning_tokens", 0)), _hidden(usage)
+                ),
                 # The server's own reason where pydantic-ai has no name for it.
                 finish_reason=resp.finish_reason or _raw_finish_reason(resp),
                 latency_s=time.monotonic() - t0,
