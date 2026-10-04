@@ -3,8 +3,7 @@
 Forcebench's public runs publish every answer and grade in this repository, but not the models'
 reasoning (`raw/generations.jsonl` is not committed). The full generations, reasoning included
 where the provider returned it, are published as a **gated dataset on Hugging Face** instead,
-under the Forcebench Traces Access Terms (`src/forcebench/data/traces-terms.md`, a draft pending
-legal review), separate from the tasks' CC BY 4.0.
+under the Forcebench Traces Access Terms (`src/forcebench/data/traces-terms.md`), separate from the tasks' CC BY 4.0.
 
 ## Build it (a dry run: nothing leaves the machine)
 

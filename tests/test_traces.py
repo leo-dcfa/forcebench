@@ -82,7 +82,8 @@ def test_the_dataset_holds_public_runs_graded_answers_with_their_canary(tree, tm
     card = (out / "README.md").read_text()
     assert "@@" not in card and CANARY in card and "extra_gated_fields" in card
     assert "https://forcebench.ai/privacy/" in card
-    assert "DRAFT, pending legal review" in (out / "LICENSE.md").read_text()
+    terms = (out / "LICENSE.md").read_text()
+    assert "Azul Labs Pty Ltd (ACN 662 440 913)" in terms and "DRAFT" not in terms
 
 
 def test_a_private_run_in_the_results_refuses_the_whole_build(tree, tmp_path):

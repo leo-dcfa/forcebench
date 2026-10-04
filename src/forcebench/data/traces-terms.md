@@ -1,9 +1,6 @@
 # Forcebench Traces Access Terms
 
-> **DRAFT, pending legal review.** Not yet in force. This text has not been reviewed by a lawyer;
-> do not rely on it, and do not publish the dataset under it, until it has been.
-
-Version 0.3 (draft), 2 October 2026.
+Version 1.0, 4 October 2026.
 
 ## 1. Agreement
 
