@@ -33,7 +33,7 @@ async def _noop():
     return None
 
 
-def _sse(deltas: list[dict], finish_reason: str | None = "stop") -> str:
+def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | None = None) -> str:
     """A streamed reply as vLLM sends it. Without a finish reason the stream just stops, as when
     the server dies mid-answer: no final chunk, no usage, no [DONE]."""
     chunks: list[dict[str, Any]] = [
@@ -41,7 +41,9 @@ def _sse(deltas: list[dict], finish_reason: str | None = "stop") -> str:
     ]
     if finish_reason is not None:
         chunks.append({"choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason}]})
-        chunks.append({"choices": [], "usage": {"prompt_tokens": 10, "completion_tokens": 64}})
+        chunks.append(
+            {"choices": [], "usage": usage or {"prompt_tokens": 10, "completion_tokens": 64}}
+        )
     body = "".join(
         f"data: {json.dumps({'id': 'x', 'object': 'chat.completion.chunk', 'created': 0, 'model': 'm', **c})}\n\n"
         for c in chunks
@@ -287,3 +289,22 @@ def test_google_config_without_extra_body_builds(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     m, p = _google_config()
     assert "extra_body" not in Client(m, p, "default").settings
+
+
+@pytest.mark.asyncio
+async def test_thinking_counted_only_in_the_total_is_output_too(monkeypatch):
+    # Gemini's OpenAI-compatible API leaves the model's thinking out of completion_tokens.
+    usage = {"prompt_tokens": 10, "completion_tokens": 64, "total_tokens": 10 + 64 + 900}
+    gen, _ = await _generate(
+        monkeypatch, _sse([{"role": "assistant", "content": "Answer: B"}], usage=usage)
+    )
+    assert (gen.input_tokens, gen.output_tokens, gen.reasoning_tokens) == (10, 964, 900)
+
+
+@pytest.mark.asyncio
+async def test_a_total_that_adds_up_changes_nothing(monkeypatch):
+    usage = {"prompt_tokens": 10, "completion_tokens": 64, "total_tokens": 74}
+    gen, _ = await _generate(
+        monkeypatch, _sse([{"role": "assistant", "content": "Answer: B"}], usage=usage)
+    )
+    assert (gen.output_tokens, gen.reasoning_tokens) == (64, 0)
