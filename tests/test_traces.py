@@ -234,12 +234,17 @@ def test_an_answer_recorded_without_its_prompt_hash_gets_the_tasks(tree, tmp_pat
 def test_a_reply_once_committed_to_the_repository_is_open_material(tree, tmp_path):
     raw = tree / "results" / "runs" / RUN / "raw" / "generations.jsonl"
     first = json.loads(raw.read_text().splitlines()[0])
-    published = {reply_digest(first["key"], Generation.model_validate(first["generation"]))}
+    gen = Generation.model_validate(first["generation"])
     out = tmp_path / "dataset"
-    summary = build(_suites(tree), tree / "results", out, CARD, TERMS, published)
+    summary = build(
+        _suites(tree), tree / "results", out, CARD, TERMS, {reply_digest(RUN, first["key"], gen)}
+    )
     flagged = [r for r in _records(out) if r["open_material"]]
     assert summary["open_material"] == 1 and len(flagged) == 1
     assert f"{flagged[0]['task_id']}#{flagged[0]['sample']}" == first["key"]
+    elsewhere = {reply_digest("20260901T000000Z_other@low", first["key"], gen)}
+    summary = build(_suites(tree), tree / "results", out, CARD, TERMS, elsewhere)
+    assert summary["open_material"] == 0, "the same reply published by another run is not this one"
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -260,4 +265,4 @@ def test_published_replies_reads_every_version_ever_committed(tmp_path):
         _git(repo, "commit", "-q", "-m", gen.text)
     _git(repo, "rm", "-q", "--cached", str(raw))
     _git(repo, "commit", "-q", "-m", "untrack")
-    assert published_replies(repo) == {reply_digest("t#0", g) for g in replies}
+    assert published_replies(repo) == {reply_digest(RUN, "t#0", g) for g in replies}

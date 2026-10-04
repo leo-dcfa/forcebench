@@ -68,9 +68,11 @@ def stored_answers(raw: Path) -> dict[str, tuple[Generation, dict[str, Any]]]:
     return answers
 
 
-def reply_digest(key: str, gen: Generation) -> str:
-    """Identifies one reply: the answer key (task#sample), its text and its reasoning."""
-    reply = [key, gen.text, gen.reasoning or None]
+def reply_digest(run_id: str, key: str, gen: Generation) -> str:
+    """Identifies one reply: its run, the answer key (task#sample), its text and its reasoning.
+    The run is part of it: two models can give the same short answer, and only the one that was
+    committed was published."""
+    reply = [run_id, key, gen.text, gen.reasoning or None]
     return hashlib.sha256(json.dumps(reply, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -87,12 +89,16 @@ def published_replies(repo: Path) -> set[str]:
     if git("rev-parse", "--is-shallow-repository").strip() != "false":
         raise ValueError("a shallow clone cannot tell which replies were published: fetch it all")
     log = git("log", "--raw", "--no-abbrev", "--format=", "--", RAW_REPLIES)
-    blobs = {f[3] for f in (line.split() for line in log.splitlines()) if len(f) > 4}
+    blobs: set[tuple[str, str]] = set()  # (blob, run id): results/runs/<run id>/raw/...
+    for f in (line.split() for line in log.splitlines()):
+        if len(f) > 5 and f[3].strip("0"):
+            blobs.add((f[3], Path(f[5]).parts[2]))
     digests: set[str] = set()
-    for blob in sorted(b for b in blobs if b.strip("0")):
+    for blob, run_id in sorted(blobs):
         for line in git("cat-file", "-p", blob).splitlines():
             rec = json.loads(line)
-            digests.add(reply_digest(rec["key"], Generation.model_validate(rec["generation"])))
+            gen = Generation.model_validate(rec["generation"])
+            digests.add(reply_digest(run_id, rec["key"], gen))
     return digests
 
 
@@ -164,7 +170,8 @@ def collect(suites: list[Suite], results_dir: Path, published: set[str]) -> Iter
             if provenance.get("prompt_sha") not in (None, case.get("prompt_sha")):
                 continue
             key = f"{case['task_id']}#{case['sample']}"
-            records.append(_record(meta, case, task, gen, reply_digest(key, gen) in published))
+            opened = reply_digest(meta["run_id"], key, gen) in published
+            records.append(_record(meta, case, task, gen, opened))
         if records:
             yield RunTraces(meta["run_id"], meta["config_id"], records)
 
