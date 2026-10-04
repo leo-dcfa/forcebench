@@ -200,6 +200,29 @@ models:
       max: {chat_template_kwargs: {reasoning_effort: max}}
     effort_tiers: {"off": "off", low: low, high: high, max: max}
 
+  # Full GLM-5.3 (not Flash) on TensorFold across three nodes (MiaAI's 3x kit, checkpoint revision
+  # 2d747d0e pinned): Mia's AI Lab's own EXL3 quantization, routed experts at 2.75 bits a weight on
+  # average (each expert 2 to 4 bits), the dense trunk at 4 bits, 4-bit KV cache, DSpark drafts, one
+  # request at a time. Its template is Z.ai's, so effort works as on GLM-5.3 Flash (none means max).
+  - id: glm-5.3-exl3-2.75bpw-tensorfold
+    provider: direct-glm-tensorfold
+    endpoint_model: GLM-5.3-EXL3
+    display: GLM-5.3
+    family: GLM-5.3
+    base_model: GLM-5.3
+    quant: EXL3 2.75bpw experts, 4-bit dense
+    engine: TensorFold
+    notes: Full GLM-5.3, not Flash. Routed experts at 2.75 bits on average (2 to 4 bits each), 4-bit dense trunk, 4-bit KV cache; three nodes, one request at a time.
+    context: 499712
+    sampling: {temperature: 1.0, top_p: 0.95}
+    default_effort: high
+    efforts:
+      "off": {chat_template_kwargs: {enable_thinking: false}}
+      low: {chat_template_kwargs: {reasoning_effort: low}}
+      high: {chat_template_kwargs: {reasoning_effort: high}}
+      max: {chat_template_kwargs: {reasoning_effort: max}}
+    effort_tiers: {"off": "off", low: low, high: high, max: max}
+
   # ---------------------------------------------------------------- DeepSeek V4 family
   - id: deepseek-v4.1-flash-exl3-2.9bpw
     provider: direct-ds41
