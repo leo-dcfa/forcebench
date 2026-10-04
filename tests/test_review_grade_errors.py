@@ -10,7 +10,7 @@ import textwrap
 import pytest
 
 from forcebench import SUITES_DIR
-from forcebench.answers import extract
+from forcebench.answers import MAX_JSON_DEPTH, extract, json_depth
 from forcebench.graders import _REGISTRY, GradeEnv, TaskError, grade
 from forcebench.graders._rules import check_rule
 from forcebench.graders.ci import grade_file
@@ -76,6 +76,16 @@ def test_absurdly_nested_json_is_a_format_error(make_task):
     t = make_task({"format": "json"}, {"type": "json_rules", "rules": []})
     a = extract(t, "```json\n" + "[" * 100_000 + "]" * 100_000 + "\n```")
     assert a.error and a.error.startswith("could not parse answer")
+    assert "nested deeper than" in a.error, "refused on every machine, before the parser recurses"
+
+
+def test_json_nesting_up_to_the_limit_is_parsed_and_brackets_in_strings_do_not_count(make_task):
+    t = make_task({"format": "json"}, {"type": "json_rules", "rules": []})
+    deep = "[" * MAX_JSON_DEPTH + "]" * MAX_JSON_DEPTH
+    assert extract(t, f"```json\n{deep}\n```").error is None
+    assert json_depth('{"a": "[[[[{{{{", "b": [1, {"c": "\\"]"}]}') == 3
+    too_deep = "[" * (MAX_JSON_DEPTH + 1) + "]" * (MAX_JSON_DEPTH + 1)
+    assert "nested deeper than" in (extract(t, f"```json\n{too_deep}\n```").error or "")
 
 
 # --------------------------------------------------------------------------- reproduced crashes
