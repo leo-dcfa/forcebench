@@ -73,6 +73,8 @@ class PoolConfig(BaseModel):
     canary_guid: str = Field(pattern=_GUID_PATTERN)
     # Whether the contamination study's aggregates may be published (docs/contamination-study.md).
     publish_contamination: bool = False
+    # The private Hugging Face dataset private runs are backed up to (forcebench private backup).
+    hf_dataset: str | None = Field(default=None, pattern=r"^[\w.-]+/[\w.-]+$")
 
 
 ExposureKind = Literal["authoring", "model-api", "vendor-eval", "other"]
@@ -97,6 +99,7 @@ class PrivatePool:
     canary_guid: str
     exposure: dict[str, list[Exposure]]
     publish_contamination: bool = False
+    hf_dataset: str | None = None
 
     @property
     def canary(self) -> str:
@@ -246,7 +249,7 @@ def load_private_pool(root: Path | None = None) -> PrivatePool:
     if cfg.canary_guid == CANARY_GUID:
         raise PrivatePoolError("the private pool's canary GUID must not be the public one")
     exposure = read_exposure(root / EXPOSURE_FILE)
-    return PrivatePool(root, cfg.canary_guid, exposure, cfg.publish_contamination)
+    return PrivatePool(root, cfg.canary_guid, exposure, cfg.publish_contamination, cfg.hf_dataset)
 
 
 def read_exposure(path: Path) -> dict[str, list[Exposure]]:

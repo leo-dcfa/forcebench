@@ -691,6 +691,48 @@ def private_expose(
     console.print(f"recorded {party} ({kind}) for {n} private tasks", markup=False)
 
 
+@private_app.command("backup")
+def private_backup(
+    yes: Annotated[bool, typer.Option("--yes", help="Do not ask before uploading.")] = False,
+) -> None:
+    """Back up the private runs (run.json, cases.jsonl and the full replies) to the pool's private
+    Hugging Face dataset, `hf_dataset` in pool.yaml, with HF_TOKEN (the environment or .env).
+    Refuses a dataset that is not private (src/forcebench/private_backup.py). Needs the `traces`
+    extra."""
+    from forcebench.models import load_dotenv
+
+    try:
+        from forcebench.private_backup import BackupError, collect, hub, push
+    except ModuleNotFoundError:
+        console.print("needs huggingface_hub: uv run --extra traces forcebench private backup")
+        raise typer.Exit(1) from None
+
+    pool = private_pool()
+    if not pool.hf_dataset:
+        console.print("set hf_dataset: <owner>/<name> in the private pool's pool.yaml", style="red")
+        raise typer.Exit(1)
+    load_dotenv()
+    token = os.environ.get("HF_TOKEN", "")
+    if not token:
+        console.print("set HF_TOKEN (in the environment or .env)", style="red")
+        raise typer.Exit(1)
+    try:
+        backup = collect(pool)
+        api = hub(token)
+        mb = backup.size / 1e6
+        console.print(
+            f"{len(backup.runs)} private runs, {len(backup.files)} files, {mb:.1f} MB",
+            markup=False,
+        )
+        if not yes and not typer.confirm("Upload them to the pool's private dataset?"):
+            raise typer.Exit(1)
+        push(api, pool.hf_dataset, backup, os.environ.get("HF_DATASET_REPO"))
+    except BackupError as e:
+        console.print(str(e), style="red", markup=False, soft_wrap=True)
+        raise typer.Exit(1) from None
+    console.print(f"backed up {len(backup.runs)} private runs", markup=False)
+
+
 @app.command()
 def leakcheck(
     staged: Annotated[
