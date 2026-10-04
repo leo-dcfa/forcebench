@@ -8,8 +8,6 @@
 - pass@k uses the unbiased estimator of Chen et al. (2021).
 """
 
-from __future__ import annotations
-
 import math
 import random
 from collections.abc import Mapping, Sequence

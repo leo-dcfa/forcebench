@@ -1,7 +1,5 @@
 """The private pool: where it may live, how its tasks load, and who may see them."""
 
-from __future__ import annotations
-
 import asyncio
 import datetime as dt
 import json
@@ -31,6 +29,7 @@ from forcebench.pool import (
     check_no_telemetry,
     check_private_dir,
     check_tiers,
+    configured_private_dir,
     docker_args,
     init_private_dir,
     load_private_pool,
@@ -923,3 +922,15 @@ def test_public_runs_are_not_affected_by_a_proxy(fake_model, monkeypatch, make_t
     monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:3128")
     _gen(fake_model, [make_task({"format": "text"})])
     assert fake_model.prompts
+
+
+def test_tests_can_keep_the_real_env_file_out_of_the_private_dir_setting(monkeypatch):
+    """configured_private_dir reads .env through forcebench.models, so the tests that replace
+    models.load_dotenv never pick up a developer's own FORCEBENCH_PRIVATE_DIR."""
+    monkeypatch.delenv("FORCEBENCH_PRIVATE_DIR", raising=False)
+
+    def fake_dotenv(*args, **kwargs):
+        monkeypatch.setenv("FORCEBENCH_PRIVATE_DIR", "/from-the-fake-env")
+
+    monkeypatch.setattr("forcebench.models.load_dotenv", fake_dotenv)
+    assert configured_private_dir() == Path("/from-the-fake-env")

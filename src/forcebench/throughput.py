@@ -7,8 +7,6 @@ per hour; and per grader type: how many, how long each took, and how many sf com
 deploys each needed.
 """
 
-from __future__ import annotations
-
 import json
 import statistics
 from collections import defaultdict

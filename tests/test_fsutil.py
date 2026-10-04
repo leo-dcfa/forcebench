@@ -1,7 +1,5 @@
 """Crash-safe writes of run files and the per-run lock (forcebench.fsutil, runner.run_lock)."""
 
-from __future__ import annotations
-
 import asyncio
 import fcntl
 import json

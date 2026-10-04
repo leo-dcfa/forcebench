@@ -1,7 +1,5 @@
 """Short and docs answers that name more than one candidate value fail."""
 
-from __future__ import annotations
-
 import asyncio
 import time
 

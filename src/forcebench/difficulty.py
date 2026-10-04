@@ -9,8 +9,6 @@ contamination study keeps matching on the author's labels: a contaminated model 
 pass rates, and labels taken from them would absorb part of the gap it measures.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from typing import Any

@@ -15,8 +15,6 @@ private pool are written only in that pool's ``results/runs`` (src/forcebench/po
 in this repository, and are graded there.
 """
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import datetime as dt
@@ -824,7 +822,7 @@ def _write_answer_file(files_dir: Path, path: str, content: str) -> None:
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
         _write_model_text(dest, content)
-    except (NotADirectoryError, IsADirectoryError, FileExistsError):
+    except NotADirectoryError, IsADirectoryError, FileExistsError:
         pass  # a name used for a file and a directory: left out, as above
     except OSError as e:
         if e.errno != errno.ENAMETOOLONG:

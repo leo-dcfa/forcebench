@@ -27,8 +27,6 @@ params: every ``org_deploy`` param (``profile``, ``hidden_files``, ``tests``, ``
       are graded by the tests alone, so harmless extra advice is never penalised.
 """
 
-from __future__ import annotations
-
 import re
 import unicodedata
 from typing import Any

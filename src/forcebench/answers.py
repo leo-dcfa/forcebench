@@ -5,14 +5,13 @@ benefits from per-task prompt tuning. Extraction is deliberately forgiving about
 strict about the answer itself: if the answer cannot be found, the task fails.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re
 import shlex
 from collections.abc import Callable, Collection
 from typing import Any
+from urllib.parse import parse_qs
 
 from pydantic import BaseModel, Field
 
@@ -451,8 +450,6 @@ def _parse_http(block: str) -> list[HttpRequest]:
         path, _, qs = target.partition("?")
         query: dict[str, list[str]] = {}
         if qs:
-            from urllib.parse import parse_qs
-
             query = parse_qs(qs, keep_blank_values=True)
         headers: dict[str, str] = {}
         i = 1

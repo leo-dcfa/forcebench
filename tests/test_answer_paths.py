@@ -1,8 +1,6 @@
 """Operating-system errors are infrastructure errors, and an answer can never cause one: its file
 paths are checked before anything is written, and an invalid path fails the answer's format."""
 
-from __future__ import annotations
-
 import asyncio
 import errno
 import json

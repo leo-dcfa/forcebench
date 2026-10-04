@@ -7,7 +7,7 @@ license = "Apache-2.0"
 authors = [
     { name = "Leo Alves", email = "2105206+leo-dcfa@users.noreply.github.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
     "jsonschema>=4.23",
@@ -41,7 +41,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 # PLC0415: imports go at the top of the module, never inside a function.
@@ -52,18 +52,10 @@ ignore = ["E501"]
 # file by file; take a file off this list once it passes. Every other file, new ones included,
 # must pass now.
 [tool.ruff.lint.per-file-ignores]
-"orgs/base/data/seed.py" = ["PLC0415"]
-"src/forcebench/answers.py" = ["PLC0415"]
+# Imports inside functions on purpose: each command imports only what it needs (a fast start, and
+# the optional traces extra may be missing), and each provider's SDK loads only when it is used.
 "src/forcebench/cli.py" = ["PLC0415"]
-"src/forcebench/graders/__init__.py" = ["PLC0415"]
-"src/forcebench/graders/basic.py" = ["PLC0415"]
-"src/forcebench/graders/lwc.py" = ["PLC0415"]
-"src/forcebench/graders/sf_cli.py" = ["PLC0415"]
 "src/forcebench/llm.py" = ["PLC0415"]
-"src/forcebench/org.py" = ["PLC0415"]
-"src/forcebench/pool.py" = ["PLC0415"]
-"src/forcebench/report.py" = ["PLC0415"]
-"src/forcebench/tasks.py" = ["PLC0415"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -79,4 +71,4 @@ markers = [
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-pythonVersion = "3.13"
+pythonVersion = "3.14"

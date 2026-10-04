@@ -2,8 +2,6 @@
 one command, answers that could still cause an OSError, invalidate racing a resume, and
 symbolic links inside a run directory."""
 
-from __future__ import annotations
-
 import asyncio
 import fcntl
 import json

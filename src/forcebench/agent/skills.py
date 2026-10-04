@@ -13,8 +13,6 @@ task's message then starts with those skills exactly as opencode's skill tool re
 ``<skill_content>`` block), so the model has them whether or not it would have loaded them.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re

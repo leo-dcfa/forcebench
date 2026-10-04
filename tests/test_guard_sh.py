@@ -2,8 +2,6 @@
 check runs with the sandbox image's own Python in isolated mode, and only its confirmation line
 (not its exit status) lets a setup script continue. Nothing here runs sf or Docker."""
 
-from __future__ import annotations
-
 import os
 import re
 import shutil

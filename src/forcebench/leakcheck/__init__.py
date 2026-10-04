@@ -9,8 +9,6 @@ Each module in this package holds rules, registered with ``@rule``; every module
 first use, so adding rules never means editing a shared list.
 """
 
-from __future__ import annotations
-
 import importlib
 import pkgutil
 import subprocess

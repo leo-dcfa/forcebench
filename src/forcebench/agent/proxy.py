@@ -19,8 +19,6 @@ the server serves), FB_INJECT (JSON object merged into each request), FB_MAX_TOK
 FB_MAX_REQUESTS, FB_MAX_OUTPUT_TOKENS, FB_LOG (JSON lines file), FB_PORT (default 8080).
 """
 
-from __future__ import annotations
-
 import contextlib
 import http.client
 import json

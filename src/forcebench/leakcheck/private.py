@@ -8,8 +8,6 @@ rule finds nothing; the allowlist rules still apply. A finding says which kind o
 never what.
 """
 
-from __future__ import annotations
-
 import functools
 import hashlib
 import os

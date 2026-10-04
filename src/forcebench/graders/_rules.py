@@ -17,8 +17,6 @@ Operators:
     match (a JSON value; objects match if they contain the given keys with matching values)
 """
 
-from __future__ import annotations
-
 import re
 from typing import Any
 

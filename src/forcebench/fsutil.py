@@ -18,8 +18,6 @@ reads runs from and writes them and the leaderboard to may be a symbolic link:
 ``runner.check_run_dir`` refuses a run directory, and its files, that is one.
 """
 
-from __future__ import annotations
-
 import contextlib
 import fcntl
 import os

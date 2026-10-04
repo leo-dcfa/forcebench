@@ -21,8 +21,6 @@ score; and only when the pool's pool.yaml says ``publish_contamination: true`` a
 MIN_PRIVATE_TASKS private tasks are compared.
 """
 
-from __future__ import annotations
-
 import datetime as dt
 import random
 from collections import defaultdict

@@ -35,8 +35,7 @@ Only when every check passes does it print the confirmation line
 status alone proves nothing). This module is stdlib only.
 """
 
-from __future__ import annotations
-
+import argparse
 import asyncio
 import contextlib
 import contextvars
@@ -149,7 +148,7 @@ def logged_in_orgs() -> dict[str, dict[str, Any]]:
     for p in _auth_files():
         try:
             data = json.loads(p.read_text())
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue
         if isinstance(data, dict) and data.get("instanceUrl") and data.get("username"):
             orgs[data["username"]] = data
@@ -160,7 +159,7 @@ def _aliases() -> dict[str, str]:
     p = Path.home() / ".sfdx" / "alias.json"
     try:
         return json.loads(p.read_text()).get("orgs", {})
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
 
 
@@ -415,7 +414,7 @@ class PendingOrg:
 def _load_pending() -> dict[str, Any]:
     try:
         data = json.loads(PENDING.read_text())
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -707,8 +706,6 @@ LOCK_OK = "FORCEBENCH_ORG_LOCK_OK"
 def main(argv: list[str] | None = None) -> int:
     """``python -m forcebench.org check [--profile P] [--] <alias>``: exit 0 and print
     ``FORCEBENCH_ORG_LOCK_OK <alias> [<profile>]`` on stdout only if allowed."""
-    import argparse
-
     parser = argparse.ArgumentParser(prog="python -m forcebench.org")
     sub = parser.add_subparsers(dest="cmd", required=True)
     chk = sub.add_parser("check", help="refuse unless <alias> is a scratch org setup may touch")

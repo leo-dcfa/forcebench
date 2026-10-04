@@ -9,8 +9,6 @@
 Nothing here runs the real sf CLI or Docker: sf is faked or never reached.
 """
 
-from __future__ import annotations
-
 import datetime as dt
 import importlib.util
 import json

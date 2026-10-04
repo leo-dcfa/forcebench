@@ -20,8 +20,6 @@ of ``sf data query --query``, and an argument too long for the operating system 
 before any process is started (``argument_problem``).
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterable
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING

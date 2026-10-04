@@ -30,8 +30,6 @@ and may not read Apex source (``ApexClass``/``ApexTrigger`` bodies): a test that
 the implementation's source would "kill" every mutant without testing any behaviour.
 """
 
-from __future__ import annotations
-
 import asyncio
 import re
 import shutil

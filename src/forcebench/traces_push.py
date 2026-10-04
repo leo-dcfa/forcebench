@@ -7,8 +7,6 @@ found. It also refuses a folder holding anything but the dataset's own files, or
 is not a public, canaried record of a public task. Needs the `traces` extra (huggingface_hub).
 """
 
-from __future__ import annotations
-
 import json
 import re
 from pathlib import Path

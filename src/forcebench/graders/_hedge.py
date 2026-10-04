@@ -63,8 +63,6 @@ requests per 24 hours", "12.5k events" and "100 MB" are single answers. Only the
 are compared, so a runaway answer line stays cheap.
 """
 
-from __future__ import annotations
-
 import itertools
 import re
 import unicodedata

@@ -61,8 +61,6 @@ then ``params.rules``.
 Provenance of the vendored data and how to rebuild it: ``data/scratch-def-README.md``.
 """
 
-from __future__ import annotations
-
 import asyncio
 import copy
 import difflib

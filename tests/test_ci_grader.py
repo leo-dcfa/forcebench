@@ -1,7 +1,5 @@
 """Tests for the ``ci_workflow`` grader (GitHub Actions workflows and CI shell scripts)."""
 
-from __future__ import annotations
-
 import textwrap
 
 import pytest

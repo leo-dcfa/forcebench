@@ -1,7 +1,5 @@
 """static_code checks ignore comments unless a check opts in with ``in_comments: true``."""
 
-from __future__ import annotations
-
 import pytest
 
 from forcebench.graders._comments import strip_comments

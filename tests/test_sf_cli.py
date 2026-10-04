@@ -1,7 +1,5 @@
 """Tests for the sf CLI command parser and the ``sf_cli`` grader."""
 
-from __future__ import annotations
-
 import asyncio
 
 import pytest

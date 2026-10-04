@@ -1,7 +1,5 @@
 """Tests for the ``limits_pushback`` grader (no org: the deploy is faked)."""
 
-from __future__ import annotations
-
 import re
 
 import pytest

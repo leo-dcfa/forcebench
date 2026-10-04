@@ -59,8 +59,6 @@ params:
         ``{keyword: HIGHEST|NONE}``. When both keys are set, both must match.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass, field
 from typing import Any

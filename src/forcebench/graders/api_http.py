@@ -36,8 +36,6 @@ request spec:
         request passes if any merged alternative passes every check.
 """
 
-from __future__ import annotations
-
 import csv
 import io
 import re

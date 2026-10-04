@@ -8,8 +8,6 @@ A benchmark configuration is ``<model id>@<effort>``: the same weights at a diff
 reasoning effort are a different entry on the leaderboard.
 """
 
-from __future__ import annotations
-
 import os
 import re
 import sys

@@ -5,8 +5,6 @@ actually committed, including runs the leaderboard leaves out (results/invalid/)
 are not public are counted, never named: they may be private.
 """
 
-from __future__ import annotations
-
 import functools
 import json
 import re

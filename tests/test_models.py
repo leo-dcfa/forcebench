@@ -1,7 +1,5 @@
 """The model registry's effort tiers: a plain thinking switch is not an effort level."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import pytest

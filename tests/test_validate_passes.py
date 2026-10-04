@@ -2,8 +2,6 @@
 sandbox, those in the offline container (no network), where the authors' outputs get no
 in-process exception. The passes are split by grader type, not by suite."""
 
-from __future__ import annotations
-
 import os
 import re
 import shlex

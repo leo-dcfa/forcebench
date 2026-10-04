@@ -23,8 +23,6 @@ Opportunity, Case, Lead, ... in the org.
 Stdlib only (``forcebench.org`` is stdlib only and imported from this repository's ``src``).
 """
 
-from __future__ import annotations
-
 import json
 import sys
 from pathlib import Path
@@ -757,7 +755,8 @@ def _org() -> ModuleType:
     """``forcebench.org`` from this repository: the lock every sf call here goes through."""
     if str(REPO_SRC) not in sys.path:
         sys.path.insert(0, str(REPO_SRC))
-    from forcebench import org
+    # Importable only once REPO_SRC is on sys.path.
+    from forcebench import org  # noqa: PLC0415
 
     return org
 

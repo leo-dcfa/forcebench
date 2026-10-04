@@ -4,8 +4,6 @@ suites/prompt-hashes.json records each public task's version and the hash of its
 prompt; these tests fail when a prompt changed while its version did not.
 """
 
-from __future__ import annotations
-
 import json
 
 import pytest

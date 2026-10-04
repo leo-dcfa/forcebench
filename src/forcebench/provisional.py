@@ -7,8 +7,6 @@ everyone, macro-averaged, with the same stratified bootstrap as the overall scor
 own `overall` stays as it is (null for partial entries); this is published alongside it.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
 from typing import Any
 

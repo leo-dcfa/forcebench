@@ -93,13 +93,14 @@ prefix holding the JIT plugins at the versions pinned in the CLI's ``package.jso
         --jit-prefix /tmp/sfjit
 """
 
-from __future__ import annotations
-
 import datetime as dt
 import json
+import os
 import re
 import shlex
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -1216,10 +1217,6 @@ process.stdout.write(JSON.stringify(out));
 def extract_constraints(roots: list[Path]) -> dict[str, dict[str, dict[str, Any]]]:
     """Run the Node extractor over oclif roots: {command id: {flag: {constraint: value}}}.
     Needs `node`; run it against an isolated install with a throwaway HOME."""
-    import os
-    import subprocess
-    import tempfile
-
     with tempfile.TemporaryDirectory() as tmp:
         script = Path(tmp) / "extract.mjs"
         script.write_text(_EXTRACT_JS)

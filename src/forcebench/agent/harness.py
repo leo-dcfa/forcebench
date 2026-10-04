@@ -19,8 +19,6 @@ The agent's event stream and the proxy's request log are kept with the run's raw
 (raw/agent/<task>#<sample>/), which are never published.
 """
 
-from __future__ import annotations
-
 import asyncio
 import hashlib
 import json

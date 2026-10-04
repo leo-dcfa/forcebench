@@ -29,7 +29,7 @@ ENV FORCEBENCH_SANDBOX=1 \
 
 RUN mkdir -p /opt/venv /opt/python /cache /work && chown -R node:node /opt/venv /opt/python /cache /work
 USER node
-RUN uv python install 3.13
+RUN uv python install 3.14
 
 # Pre-install dependencies; the project itself is mounted at /work at run time.
 COPY --chown=node:node pyproject.toml uv.lock /tmp/fb/

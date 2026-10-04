@@ -1,7 +1,5 @@
 """Calling models. One user turn, the fixed system prompt, no tools."""
 
-from __future__ import annotations
-
 import asyncio
 import os
 import time

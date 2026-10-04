@@ -33,8 +33,6 @@ elements in any order, but repeated elements of one type must be contiguous, and
 needs non-negative ``locationX``/``locationY``; a deploy enforces that.)
 """
 
-from __future__ import annotations
-
 import xml.etree.ElementTree as ET
 from collections import deque
 from typing import Any

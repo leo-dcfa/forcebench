@@ -68,8 +68,6 @@ the CPUs); ``FORCEBENCH_LWC_KEEP_RUNS=1`` keeps run directories for debugging (a
 task's are never kept).
 """
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import functools
@@ -79,8 +77,10 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import threading
+import time
 import uuid
 from collections.abc import Iterator
 from contextvars import ContextVar
@@ -92,6 +92,7 @@ from forcebench.answer_files import check_files
 from forcebench.answers import Answer
 from forcebench.graders import Check, Grade, GradeEnv, grader
 from forcebench.graders.basic import static_code_checks
+from forcebench.pool import inside_public_tree
 from forcebench.tasks import Task
 
 WORKSPACE_SRC = PACKAGE_DIR / "data" / "lwc-jest"
@@ -143,8 +144,8 @@ def _file_lock(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a+") as fh:
         if os.name == "nt":  # pragma: no cover - exercised on Windows only
-            import msvcrt
-            import time
+            # msvcrt exists on Windows only, and fcntl below on POSIX only.
+            import msvcrt  # noqa: PLC0415
 
             while True:
                 try:
@@ -158,7 +159,7 @@ def _file_lock(path: Path) -> Iterator[None]:
                 fh.seek(0)
                 msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
         else:
-            import fcntl
+            import fcntl  # noqa: PLC0415
 
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
             try:
@@ -329,7 +330,7 @@ def _permission_supported(node: str) -> bool:
             timeout=30,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         return False
     return probe.returncode == 0 and _PERMISSION_TOKEN in probe.stdout
 
@@ -602,8 +603,6 @@ def default_route(tables: tuple[Path, ...] = _ROUTE_TABLES) -> str | None:
 def network_reachable() -> str | None:
     """Evidence that this process has a network, if any: a default route, or a connection to a
     well-known address. A refused connection still proves there is a route, so it counts."""
-    import socket
-
     iface = default_route()
     if iface:
         return f"default route via {iface}"
@@ -650,17 +649,14 @@ async def lwc_jest(task: Task, answer: Answer, env: GradeEnv) -> Grade:
         ws = await asyncio.to_thread(ensure_workspace)
     except WorkspaceUnavailableError as e:
         return Grade.skip(str(e))
-    if task.visibility == "private":
-        from forcebench.pool import inside_public_tree
-
-        # The run directory, which holds the hidden tests, is built inside the workspace (Node's
-        # permission model lets Jest read only there). A private task's must never be written
-        # inside this repository, where a crash would leave it behind.
-        if inside_public_tree(ws):
-            return Grade.skip(
-                "a private LWC task is graded only where the Jest workspace is outside this "
-                "repository: in the offline container (make validate|grade POOL=private)"
-            )
+    # The run directory, which holds the hidden tests, is built inside the workspace (Node's
+    # permission model lets Jest read only there). A private task's must never be written inside
+    # this repository, where a crash would leave it behind.
+    if task.visibility == "private" and inside_public_tree(ws):
+        return Grade.skip(
+            "a private LWC task is graded only where the Jest workspace is outside this "
+            "repository: in the offline container (make validate|grade POOL=private)"
+        )
     node = node or shutil.which("node") or "node"
     # Model answers only get here with the permission model verified (offline_refusal).
     # Authored answers use it when available unless FORCEBENCH_LWC_SANDBOX=0.

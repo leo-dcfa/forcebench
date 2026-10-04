@@ -13,8 +13,6 @@ the offline container, where the authors' outputs are graded exactly as model an
 (``authored=False``).
 """
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 from collections.abc import Callable

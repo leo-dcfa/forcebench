@@ -1,7 +1,5 @@
 """Offline tests for the ``scratch_def`` and ``sfdx_project`` graders (no org needed)."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 

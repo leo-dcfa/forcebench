@@ -18,8 +18,6 @@ A comment is replaced by the line breaks it spans, or by one space, so line-anch
 see the same lines as before and ``a/**/b`` stays two tokens.
 """
 
-from __future__ import annotations
-
 import re
 from pathlib import PurePosixPath
 

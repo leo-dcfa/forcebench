@@ -12,8 +12,6 @@ unchanged version, or a version that went down. A task that is removed keeps its
 ``removed``, so its id cannot come back with another prompt under a version it already had.
 """
 
-from __future__ import annotations
-
 import json
 from collections.abc import Iterable
 from pathlib import Path

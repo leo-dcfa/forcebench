@@ -1,8 +1,6 @@
 """Run directory names are data, never code: every command that takes a run directory refuses a
 name that is not a run id, and `make regrade-all` never hands a name to a shell."""
 
-from __future__ import annotations
-
 import contextlib
 import fcntl
 import json

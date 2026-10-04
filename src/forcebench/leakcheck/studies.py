@@ -5,8 +5,6 @@ each configuration's gap and relative gap with their intervals, the average gap,
 and the method. Any other field (a task id, a per-task or per-pool score) is a finding.
 """
 
-from __future__ import annotations
-
 import json
 from collections.abc import Iterator
 from typing import Any

@@ -19,8 +19,6 @@ else, e.g. a private run copied into results/runs by mistake, refuses the whole 
 same way from the private pool's runs and tasks and written only in that pool.
 """
 
-from __future__ import annotations
-
 import datetime as dt
 import hashlib
 import json
@@ -44,7 +42,7 @@ from forcebench.fsutil import atomic_write_text, check_results_dir
 from forcebench.models import THINKING_SWITCH
 from forcebench.provisional import provisional
 from forcebench.stats import bootstrap_ci, mean, stratified_bootstrap_ci
-from forcebench.tasks import Suite
+from forcebench.tasks import Suite, _manifest_ids, load_subset
 
 # The shape of leaderboard.json (docs/leaderboard-schema.md). Fields may be added within a
 # version; removing, renaming or changing the meaning of one bumps it. v2: partial entries have
@@ -201,8 +199,6 @@ def build_entry(runs: list[Run], suites: list[Suite]) -> dict[str, Any]:
     """One configuration's entry, from all its runs (oldest first). Only a complete entry has an
     overall score; a partial one has ``overall`` null and, if some suites are complete, their
     average as ``overall_complete_suites``."""
-    from forcebench.tasks import load_subset
-
     metas = [meta for meta, _ in runs]
     subset = metas[-1].get("subset", "full")
     keep = load_subset(subset)
@@ -377,8 +373,6 @@ _UNSCORED_FIELDS = (
 def known_task_ids(suites: list[Suite], visibility: str = "public") -> set[str]:
     """The task ids a ``visibility`` leaderboard's runs may name: the suites' tasks and, for the
     public one, every task suites/prompt-hashes.json records (removed public tasks)."""
-    from forcebench.tasks import _manifest_ids
-
     ids = {t.id for s in suites for t in s.tasks}
     return ids | _manifest_ids() if visibility == "public" else ids
 

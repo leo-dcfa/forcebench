@@ -20,8 +20,6 @@ Layout of the dataset (one config per benchmark version)::
     data/v<version>/<run id>.jsonl  one record per graded answer
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import subprocess

@@ -12,8 +12,6 @@ version in the code to be newer than the published leaderboard's (a bump under w
 otherwise.
 """
 
-from __future__ import annotations
-
 import datetime as dt
 import tempfile
 from dataclasses import dataclass

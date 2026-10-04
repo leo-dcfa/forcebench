@@ -13,8 +13,6 @@ pre-scanned (``prescan``) before shlex splits it (``split_words``):
 Double quotes nest inside ``$(...)`` as in bash (``"$(cmd "a # b")"``).
 """
 
-from __future__ import annotations
-
 import re
 import shlex
 

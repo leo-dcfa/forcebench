@@ -6,8 +6,6 @@ repository uses and refuse anything else of the same shape. Results (model answe
 out: a model may write any name, and it never saw the private pool's.
 """
 
-from __future__ import annotations
-
 import re
 from collections.abc import Iterator
 

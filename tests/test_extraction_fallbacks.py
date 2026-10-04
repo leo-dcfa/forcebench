@@ -1,8 +1,6 @@
 """Answer extraction regressions from the second review: choice answers outside the strict
 `Answer: <letter>` form, `#` comments in http blocks, and Windows line endings."""
 
-from __future__ import annotations
-
 import pytest
 
 from forcebench.answers import extract

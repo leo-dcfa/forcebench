@@ -1,8 +1,6 @@
 """Answer extraction regressions from an external review: backticked file headers and prose
 after a choice answer."""
 
-from __future__ import annotations
-
 import pytest
 
 from forcebench.answers import choice_letters, extract

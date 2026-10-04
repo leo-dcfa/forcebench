@@ -16,8 +16,6 @@ Outputs (next to this script):
     scratch-settings-catalog.json     Metadata API *Settings types -> fields, from the WSDL
 """
 
-from __future__ import annotations
-
 import argparse
 import html
 import json

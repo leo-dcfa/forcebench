@@ -1,7 +1,5 @@
 """Canary and task-file rules: only the public canary, only public task files."""
 
-from __future__ import annotations
-
 import re
 from collections.abc import Iterator
 
