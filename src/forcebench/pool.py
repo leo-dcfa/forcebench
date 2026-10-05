@@ -520,6 +520,7 @@ results/**/raw/
 results/**/artifacts/
 results/**/.lock
 results/**/.*.tmp
+.check-details/
 .exposure.lock
 .*.tmp
 .DS_Store

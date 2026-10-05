@@ -830,6 +830,18 @@ def test_make_gives_containers_the_private_pool_only_when_asked(tmp_path):
         )
 
 
+def test_make_private_check_always_gives_the_sandbox_the_private_pool(tmp_path):
+    root = tmp_path / "pool"
+    root.mkdir()
+    pool = init_private_dir(root)
+    for asked in ("private", "public"):
+        dry = _make_n("private-check", root, asked, "docs-p001")
+        assert dry.returncode == 0, dry.stderr
+        [sandbox] = [ln for ln in dry.stdout.splitlines() if ln.startswith("docker run")]
+        assert _mount_points(sandbox)["/private"] == (str(pool.root), False)
+        assert sandbox.endswith("forcebench private check docs-p001")
+
+
 def test_make_stops_when_the_private_pool_is_refused(tmp_path):
     missing = _make_n("run", None)
     assert missing.returncode != 0 and "no private pool" in missing.stderr
