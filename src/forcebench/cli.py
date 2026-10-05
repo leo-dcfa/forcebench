@@ -757,6 +757,22 @@ def private_check(
         raise typer.Exit(1)
 
 
+@private_app.command("coverage")
+def private_coverage() -> None:
+    """Count the pool's tasks per suite and difficulty against its targets.yaml, write the table
+    to the pool's COVERAGE.md and print it: what to write next."""
+    from forcebench.coverage import COVERAGE_FILE, read_targets, table
+    from forcebench.fsutil import atomic_write_text
+
+    pool = private_pool()
+    _, every = select_tasks(None, None, "full", "private", private=pool, statuses=EVERY_STATUS)
+    with _pool_errors():
+        targets = read_targets(pool, {s.id for s in load_suites()})
+    text = table([t for t in every if t.status != "example"], targets, pool)
+    atomic_write_text(pool.root / COVERAGE_FILE, text)
+    console.print(text, markup=False, highlight=False, soft_wrap=True)
+
+
 @private_app.command("expose")
 def private_expose(
     task: Annotated[list[str] | None, typer.Argument(help="Private task ids.")] = None,
