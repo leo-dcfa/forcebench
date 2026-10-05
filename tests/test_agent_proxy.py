@@ -247,6 +247,7 @@ def test_a_conversation_is_translated_block_by_block():
         "messages": [
             {"role": "user", "content": [{"type": "text", "text": "<reminder>"},
                                          {"type": "text", "text": "Fix it."}]},
+            {"role": "system", "content": "# Environment"},
             {"role": "assistant", "content": [
                 {"type": "thinking", "thinking": "Look first.", "signature": "s"},
                 {"type": "text", "text": "Reading."},
@@ -258,7 +259,8 @@ def test_a_conversation_is_translated_block_by_block():
                 {"type": "tool_result", "tool_use_id": "t2", "content": "exit 1", "is_error": True},
                 {"type": "text", "text": "Keep going."},
             ]},
-            {"role": "system", "content": "Mind the budget."},
+            {"role": "system", "content": "<total_tokens>9 left</total_tokens>"},
+            {"role": "assistant", "content": [{"type": "text", "text": "Done."}]},
         ],
         "tools": [
             {"name": "Read", "description": "Read a file", "input_schema": {"type": "object"},
@@ -268,11 +270,13 @@ def test_a_conversation_is_translated_block_by_block():
         "tool_choice": {"type": "any"},
         "stop_sequences": ["END"],
     }  # fmt: skip
-    out, folded = to_chat(body)
-    assert folded == 1
+    out, inline = to_chat(body)
+    assert inline == 2
     assert out["messages"] == [
-        {"role": "system", "content": "You are an agent.\n\nMind the budget."},
-        {"role": "user", "content": "<reminder>\n\nFix it."},
+        {"role": "system", "content": "You are an agent."},
+        # System messages mid-conversation stay where they were, as reminders in a user turn.
+        {"role": "user", "content": "<reminder>\n\nFix it.\n\n"
+                                    "<system-reminder>\n# Environment\n</system-reminder>"},
         {"role": "assistant", "content": "Reading.", "reasoning_content": "Look first.",
          "tool_calls": [
              {"id": "t1", "type": "function",
@@ -282,7 +286,9 @@ def test_a_conversation_is_translated_block_by_block():
          ]},
         {"role": "tool", "tool_call_id": "t1", "content": "x=1"},
         {"role": "tool", "tool_call_id": "t2", "content": "Error: exit 1"},
-        {"role": "user", "content": "Keep going."},
+        {"role": "user", "content": "Keep going.\n\n<system-reminder>\n<total_tokens>9 left"
+                                    "</total_tokens>\n</system-reminder>"},
+        {"role": "assistant", "content": "Done."},
     ]  # fmt: skip
     assert out["tools"] == [
         {"type": "function", "function": {"name": "Read", "description": "Read a file",

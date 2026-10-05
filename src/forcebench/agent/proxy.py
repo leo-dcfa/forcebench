@@ -92,20 +92,34 @@ def _text(content: Any) -> str:
 
 
 def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    """An Anthropic-style request as a chat completions request, and how many mid-conversation
-    system messages were folded into the system prompt (chat templates take one, first).
+    """An Anthropic-style request as a chat completions request, and how many system messages it
+    had mid-conversation.
 
     Text, thinking (as reasoning_content), tool calls and tool results are kept; Anthropic-only
-    fields (cache markers, betas, effort, context management, server tools) are not sent."""
+    fields (cache markers, betas, effort, context management, server tools) are not sent. Chat
+    templates take one system message, first, so a system message mid-conversation (Claude Code
+    sends its environment and how many tokens are left that way) goes where the harness put it, as
+    a system reminder in a user turn, the way Claude Code gives its other reminders. Folding it
+    into the first system message instead would change the start of every request, so the model
+    server could never reuse its cache of the conversation so far."""
     system = [_text(body["system"])] if body.get("system") else []
     messages: list[dict[str, Any]] = []
-    folded = 0
+    inline = 0
     for m in body.get("messages") or []:
         role, content = m.get("role"), m.get("content")
         blocks = [{"type": "text", "text": content}] if isinstance(content, str) else content or []
         if role == "system":
-            system.append(_text(content))
-            folded += 1
+            text = _text(content)
+            if not messages:
+                system.append(text)
+                continue
+            inline += 1
+            if not text.lstrip().startswith("<system-reminder>"):
+                text = f"<system-reminder>\n{text}\n</system-reminder>"
+            if messages[-1]["role"] == "user":
+                messages[-1]["content"] += "\n\n" + text
+            else:
+                messages.append({"role": "user", "content": text})
         elif role == "assistant":
             text, thinking, calls = [], [], []
             for b in blocks:
@@ -179,7 +193,7 @@ def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
             out["parallel_tool_calls"] = False
     if body.get("stop_sequences"):
         out["stop"] = body["stop_sequences"]
-    return out, folded
+    return out, inline
 
 
 def _arguments(raw: Any) -> dict[str, Any]:
@@ -481,9 +495,9 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
             asked = str(body.get("model") or "model")
             if anthropic:
                 record["api"] = "messages"
-                body, folded = to_chat(body)
-                if folded:
-                    record["folded_system"] = folded
+                body, inline = to_chat(body)
+                if inline:
+                    record["inline_system"] = inline
                 if self.headers.get("x-claude-code-request-class"):
                     record["request_class"] = self.headers["x-claude-code-request-class"]
             dropped = sorted(k for k in body if k in HARNESS_DROP)
