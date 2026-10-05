@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import dataclasses
 import os
 from collections import Counter
 from collections.abc import Iterator
@@ -499,6 +500,45 @@ def study_contamination(
         target.parent.mkdir(exist_ok=True)
         atomic_write_text(target, json.dumps(out, indent=1) + "\n")
         console.print(f"wrote the publishable aggregates to {target.relative_to(REPO_ROOT)}")
+
+
+@study_app.command("harness")
+def study_harness(
+    task: Annotated[str, typer.Option("--task", "-t", help="The task the study's runs answered.")],
+    since: Annotated[
+        str,
+        typer.Option(
+            "--since", help="Only runs whose id starts at or after this, e.g. 20261005T02."
+        ),
+    ] = "",
+) -> None:
+    """The harness study (docs/harness-study.md): the agent runs that answered this one task alone,
+    by model, harness and skill pack, aggregated into studies/harness.json. Only aggregates are
+    written; the sessions' events stay in the runs' raw records."""
+    import json
+
+    from forcebench import REPO_ROOT
+    from forcebench.agent.harness_study import study
+    from forcebench.fsutil import atomic_write_text
+    from forcebench.runner import AGENT_RESULTS_DIR
+
+    t = next((t for t in all_tasks(load_suites()) if t.id == task), None)
+    if t is None:
+        raise typer.BadParameter(f"no task {task}", param_hint="--task")
+    out = study(AGENT_RESULTS_DIR / "runs", t, since)
+    if not out["arms"]:
+        console.print("no graded agent runs of that task alone", style="red")
+        raise typer.Exit(1)
+    target = REPO_ROOT / "studies" / "harness.json"
+    target.parent.mkdir(exist_ok=True)
+    atomic_write_text(target, json.dumps(out, indent=1) + "\n")
+    for a in out["arms"]:
+        console.print(
+            f"{a['config_id']:<28} {a['harness']:<12} {a['skills'] or '-':<18} "
+            f"{a['passed']}/{a['sessions']}",
+            markup=False,
+        )
+    console.print(f"wrote {target.relative_to(REPO_ROOT)}")
 
 
 @app.command()
@@ -1031,7 +1071,7 @@ def run(
         typer.Option(
             "--agent",
             help="Answer each task with a coding agent in an isolated container instead of one "
-            "model call: opencode (docs/agent-track.md). An agent-track run, in "
+            "model call: opencode, claude-code or pi (docs/agent-track.md). An agent-track run, in "
             "results/agent/runs; it starts containers, so it runs on the host, with --no-grade "
             "(grade it in the sandbox: make grade ARGS=<run dir>). With --resume: the run's.",
         ),
@@ -1052,6 +1092,15 @@ def run(
             "if the user had loaded them (the pack's manifest names them). Recorded with the run.",
         ),
     ] = False,
+    agent_image: Annotated[
+        str | None,
+        typer.Option(
+            "--agent-image",
+            help="With --agent: run it in this image instead of the harness's own (opencode: "
+            "forcebench-agent; the others: forcebench-agent-harnesses, which has all three). The "
+            "image's id is recorded with the run.",
+        ),
+    ] = None,
 ) -> None:
     """Generate answers for a model configuration, then grade them (results/runs/<run_id>;
     a private run in the private pool's results/runs; an agent run in results/agent/runs)."""
@@ -1079,11 +1128,16 @@ def run(
         )
     harness = None
     if agent is not None:
-        from forcebench.agent.harness import Opencode
+        from forcebench.agent.harness import HARNESSES
         from forcebench.agent.skills import load_pack
 
-        if agent != "opencode":
-            raise typer.BadParameter("the only agent is opencode", param_hint="--agent")
+        if agent not in HARNESSES:
+            raise typer.BadParameter(f"the agents are {', '.join(HARNESSES)}", param_hint="--agent")
+        if preload_skills and agent != "opencode":
+            raise typer.BadParameter(
+                "skills are preloaded in opencode's format: opencode only",
+                param_hint="--preload-skills",
+            )
         if grade:
             raise typer.BadParameter(
                 "agent runs are generated on the host: add --no-grade, then grade the run in the "
@@ -1096,7 +1150,9 @@ def run(
             pack = load_pack(skills) if skills else None
         except ValueError as err:
             raise typer.BadParameter(str(err), param_hint="--skills") from None
-        harness = Opencode(skills=pack, preload=preload_skills)
+        harness = HARNESSES[agent](skills=pack, preload=preload_skills)
+        if agent_image:
+            harness = dataclasses.replace(harness, image=agent_image)
     model = model or started.get("model", {}).get("id")
     if model is None:
         raise typer.BadParameter("give --model, or --resume a run", param_hint="--model")
