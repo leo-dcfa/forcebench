@@ -48,6 +48,10 @@ HARNESS_DROP = (
     "thinking",
     "chat_template_kwargs",
 )
+# What reading an error body can raise. A named tuple, not an inline one: this file runs in the
+# agent image's Python (3.11), which needs an inline tuple in parentheses that formatting for
+# 3.14 removes.
+UNREADABLE = (ValueError, KeyError, TypeError)
 # Chat completion finish reasons as Anthropic stop reasons, for a translated reply.
 STOP_REASONS = {"stop": "end_turn", "length": "max_tokens", "tool_calls": "tool_use"}
 
@@ -508,7 +512,7 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                     if anthropic:
                         try:
                             message = json.loads(data)["error"]["message"]
-                        except ValueError, KeyError, TypeError:
+                        except UNREADABLE:
                             message = data[:500].decode(errors="replace")
                         self._json(resp.status, anthropic_error(resp.status, str(message)))
                     else:

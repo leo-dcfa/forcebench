@@ -1,14 +1,17 @@
 """The model proxy for agent runs (forcebench.agent.proxy): what it changes in each request, the
 budget it enforces, and what it records."""
 
+import ast
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import ClassVar
 from urllib import error, request
 
 import pytest
 
+import forcebench.agent.proxy as proxy_module
 from forcebench.agent.proxy import (
     AnthropicStream,
     Budget,
@@ -20,6 +23,11 @@ from forcebench.agent.proxy import (
     to_chat,
     usage_from_sse,
 )
+
+
+def test_the_proxy_runs_in_the_agent_image_s_python():
+    # The proxy runs as the agent image's python3 (Debian bookworm: 3.11), not the harness's.
+    ast.parse(Path(proxy_module.__file__).read_text(), feature_version=(3, 11))
 
 
 def test_the_configuration_wins_over_the_harness():
