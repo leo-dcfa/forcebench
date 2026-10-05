@@ -9,7 +9,15 @@ from urllib import error, request
 
 import pytest
 
-from forcebench.agent.proxy import Budget, Proxy, make_handler, merge, rewrite, usage_from_sse
+from forcebench.agent.proxy import (
+    Budget,
+    Proxy,
+    make_handler,
+    merge,
+    rewrite,
+    usage_from_anthropic,
+    usage_from_sse,
+)
 
 
 def test_the_configuration_wins_over_the_harness():
@@ -84,6 +92,25 @@ class _Upstream(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
+        if self.path.split("?")[0].endswith("/messages"):
+            for event in (
+                {
+                    "type": "message_start",
+                    "message": {"usage": {"input_tokens": 13, "output_tokens": 1}},
+                },
+                {
+                    "type": "content_block_delta",
+                    "delta": {"type": "text_delta", "text": "Answer: C"},
+                },
+                {
+                    "type": "message_delta",
+                    "delta": {"stop_reason": "max_tokens"},
+                    "usage": {"output_tokens": 9},
+                },
+                {"type": "message_stop"},
+            ):
+                self.wfile.write(f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode())
+            return
         for chunk in (
             {"choices": [{"delta": {"content": "Answer: B"}}]},
             {"choices": [{"delta": {}, "finish_reason": "stop"}]},
@@ -161,3 +188,40 @@ def test_only_chat_completions_are_proxied(servers):
     assert e.value.code == 404 and not _Upstream.seen
     with request.urlopen(url + "/models", timeout=10) as r:
         assert json.loads(r.read())["data"][0]["id"] == "model"
+
+
+def test_an_anthropic_request_is_rewritten_the_same_way_and_logged(servers):
+    url, log = servers
+    req = request.Request(
+        url + "/messages?beta=true",
+        json.dumps({"model": "claude-x", "messages": [], "stream": True, "max_tokens": 4096,
+                    "temperature": 1, "thinking": {"type": "enabled", "budget_tokens": 31999}}).encode(),
+        {"Content-Type": "application/json", "anthropic-version": "2023-06-01"},
+    )  # fmt: skip
+    with request.urlopen(req, timeout=10) as r:
+        assert r.status == 200 and b"Answer: C" in r.read()
+    sent = _Upstream.seen[0]
+    assert sent["path"] == "/v1/messages"
+    assert sent["body"]["model"] == "served-name" and sent["body"]["max_tokens"] == 32768
+    assert sent["body"]["chat_template_kwargs"] == {"reasoning_effort": "high"}
+    assert "thinking" not in sent["body"] and "temperature" not in sent["body"], (
+        "the harness can't change how it thinks"
+    )
+    rec = json.loads(log.read_text().splitlines()[0])
+    assert (rec["api"], rec["prompt_tokens"], rec["completion_tokens"], rec["finish_reason"]) == (
+        "messages", 13, 9, "length",
+    )  # fmt: skip
+
+
+def test_anthropic_usage_reads_a_plain_reply_too():
+    body = json.dumps(
+        {
+            "type": "message",
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 4, "output_tokens": 2},
+        }
+    )
+    assert usage_from_anthropic([body.encode()]) == (
+        {"prompt_tokens": 4, "completion_tokens": 2},
+        "stop",
+    )

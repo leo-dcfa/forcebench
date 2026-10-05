@@ -1,7 +1,9 @@
 """The model proxy for agent runs: the agent container's only way out.
 
 The agent runs on an internal Docker network with this proxy as its only peer. The proxy forwards
-OpenAI-style chat completions to one model server, and on the way:
+OpenAI-style chat completions, and Anthropic-style messages for harnesses that speak only that API
+(Claude Code; the model server must serve /v1/messages, as vLLM does), to one model server, and on
+the way:
 
 - sets the model name and the configuration's own request fields (reasoning effort, sampling), so
   the harness cannot change how the model is asked to think: they win over anything it sends;
@@ -34,6 +36,16 @@ from typing import Any
 # Request fields the harness may not set: the configuration decides them (injected), or the
 # benchmark does (max_tokens).
 SAMPLING = ("temperature", "top_p", "top_k", "min_p", "presence_penalty", "frequency_penalty")
+# In an Anthropic-style request the harness's own thinking switch goes too: the configuration's
+# injected fields decide how the model reasons, whichever API the harness speaks.
+ANTHROPIC_DROP = (*SAMPLING, "thinking")
+# Anthropic stop reasons in the log's (OpenAI) terms, so every harness's requests read alike.
+STOP_REASONS = {
+    "end_turn": "stop",
+    "stop_sequence": "stop",
+    "tool_use": "tool_calls",
+    "max_tokens": "length",
+}
 
 
 def merge(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
@@ -58,6 +70,52 @@ def rewrite(
     if body.get("stream"):
         body["stream_options"] = merge(body.get("stream_options") or {}, {"include_usage": True})
     return body
+
+
+def rewrite_messages(
+    body: dict[str, Any], model: str, inject: dict[str, Any], max_tokens: int
+) -> dict[str, Any]:
+    """An Anthropic-style request as the model server receives it."""
+    body = {k: v for k, v in body.items() if k not in ANTHROPIC_DROP}
+    body = merge(body, inject)
+    body["model"] = model
+    body["max_tokens"] = max_tokens
+    return body
+
+
+def usage_from_anthropic(lines: list[bytes]) -> tuple[dict[str, Any] | None, str | None]:
+    """Token usage (as prompt/completion tokens) and the stop reason (in OpenAI terms) of an
+    Anthropic-style response: a stream's message_start and message_delta events, or one JSON body."""
+    usage: dict[str, Any] = {}
+    stop = None
+    objs = []
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith(b"data:"):
+            line = line[5:].strip()
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            objs.append(obj)
+    for obj in objs:
+        kind = obj.get("type")
+        u = None
+        if kind == "message_start":
+            u = (obj.get("message") or {}).get("usage")
+        elif kind == "message_delta":
+            u = obj.get("usage")
+            stop = (obj.get("delta") or {}).get("stop_reason") or stop
+        elif kind == "message":  # a non-streamed reply
+            u = obj.get("usage")
+            stop = obj.get("stop_reason") or stop
+        if u:
+            if u.get("input_tokens") is not None:
+                usage["prompt_tokens"] = int(u["input_tokens"])
+            if u.get("output_tokens") is not None:
+                usage["completion_tokens"] = int(u["output_tokens"])
+    return (usage or None), (STOP_REASONS.get(stop, stop) if stop else None)
 
 
 class Budget:
@@ -158,8 +216,15 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                 self._json(404, {"error": {"message": "not found"}})
 
         def do_POST(self) -> None:
-            if not self.path.rstrip("/").endswith("/chat/completions"):
-                self._json(404, {"error": {"message": "only chat completions are proxied"}})
+            path = urllib.parse.urlsplit(self.path).path.rstrip("/")
+            if path.endswith("/messages/count_tokens"):
+                self._count_tokens()
+                return
+            anthropic = path.endswith("/messages")
+            if not anthropic and not path.endswith("/chat/completions"):
+                self._json(
+                    404, {"error": {"message": "only chat completions and messages are proxied"}}
+                )
                 return
             t0 = time.time()
             try:
@@ -172,12 +237,16 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                 proxy.log({"ts": t0, "status": 400, "refused": refused})
                 self._json(400, {"error": {"message": f"forcebench: {refused}", "type": "budget"}})
                 return
-            req = rewrite(body, proxy.model, proxy.inject, proxy.max_tokens)
+            if anthropic:
+                req = rewrite_messages(body, proxy.model, proxy.inject, proxy.max_tokens)
+            else:
+                req = rewrite(body, proxy.model, proxy.inject, proxy.max_tokens)
             stream = bool(req.get("stream"))
             record: dict[str, Any] = {
                 "ts": t0,
                 "stream": stream,
                 "messages": len(req.get("messages") or []),
+                **({"api": "messages"} if anthropic else {}),
             }
             try:
                 conn = proxy.connect()
@@ -187,9 +256,14 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                 }
                 if proxy.key:
                     headers["Authorization"] = f"Bearer {proxy.key}"
-                conn.request(
-                    "POST", proxy.upstream.path + "/chat/completions", json.dumps(req), headers
-                )
+                    if anthropic:
+                        headers["x-api-key"] = proxy.key
+                if anthropic:
+                    headers["anthropic-version"] = (
+                        self.headers.get("anthropic-version") or "2023-06-01"
+                    )
+                endpoint = "/messages" if anthropic else "/chat/completions"
+                conn.request("POST", proxy.upstream.path + endpoint, json.dumps(req), headers)
                 resp = conn.getresponse()
                 self.send_response(resp.status)
                 self.send_header(
@@ -205,16 +279,21 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                         lines.append(line)
                         self.wfile.write(line)
                         self.wfile.flush()
-                    usage, finish = usage_from_sse(lines)
+                    usage, finish = (
+                        usage_from_anthropic(lines) if anthropic else usage_from_sse(lines)
+                    )
                 else:
                     data = resp.read()
                     self.wfile.write(data)
-                    try:
-                        obj = json.loads(data)
-                        usage = obj.get("usage")
-                        finish = ((obj.get("choices") or [{}])[0]).get("finish_reason")
-                    except ValueError:
-                        usage, finish = None, None
+                    if anthropic:
+                        usage, finish = usage_from_anthropic([data])
+                    else:
+                        try:
+                            obj = json.loads(data)
+                            usage = obj.get("usage")
+                            finish = ((obj.get("choices") or [{}])[0]).get("finish_reason")
+                        except ValueError:
+                            usage, finish = None, None
                 record.update(status=resp.status, finish_reason=finish)
                 if usage:
                     record["prompt_tokens"] = int(usage.get("prompt_tokens") or 0)
@@ -226,6 +305,41 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                     self._json(502, {"error": {"message": f"model server: {type(e).__name__}"}})
             record["latency_s"] = round(time.time() - t0, 3)
             proxy.log(record)
+
+        def _count_tokens(self) -> None:
+            """Anthropic's token counting endpoint: forwarded with the served model's name, outside
+            the budget (it generates nothing)."""
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+            except ValueError:
+                self._json(400, {"error": {"message": "invalid JSON"}})
+                return
+            body = {k: v for k, v in body.items() if k not in ANTHROPIC_DROP}
+            body["model"] = proxy.model
+            try:
+                conn = proxy.connect()
+                headers = {"Content-Type": "application/json", "anthropic-version": "2023-06-01"}
+                if proxy.key:
+                    headers["Authorization"] = f"Bearer {proxy.key}"
+                    headers["x-api-key"] = proxy.key
+                conn.request(
+                    "POST",
+                    proxy.upstream.path + "/messages/count_tokens",
+                    json.dumps(body),
+                    headers,
+                )
+                resp = conn.getresponse()
+                data = resp.read()
+                self.send_response(resp.status)
+                self.send_header(
+                    "Content-Type", resp.getheader("Content-Type") or "application/json"
+                )
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                with contextlib.suppress(Exception):
+                    self._json(502, {"error": {"message": f"model server: {type(e).__name__}"}})
 
     return Handler
 
