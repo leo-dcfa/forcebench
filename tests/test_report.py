@@ -17,7 +17,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from forcebench import BENCHMARK_VERSION, REPO_ROOT
+from forcebench import BENCHMARK_VERSION, REPO_ROOT, report
 from forcebench.cli import app
 from forcebench.report import (
     SCHEMA_VERSION,
@@ -849,5 +849,21 @@ def test_answers_without_reported_usage_are_left_out_of_the_token_mean(suites):
 def test_a_server_that_reports_no_usage_has_no_token_mean(suites):
     cases = [_case(t, input_tokens=0, output_tokens=0) for t in ("a-0", "a-1", "b-0", "b-1")]
     e = build_entry([(_meta(), cases)], suites)
-    assert e["tokens"] == {"output_mean": None, "reasoning_mean": None}
+    assert e["tokens"] == {
+        "output_mean": None,
+        "output_median": None,
+        "output_p90": None,
+        "reasoning_mean": None,
+    }
     assert e["complete"], "scored as usual: only the token count is unknown"
+
+
+def test_token_quantiles_interpolate_between_ranks():
+    assert report._quantile([10, 20, 30, 40], 0.5) == 25
+    assert report._quantile([5], 0.9) == 5
+    assert report._quantile(list(range(1, 11)), 0.9) == pytest.approx(9.1)
+
+
+def test_only_runs_through_an_effort_setting_service_are_marked_inferred():
+    providers = report._effort_setting_providers()
+    assert "gateway" in providers and "anthropic" not in providers
