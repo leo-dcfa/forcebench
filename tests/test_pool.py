@@ -478,6 +478,17 @@ def test_validate_checks_private_tasks_of_every_status(pool_dir):
     assert "alpha-hidden-draft" in result.output
 
 
+@pytest.mark.parametrize(
+    ("var", "why"), [("HTTPS_PROXY", "proxy"), ("OTEL_EXPORTER_OTLP_ENDPOINT", "telemetry")]
+)
+def test_validating_private_tasks_refuses_a_proxy_or_telemetry(pool_dir, monkeypatch, var, why):
+    monkeypatch.setenv(var, "http://collector.example:4318")
+    result = CliRunner().invoke(app, ["validate", "--pool", "private", "--no-org"])
+    assert result.exit_code == 1 and why in result.output
+    public = CliRunner().invoke(app, ["validate", "--suite", "alpha", "--no-org"])
+    assert public.exit_code == 0, "public validation is not affected"
+
+
 def test_private_task_template_in_this_module_is_valid():
     task = Task.model_validate(yaml.safe_load(textwrap.dedent(task_yaml("alpha-hidden-t"))))
     assert (task.visibility, task.tier, task.status) == ("private", "private", "active")
