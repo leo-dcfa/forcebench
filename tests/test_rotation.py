@@ -12,7 +12,15 @@ from typer.testing import CliRunner
 from forcebench import CANARY_GUID
 from forcebench.answers import prompt_sha
 from forcebench.cli import app
-from forcebench.pool import init_private_dir, load_private_pool, read_exposure
+from forcebench.pool import (
+    CHECKS_FILE,
+    CheckRecord,
+    init_private_dir,
+    load_private_pool,
+    read_checks,
+    read_exposure,
+    write_checks,
+)
 from forcebench.rotation import RotationError, apply, plan, public_text
 from forcebench.tasks import Task, load_task
 
@@ -30,6 +38,7 @@ def _task(pool, task_id: str, **fields) -> str:
         "authors": ["test"],
         "visibility": "private",
         "tier": "semi-private",
+        "status": "ready",
         "canary": f"forcebench private canary GUID {pool.canary_guid}",
         "prompt": "What is the answer?",
         "answer": {"format": "text"},
@@ -73,7 +82,17 @@ def test_a_retired_task_is_public_keeps_its_prompt_and_its_history(setup):
     private = load_task(
         pool.suites_dir / "alpha" / "tasks" / "alpha-hidden-one.yaml", "private", pool.canary_guid
     )
+    record = CheckRecord(
+        date=DAY,
+        task_sha=private.content_sha(),
+        harness="test",
+        negatives=2,
+        grading_seconds=1.0,
+        reference_seconds=0.5,
+    )
+    write_checks(pool.root / CHECKS_FILE, {"alpha-hidden-one": record})
     apply(pool, plan(pool, ["alpha-hidden-one"], DAY), DAY)
+    assert read_checks(pool.root / CHECKS_FILE) == {}, "its check record goes with it"
     moved = suites / "alpha" / "tasks" / "alpha-hidden-one.yaml"
     assert not (pool.suites_dir / "alpha" / "tasks" / "alpha-hidden-one.yaml").exists()
     text = moved.read_text()
@@ -92,7 +111,7 @@ def test_a_retired_task_is_public_keeps_its_prompt_and_its_history(setup):
     ("task_id", "why"),
     [("alpha-hidden-example", "example task"), ("alpha-nope", "not a task of the private pool")],
 )
-def test_only_active_private_tasks_retire(setup, task_id, why):
+def test_only_ready_private_tasks_retire(setup, task_id, why):
     _, pool = setup
     with pytest.raises(RotationError, match=why):
         plan(pool, [task_id], DAY)

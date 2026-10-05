@@ -25,7 +25,12 @@ GUID = "11111111-2222-4333-8444-555555555555"
 def tasks(make_task):
     def make(prefix: str, suite: str, difficulty: str, n: int, private: bool = False):
         extra = (
-            {"visibility": "private", "tier": "private", "canary": f"private canary {GUID}"}
+            {
+                "visibility": "private",
+                "tier": "private",
+                "status": "ready",
+                "canary": f"private canary {GUID}",
+            }
             if private
             else {"canary": CANARY}
         )

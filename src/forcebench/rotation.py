@@ -22,7 +22,14 @@ import yaml
 from forcebench import CANARY, CANARY_GUID, SUITES_DIR, prompt_manifest
 from forcebench.answers import prompt_sha
 from forcebench.fsutil import atomic_write_text, exclusive_lock
-from forcebench.pool import PrivatePool, read_exposure, write_exposure
+from forcebench.pool import (
+    CHECKS_FILE,
+    PrivatePool,
+    read_checks,
+    read_exposure,
+    write_checks,
+    write_exposure,
+)
 from forcebench.tasks import EVERY_STATUS, Task, all_tasks, load_suites, load_task
 
 RETIRED_FILE = "retired.yaml"
@@ -59,7 +66,7 @@ def public_text(text: str, pool_guid: str, on: dt.date) -> str:
 
 
 def plan(pool: PrivatePool, task_ids: list[str], on: dt.date) -> list[Retirement]:
-    """What retiring these tasks would do, checked: each is an active private task with no public
+    """What retiring these tasks would do, checked: each is a ready private task with no public
     task of its id, and its rewritten file loads as a public task with the same prompt."""
     private = {
         t.id: t for t in all_tasks(load_suites(pool="private", private=pool, statuses=EVERY_STATUS))
@@ -69,8 +76,8 @@ def plan(pool: PrivatePool, task_ids: list[str], on: dt.date) -> list[Retirement
         task = private.get(task_id)
         if task is None or task.path is None:
             raise RotationError(f"{task_id} is not a task of the private pool")
-        if task.status != "active":
-            raise RotationError(f"{task_id} is a {task.status} task: only active tasks retire")
+        if task.status != "ready":
+            raise RotationError(f"{task_id} is a {task.status} task: only ready tasks retire")
         destination = SUITES_DIR / task.suite / "tasks" / f"{task_id}.yaml"
         if destination.exists():
             raise RotationError(f"{task_id} already exists in suites/")
@@ -110,4 +117,7 @@ def apply(pool: PrivatePool, retirements: list[Retirement], on: dt.date) -> None
             }
         atomic_write_text(retired_path, yaml.safe_dump(retired, sort_keys=True))
         write_exposure(pool.exposure_path, exposure)
+        checks = read_checks(pool.root / CHECKS_FILE)
+        if any(checks.pop(task_id, None) for task_id in ids):
+            write_checks(pool.root / CHECKS_FILE, checks)
     prompt_manifest.write(all_tasks(load_suites(statuses=EVERY_STATUS)), prompt_manifest.MANIFEST)
