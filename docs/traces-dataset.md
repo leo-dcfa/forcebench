@@ -24,8 +24,8 @@ It reads the public runs through the leaderboard's allowlist (a private run anyw
   once committed to this repository, on 2026-09-28, so it was published under CC BY 4.0 and the
   terms cannot restrict it). The build reads the repository's history for those, and refuses a
   shallow clone.
-- `README.md`: the dataset card, with the gating fields (name, company, role, intended use, and
-  agreement to the terms) and a link to https://forcebench.ai/privacy/.
+- `README.md`: the dataset card, with the gating fields (name, company, role, intended use, anything
+  else about the use, and agreement to the terms) and a link to https://forcebench.ai/privacy/.
 - `LICENSE.md`: the access terms.
 
 ## Push it (the maintainer only)

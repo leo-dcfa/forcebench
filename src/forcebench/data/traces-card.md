@@ -32,8 +32,9 @@ extra_gated_fields:
     - Model evaluation
     - Tooling vendor
     - Research
-    - Training data
     - Other
+  # Hugging Face makes every field required, so the label says how to skip it.
+  "Anything else we should know about your use? (if nothing, write none)": text
   # Hugging Face refuses metadata keys with a dot or a dollar sign: no URL in a field's label.
   I agree to the Forcebench Traces Access Terms and to the use of this information described in the privacy notice above: checkbox
 extra_gated_button_content: Agree and request access
