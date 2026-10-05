@@ -96,10 +96,13 @@ class Exposure(BaseModel):
 
 
 class ClosestPublic(BaseModel):
+    """A public task near a private one (forcebench.similarity.Match)."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
     similarity: float
+    shared: float
 
 
 class CheckRecord(BaseModel):
