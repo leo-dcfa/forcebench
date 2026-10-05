@@ -482,8 +482,15 @@ def _legacy_hint(cid: str) -> str:
     return f"unknown command `{cid.replace(':', ' ')}`"
 
 
+# `sf --version` and `sf --help` (or `-h`) are whole commands, often the first step of a CI job: the
+# CLI's global flags for its own `version` and `help` commands. Nothing may follow them.
+_GLOBAL_COMMANDS = {"--version": "version", "--help": "help", "-h": "help"}
+
+
 def _resolve_command(pc: ParsedCommand, rest: list[str], m: Manifest) -> list[str] | None:
     """Resolve the command id from the tokens after `sf`. Returns the remaining tokens."""
+    if len(rest) == 1 and rest[0] in _GLOBAL_COMMANDS:
+        rest = [_GLOBAL_COMMANDS[rest[0]]]
     if not rest or rest[0].startswith("-"):
         pc.errors.append("no command given after `sf`")
         return None

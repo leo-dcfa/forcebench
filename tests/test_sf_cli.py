@@ -88,6 +88,17 @@ def test_command_forms_resolve(m, line):
     assert pc.command.id == "project:deploy:start"
 
 
+@pytest.mark.parametrize("line", ["sf --version", "sf --help", "sf -h", "sf version"])
+def test_the_clis_own_version_and_help_are_valid(m, line):
+    """A CI job often starts with `sf --version`: a whole, valid command."""
+    assert one(line, m).valid, one(line, m).errors
+
+
+@pytest.mark.parametrize("line", ["sf", "sf --json", "sf --version --target-org prod", "sf -v x"])
+def test_flags_without_a_command_are_still_refused(m, line):
+    assert not one(line, m).valid
+
+
 def test_longest_match_prefers_subcommand(m):
     assert one("sf apex run test -n Foo", m).command.id == "apex:run:test"
     assert one("sf apex run --file x.apex", m).command.id == "apex:run"
