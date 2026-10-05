@@ -41,3 +41,33 @@ def test_a_new_task_needs_a_known_suite_and_a_fresh_id(pool):
     assert CliRunner().invoke(app, ["private", "new", "docs-twice"]).exit_code == 0
     again = CliRunner().invoke(app, ["private", "new", "docs-twice"])
     assert again.exit_code == 1 and "already exists" in again.output
+
+
+def test_without_an_id_the_suite_gets_its_next_numbered_one(pool):
+    for _ in range(2):
+        made = CliRunner().invoke(app, ["private", "new", "--suite", "ci", "--difficulty", "hard"])
+        assert made.exit_code == 0, made.output
+    semi = CliRunner().invoke(app, ["private", "new", "--suite", "ci", "--tier", "semi-private"])
+    assert semi.exit_code == 0, semi.output
+    loaded = load_private_pool(pool)
+    tasks = all_tasks(load_suites(pool="private", private=loaded, statuses=EVERY_STATUS))
+    assert [(t.id, t.difficulty, t.tier) for t in tasks] == [
+        ("ci-p001", "hard", "private"),
+        ("ci-p002", "hard", "private"),
+        ("ci-p003", "medium", "semi-private"),
+    ]
+    assert set(loaded.exposure) == {"ci-p001", "ci-p002", "ci-p003"}
+
+
+def test_a_new_task_needs_an_id_or_a_suite_and_known_values(pool):
+    assert CliRunner().invoke(app, ["private", "new"]).exit_code == 2
+    bad = ["--suite", "ci", "--difficulty", "brutal"], ["--suite", "ci", "--tier", "public"]
+    for args in bad:
+        assert CliRunner().invoke(app, ["private", "new", *args]).exit_code == 2
+
+
+def test_a_public_id_is_refused(pool):
+    public = all_tasks(load_suites(["docs"]))[0].id
+    result = CliRunner().invoke(app, ["private", "new", public])
+    assert result.exit_code == 1 and "public task id" in result.output
+    assert not list((pool / "suites").glob("*/tasks/*.yaml"))
