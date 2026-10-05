@@ -123,7 +123,7 @@ validate: ## Oracle-check tasks: org and deterministic suites in the sandbox, LW
 	$(OFFLINE)$(call private_mounts,offline) $(IMAGE) /opt/venv/bin/python -m forcebench validate $(ARGS) --only-grader $(OFFLINE_GRADER) --no-org$(POOL_ARGS)
 
 # Always with the private pool, whatever POOL says. The sandbox has the grader orgs; private LWC
-# tasks are not checked here (their Jest workspace must be outside this repository).
+# tasks are skipped (they run JavaScript, which only the offline container may).
 private-check: override POOL = private
 private-check: ## Check private tasks before they count (forcebench private check $(ARGS)), in the sandbox
 	$(SANDBOX) $(IMAGE) uv run forcebench private check $(ARGS)
