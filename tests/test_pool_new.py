@@ -71,3 +71,29 @@ def test_a_public_id_is_refused(pool):
     result = CliRunner().invoke(app, ["private", "new", public])
     assert result.exit_code == 1 and "public task id" in result.output
     assert not list((pool / "suites").glob("*/tasks/*.yaml"))
+
+
+def test_a_numbered_id_a_past_run_used_is_never_given_out_again(pool):
+    run = pool / "results" / "runs" / "20261005T000000Z_some-model@low"
+    run.mkdir(parents=True)
+    (run / "run.json").write_text('{"task_ids": ["ci-p001", "ci-p004"]}')
+    assert CliRunner().invoke(app, ["private", "new", "--suite", "ci"]).exit_code == 0
+    assert (pool / "suites" / "ci" / "tasks" / "ci-p005.yaml").exists()
+
+
+def test_an_id_another_suite_has_is_refused(pool):
+    assert CliRunner().invoke(app, ["private", "new", "docs-shared-name"]).exit_code == 0
+    again = CliRunner().invoke(app, ["private", "new", "docs-shared-name", "--suite", "ci"])
+    assert again.exit_code == 1 and "already exists" in again.output
+
+
+def test_a_pool_it_cannot_write_is_reported_without_its_path(pool):
+    tasks = pool / "suites" / "ci" / "tasks"
+    tasks.mkdir(parents=True)
+    tasks.chmod(0o500)
+    try:
+        result = CliRunner().invoke(app, ["private", "new", "--suite", "ci"])
+    finally:
+        tasks.chmod(0o700)
+    assert result.exit_code == 1 and "could not read or write the private pool" in result.output
+    assert str(pool) not in result.output
