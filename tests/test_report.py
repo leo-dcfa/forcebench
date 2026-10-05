@@ -867,3 +867,10 @@ def test_token_quantiles_interpolate_between_ranks():
 def test_only_runs_through_an_effort_setting_service_are_marked_inferred():
     providers = report._effort_setting_providers()
     assert "gateway" in providers and "anthropic" not in providers
+
+
+def test_entries_list_the_tasks_whose_answer_never_arrived(suites):
+    cases = [_case(t) for t in ("a-0", "a-1", "b-0", "b-1")]
+    cases[1] = {**cases[1], "finish_reason": "error: token limit (32768) reached before answering"}
+    e = build_entry([(_meta(), cases)], suites)
+    assert e["no_answer_tasks"] == ["a-1"]
