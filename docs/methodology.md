@@ -108,7 +108,12 @@ against another.
   reply that ends without a finish reason (an empty stream, or a server that died mid-answer)
   or with one that says the server aborted it (`abort`, `error`). Such an answer is started
   again from scratch, up to 4 attempts in all, 30, 60 and 120 seconds apart; if the last
-  attempt fails too, the answer is left unscored and generated again on `run --resume`. Any
+  attempt fails too, the answer is left unscored and generated again on `run --resume`. An
+  answer an endpoint can never deliver (one that cuts every response at a fixed time, so a
+  long answer fails on every try) can be recorded as failed instead, with the reason:
+  `forcebench record-failed <run> -t <task> --reason "..."`. It is published as such
+  (`finish_reason` `failed: <reason>` in `cases.jsonl`), counted as **no answer**, and never
+  regenerated, so the run can be completed and ranked. Any
   other client error (400, 401, 403, 404, 422...) would fail the same way every time, so it is
   not retried: the answer is left unscored at once, with the error recorded. A timeout is not
   retried in-run (it is re-run on resume), and an answer the server delivered complete is never

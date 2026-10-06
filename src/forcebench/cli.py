@@ -1735,6 +1735,28 @@ def invalidate(
     console.print(f"marked {n} answers in {run_dir.name} for regeneration")
 
 
+@app.command("record-failed")
+def record_failed(
+    run_dir: Path,
+    reason: Annotated[str, typer.Option(help="Why the answers can never arrive; published.")],
+    task: TaskOpt = None,
+) -> None:
+    """Score answers the endpoint could never return as failed, with the reason (history kept).
+
+    Only answers still pending after an endpoint error; regrade the run afterwards.
+    """
+    _check_run_dir(run_dir)
+
+    def select(records: list[dict]) -> list[str]:
+        return sorted(
+            {rec["key"] for rec in records if not task or rec["key"].split("#")[0] in set(task)}
+        )
+
+    with _results_errors():
+        n = runner.record_failed(run_dir, select, reason)
+    console.print(f"recorded {n} answers in {run_dir.name} as failed; regrade the run")
+
+
 def _print_run_summary(run_dir: Path) -> None:
 
     cases = [json.loads(x) for x in (run_dir / "cases.jsonl").read_text().splitlines() if x]

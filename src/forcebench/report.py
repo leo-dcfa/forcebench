@@ -158,6 +158,8 @@ def outcome(c: dict[str, Any]) -> str:
     reason = c.get("finish_reason") or ""
     if reason.startswith("error:"):
         return "no_answer"  # ran out of token budget before answering, or returned nothing
+    if reason.startswith("failed:"):
+        return "no_answer"  # the endpoint could never return it (forcebench record-failed)
     if reason == "length":
         return "truncated"  # the answer was cut off by the token budget; graded as given
     if c.get("answer_error"):
