@@ -133,7 +133,7 @@ CONTACTS: dict[str, tuple] = {
 }
 
 # --------------------------------------------------------------------------- leads
-# key: (FirstName, LastName, Company, Country, LeadSource, Status, Industry)
+# key: (FirstName, LastName, Company name, Country, LeadSource, Status, Industry)
 LEADS: dict[str, tuple] = {
     "L01": ("Klaus", "Richter", "Richter Solartechnik GmbH", "Germany", "Web", "Open - Not Contacted", "Energy"),
     "L02": ("Anna", "Wolf", "Wolf Energie", "Germany", "Web", "Working - Contacted", "Energy"),
@@ -720,7 +720,7 @@ insert olis;
 // Re-saving the opportunities recomputes them from the org's current fiscal year settings.
 update [SELECT Id FROM Opportunity];
 System.debug('seeded ' + entries.size() + ' price book entries and ' + olis.size() + ' line items');
-"""
+"""  # noqa: S608 (Apex built from this file's own data)
 
 
 def build(out_dir: Path) -> None:
@@ -819,9 +819,8 @@ def verify(alias: str) -> None:
     bad = []
     for obj, n in expected_counts().items():
         where = " WHERE Product2.ProductCode != null" if obj == "PricebookEntry" else ""
-        res = _sf(
-            "data", "query", "--query", f"SELECT COUNT() FROM {obj}{where}", "--target-org", alias
-        )
+        soql = f"SELECT COUNT() FROM {obj}{where}"  # noqa: S608 (obj: a seeded object's name)
+        res = _sf("data", "query", "--query", soql, "--target-org", alias)
         got = (res.get("result") or {}).get("totalSize")
         flag = "ok" if got == n else "MISMATCH"
         print(f"{obj:22} expected {n:4}  got {got}  {flag}")

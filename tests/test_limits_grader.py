@@ -44,7 +44,7 @@ def fake_deploy(monkeypatch):
     calls: list[tuple] = []
     state = {"failures": 0}
 
-    async def fake_sf_json(*args, cwd=None, timeout=1800):
+    async def fake_sf_json(*args, cwd=None, timeout=1800):  # noqa: ASYNC109 (sf_json's signature)
         calls.append(args)
         return _deploy_result(state["failures"])
 

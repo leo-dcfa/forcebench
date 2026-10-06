@@ -1,4 +1,4 @@
-"""Comment stripping for regex checks on source files (``static_code`` checks).
+r"""Comment stripping for regex checks on source files (``static_code`` checks).
 
 ``strip_comments(text, path)`` removes the comments of the file's language, chosen by its
 extension, and leaves string literals alone, so a pattern never matches commented-out code and
@@ -6,7 +6,7 @@ a ``//`` inside a string (a URL) is not taken for a comment:
 
 - Apex, Java: ``//`` and ``/* */``; strings in ``'...'`` (and ``"..."``).
 - JavaScript/TypeScript: the same, plus template literals; a backslash outside a string escapes
-  the next character, so the escaped slashes of a regex literal (``/https?:\\/\\//``) never
+  the next character, so the escaped slashes of a regex literal (``/https?:\/\//``) never
   start a comment.
 - CSS: ``/* */`` only.
 - HTML, XML (``-meta.xml`` included), Visualforce and Aura markup: ``<!-- -->``.

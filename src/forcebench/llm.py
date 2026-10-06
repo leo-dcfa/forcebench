@@ -156,7 +156,7 @@ def _attr(obj: object, name: str) -> Any:
     """obj.name, or None; some SDK exceptions raise from properties they cannot fill."""
     try:
         return getattr(obj, name, None)
-    except Exception:
+    except Exception:  # noqa: BLE001 (whatever such a property raises)
         return None
 
 
@@ -264,7 +264,8 @@ class Client:
     async def _run(self, agent: Agent[None, str], user: str, streamed: _Streamed) -> AgentRunResult:
         """One model call. Driving the run node by node streams every model request through
         `streamed` and keeps the last response, so a failure can be classified by how the
-        reply ended (its finish reason).
+        reply ended (its finish reason). A reply the server did not finish raises
+        _UnfinishedReplyError.
         """
         settings = cast("ModelSettings", self.settings)  # plus provider fields (extra_body)
         async with agent.iter(user, model_settings=settings) as run:
@@ -274,8 +275,12 @@ class Client:
                         await streamed.collect(run.ctx, events)
                 elif agent.is_call_tools_node(node):
                     streamed.response = node.model_response
-            assert run.result is not None, "the agent run did not finish"
-            return run.result
+            if run.result is None:
+                raise RuntimeError("the agent run did not finish")
+            result = run.result
+        if not _finished(result.response):
+            raise _UnfinishedReplyError("the answer was cut off")
+        return result
 
     async def generate(self, system: str, user: str) -> Generation:
 
@@ -288,9 +293,7 @@ class Client:
             streamed = _Streamed()
             try:
                 r = await self._run(agent, user, streamed)
-                if not _finished(r.response):
-                    raise _UnfinishedReplyError("the answer was cut off")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is retried or recorded)
                 last_err = e
                 elapsed = time.monotonic() - t0
                 # The budget is tokens (max_tokens), not wall-clock time: slow hardware must not
@@ -304,8 +307,11 @@ class Client:
                 # token budget, or it ended its reply without an answer. What it wrote is kept.
                 # A reply the server never finished (an empty stream, or one that stopped with no
                 # finish reason because the server died mid-answer) is the endpoint's failure.
-                if isinstance(e, UnexpectedModelBehavior) and _finished(streamed.response):
-                    assert streamed.response is not None
+                if (
+                    isinstance(e, UnexpectedModelBehavior)
+                    and streamed.response is not None
+                    and _finished(streamed.response)
+                ):
                     # The server stops at exactly max_tokens when the budget runs out.
                     budget = "token limit" in str(e)
                     used = streamed.response.usage

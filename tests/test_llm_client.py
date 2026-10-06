@@ -101,7 +101,7 @@ class _FakeServer:
                 self.end_headers()
                 self.wfile.write(reply.encode())
 
-            def log_message(self, format: str, *args: Any) -> None:
+            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 (the base's name)
                 pass
 
         self.httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)

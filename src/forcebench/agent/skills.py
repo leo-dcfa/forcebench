@@ -96,7 +96,7 @@ def tree_sha256(root: Path) -> str:
 
 
 def _git(*args: str, cwd: Path) -> str:
-    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
     if r.returncode:
         raise RuntimeError(f"git {args[0]} failed: {r.stderr.strip()[-300:]}")
     return r.stdout.strip()

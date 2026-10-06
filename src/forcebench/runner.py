@@ -91,16 +91,17 @@ LOCK_FILE = ".lock"
 def _git_sha() -> str | None:
     try:
         out = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True
-        )
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=False,
+        )  # fmt: skip
         dirty = subprocess.run(
             ["git", "status", "--porcelain", "--", "src", "suites"],
-            cwd=REPO_ROOT, capture_output=True, text=True,
+            cwd=REPO_ROOT, capture_output=True, text=True, check=False,
         ).stdout.strip()  # fmt: skip
-        sha = out.stdout.strip()
-        return f"{sha}{'-dirty' if dirty else ''}" if sha else None
     except OSError:
         return None
+    sha = out.stdout.strip()
+    return f"{sha}{'-dirty' if dirty else ''}" if sha else None
 
 
 def case_key(task_id: str, sample: int) -> str:

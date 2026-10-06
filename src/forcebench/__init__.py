@@ -3,6 +3,7 @@
 import datetime as _dt
 import os
 import re
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,7 @@ from typing import Any
 
 try:
     __version__ = _version("forcebench")
-except Exception:  # running from source without installation (e.g. the offline grader)
+except PackageNotFoundError:  # running from source without installation (e.g. the offline grader)
     __version__ = "0.1.0+src"
 
 # Version of the task set; results are only comparable within the same benchmark version.

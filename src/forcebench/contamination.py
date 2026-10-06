@@ -113,7 +113,7 @@ def study(
     whole = {s: (pub_strata[s], prv_strata[s]) for s in common}
     point = {c: _gap(*scores[c], whole, weights) for c in configs}
 
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 (a seeded bootstrap: statistics, not security)
     boots: dict[str, list[float]] = {c: [] for c in configs}
     for _ in range(n_boot):
         draws = {

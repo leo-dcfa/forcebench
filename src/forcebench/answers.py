@@ -228,7 +228,7 @@ def _last_block(text: str, langs: set[str], allow_untagged: bool = True) -> str 
 
 
 def normalize_newlines(text: str) -> str:
-    """Windows (CRLF) and old Mac (CR) line endings as ``\\n``: every pattern below is line-based."""
+    r"""Windows (CRLF) and old Mac (CR) line endings as ``\n``: every pattern below is line-based."""
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
@@ -277,8 +277,8 @@ def _split_commands(block: str) -> list[str]:
     # Join backslash continuations, drop comments and prompt markers.
     joined = re.sub(r"[ \t]*\\\n\s*", " ", block)
     out = []
-    for line in joined.splitlines():
-        line = line.strip()
+    for raw in joined.splitlines():
+        line = raw.strip()
         if not line or line.startswith("#"):
             continue
         if line.startswith("$ "):

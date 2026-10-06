@@ -54,7 +54,7 @@ def task_yaml(task_id: str, **fields) -> str:
 @pytest.fixture
 def pool(tmp_path, monkeypatch):
     monkeypatch.setattr("forcebench.tasks.SUITES_DIR", PUBLIC_FIXTURE)
-    monkeypatch.setattr("forcebench.tasks._manifest_ids", lambda: set())
+    monkeypatch.setattr("forcebench.tasks._manifest_ids", set)
     monkeypatch.setattr("forcebench.models.load_dotenv", lambda *a, **k: None)
     root = tmp_path / "pool"
     monkeypatch.setenv("FORCEBENCH_PRIVATE_DIR", str(root))

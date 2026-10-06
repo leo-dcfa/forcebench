@@ -29,7 +29,7 @@ PUBLIC_FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 @pytest.fixture
 def pool(tmp_path, monkeypatch):
     monkeypatch.setattr("forcebench.tasks.SUITES_DIR", PUBLIC_FIXTURE)
-    monkeypatch.setattr("forcebench.tasks._manifest_ids", lambda: set())
+    monkeypatch.setattr("forcebench.tasks._manifest_ids", set)
     root = tmp_path / "pool"
     root.mkdir()
     init_private_dir(root)

@@ -174,7 +174,7 @@ def _public_trees(root: Path) -> list[Path]:
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            cwd=root, capture_output=True, text=True, timeout=10,
+            cwd=root, capture_output=True, text=True, timeout=10, check=False,
         )  # fmt: skip
         common = Path(out.stdout.strip()) if out.returncode == 0 and out.stdout.strip() else None
     except OSError, subprocess.SubprocessError:

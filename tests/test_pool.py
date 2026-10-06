@@ -830,7 +830,7 @@ def _make_n(target: str, env_pool: Path | None, pool: str = "private", args: str
         env["FORCEBENCH_PRIVATE_DIR"] = str(env_pool)
     return subprocess.run(
         ["make", "-n", "-C", str(REPO_ROOT), target, f"POOL={pool}", f"ARGS={args}"],
-        capture_output=True, text=True, env=env,
+        capture_output=True, text=True, env=env, check=False,
     )  # fmt: skip
 
 
