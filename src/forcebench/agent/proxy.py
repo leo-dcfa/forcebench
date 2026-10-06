@@ -93,8 +93,9 @@ def _text(content: Any) -> str:
 
 
 def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    """An Anthropic-style request as a chat completions request, and how many system messages it
-    had mid-conversation.
+    """An Anthropic-style request as a chat completions request.
+
+    Also returns how many system messages the request had mid-conversation.
 
     Text, thinking (as reasoning_content), tool calls and tool results are kept; Anthropic-only
     fields (cache markers, betas, effort, context management, server tools) are not sent. Chat
@@ -247,8 +248,10 @@ def _event(kind: str, data: dict[str, Any]) -> bytes:
 
 
 class AnthropicStream:
-    """Chat completion chunks in, Anthropic-style stream events out: one content block at a time
-    (thinking, text, or a tool call), then the stop reason and usage.
+    """Chat completion chunks in, Anthropic-style stream events out.
+
+    The events give one content block at a time (thinking, text, or a tool call), then the stop
+    reason and usage.
     """
 
     def __init__(self, model: str) -> None:
@@ -341,8 +344,10 @@ class AnthropicStream:
 
 
 def anthropic_error(status: int, message: str) -> dict[str, Any]:
-    """An error in Anthropic's shape. The model server's context-length error is given the words
-    Anthropic's API uses ("prompt is too long"), which is what makes Claude Code compact.
+    """An error in Anthropic's shape.
+
+    The model server's context-length error is given the words Anthropic's API uses
+    ("prompt is too long"), which is what makes Claude Code compact.
     """
     kind = {400: "invalid_request_error", 401: "authentication_error", 404: "not_found_error",
             429: "rate_limit_error"}.get(status, "api_error")  # fmt: skip
@@ -594,8 +599,9 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
             proxy.log(record)
 
         def _count_tokens(self) -> None:
-            """Anthropic's token counting endpoint: forwarded with the served model's name, outside
-            the budget (it generates nothing).
+            """Anthropic's token counting endpoint, forwarded with the served model's name.
+
+            It is outside the budget (it generates nothing).
             """
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))

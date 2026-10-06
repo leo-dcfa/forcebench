@@ -30,8 +30,9 @@ _WORD_BREAKS = frozenset(";&|()<>")
 
 
 def prescan(line: str, mark: bool = True) -> str:
-    """Cut comments and set the markers described in the module docstring. With
-    ``mark=False`` only comments are cut; the rest of the text is unchanged.
+    """Cut comments and set the markers described in the module docstring.
+
+    With ``mark=False`` only comments are cut; the rest of the text is unchanged.
     """
     out: list[str] = []
     stack: list[str] = []  # open double quotes ('"'), $(...) ("$(") and groups ("(")
@@ -116,8 +117,9 @@ def _split_punct(tok: str) -> list[str]:
 
 
 def split_words(text: str) -> list[str]:
-    """shlex-split pre-scanned text: quotes removed, operators and redirections as tokens of
-    their own. Raises ValueError on unbalanced quotes.
+    """shlex-split pre-scanned text, with operators and redirections as tokens of their own.
+
+    Quotes are removed. Raises ValueError on unbalanced quotes.
     """
     lex = shlex.shlex(text, posix=True, punctuation_chars=True)
     lex.whitespace_split = True

@@ -41,7 +41,8 @@ class SkillPack:
     commit: str
     skills: tuple[str, ...]
     sha256: str
-    # Suite -> the skills on its subject, for runs that preload them (chosen by subject, never by task).
+    # Suite -> the skills on its subject, for runs that preload them (chosen by subject, never
+    # by task).
     preload: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     def preload_for(self, suite: str) -> tuple[str, ...]:
@@ -63,7 +64,7 @@ class SkillPack:
 
 
 def load_pack(name: str, packs: Path = PACKS_DIR) -> SkillPack:
-    """The pack docker/agent/skills/<name>.json describes, or a ValueError naming those there are."""
+    """The pack docker/agent/skills/<name>.json describes, or a ValueError naming the known ones."""
     path = packs / f"{name}.json"
     if not _NAME.fullmatch(name) or not path.is_file():
         known = sorted(p.stem for p in packs.glob("*.json"))
@@ -82,8 +83,9 @@ def load_pack(name: str, packs: Path = PACKS_DIR) -> SkillPack:
 
 
 def tree_sha256(root: Path) -> str:
-    """One hash over every file's path and content under root. A symlink is refused: copied, it
-    could bring in a file from anywhere on the host.
+    """One hash over every file's path and content under root.
+
+    A symlink is refused: copied, it could bring in a file from anywhere on the host.
     """
     h = hashlib.sha256()
     for p in sorted(root.rglob("*"), key=lambda p: p.relative_to(root).as_posix()):
@@ -103,8 +105,9 @@ def _git(*args: str, cwd: Path) -> str:
 
 
 def prepare(pack: SkillPack, cache: Path = CACHE_DIR) -> Path:
-    """The pack's directory, fetched and copied on first use, its hash checked every time. A
-    RuntimeError when it cannot be fetched or its files are not the manifest's.
+    """The pack's directory, fetched and copied on first use, its hash checked every time.
+
+    A RuntimeError when it cannot be fetched or its files are not the manifest's.
     """
     dest = pack.directory(cache)
     if not dest.exists():
@@ -147,8 +150,10 @@ def _body(skill_md: str) -> str:
 
 
 def skill_block(pack_dir: Path, skill: str, mount: str, max_files: int = 10) -> str:
-    """A skill as opencode's skill tool hands it to the model (opencode 2.0.21): its instructions,
-    where it lives in the container, and up to ``max_files`` of its other files.
+    """A skill as opencode's skill tool hands it to the model (opencode 2.0.21).
+
+    That is its instructions, where it lives in the container, and up to ``max_files`` of its other
+    files.
     """
     root = pack_dir / skill
     files = sorted(
@@ -161,7 +166,8 @@ def skill_block(pack_dir: Path, skill: str, mount: str, max_files: int = 10) -> 
         f'<skill_content name="{skill}">\n# Skill: {skill}\n\n'
         f"{_body((root / 'SKILL.md').read_text(encoding='utf-8'))}\n\n"
         f"Base directory for this skill: {mount}/{skill}\n"
-        "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.\n"
+        "Relative paths in this skill (e.g., scripts/, reference/) are relative to this "
+        "base directory.\n"
         "Note: file list is sampled.\n\n"
         f"<skill_files>\n{listing}</skill_files>\n</skill_content>"
     )

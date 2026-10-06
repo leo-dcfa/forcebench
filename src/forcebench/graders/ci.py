@@ -437,9 +437,10 @@ def _extract_substitutions(line: str) -> tuple[str, list[str]]:
 
 
 def _lex(line: str) -> tuple[list[str], list[str]]:
-    """The words of a shell line, lexed like ``sf_cli`` does (``graders/_shell.py``), with
-    substitutions as ``__SUBn__`` placeholders, and the substitution bodies. Raises ValueError
-    on unbalanced quotes.
+    """The words of a shell line, lexed like ``sf_cli`` does, and the substitution bodies.
+
+    The lexer is ``graders/_shell.py``'s; in the words, substitutions are ``__SUBn__``
+    placeholders. Raises ValueError on unbalanced quotes.
     """
     main, subs = _extract_substitutions(_shell.prescan(line))
     return _shell.split_words(main), subs
