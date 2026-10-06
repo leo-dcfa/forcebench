@@ -345,9 +345,11 @@ def test_runaway_answer_lines_are_cheap(value):
     ],
 )
 def test_runaway_conclusions_equations_and_asides_are_cheap(value):
-    """Only the first _LIMIT characters are read, and each conclusion, equation side and aside
-    is looked at once. The bound is loose on purpose: CI machines are slow; this catches
-    quadratic or worse behaviour, which takes far longer on 4,000 characters.
+    """Only the first _LIMIT characters are read, and each part of them is looked at once.
+
+    The parts are each conclusion, equation side and aside. The bound is loose on purpose: CI
+    machines are slow; this catches quadratic or worse behaviour, which takes far longer on 4,000
+    characters.
     """
     t0 = time.monotonic()
     hedge_reason(value, "")

@@ -19,7 +19,8 @@ def test_wilson_matches_known_values():
 
 
 def test_newcombe_matches_a_worked_example():
-    # Newcombe (1998), method 10: 56/70 against 48/80 gives -0.2 [-0.3339, -0.0524] (p2 - p1 reversed).
+    # Newcombe (1998), method 10: 56/70 against 48/80 gives -0.2 [-0.3339, -0.0524]
+    # (p2 - p1 reversed).
     d, low, high = newcombe(56, 70, 48, 80)
     assert round(d, 4) == -0.2
     assert (round(low, 4), round(high, 4)) == (-0.3339, -0.0524)
@@ -41,8 +42,9 @@ def _run(root, run_id, harness, skills, outcomes, concurrency=2, tasks=(TASK,), 
     (run / "run.json").write_text(json.dumps(meta))
     lines = []
     for i, (passed, tools, *loaded) in enumerate(outcomes):
-        lines.append(json.dumps({"task_id": TASK, "sample": i, "passed": passed, "output_tokens": 100 * (i + 1),
-                                 "input_tokens": 1000, "latency_s": 10.0, "finish_reason": "stop"}))  # fmt: skip
+        lines.append(json.dumps({"task_id": TASK, "sample": i, "passed": passed,
+                                 "output_tokens": 100 * (i + 1), "input_tokens": 1000,
+                                 "latency_s": 10.0, "finish_reason": "stop"}))  # fmt: skip
         s = run / "raw" / "agent" / f"{TASK}#{i}"
         s.mkdir()
         s.joinpath("summary.json").write_text(

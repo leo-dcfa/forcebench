@@ -71,7 +71,10 @@ def test_block_comments_keep_line_structure():
         ),
         (
             "lwc/badge/badge.js",
-            "const re = /https?:\\/\\//; // old: if:true\nconst t = `a // b`; /* c */ const s = '//';",
+            (
+                "const re = /https?:\\/\\//; // old: if:true\n"
+                "const t = `a // b`; /* c */ const s = '//';"
+            ),
             ["/https?:\\/\\//", "`a // b`", "'//'"],
             ["old: if:true", "/* c */"],
         ),

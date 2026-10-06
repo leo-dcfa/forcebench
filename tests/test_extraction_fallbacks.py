@@ -1,5 +1,7 @@
-"""Answer extraction regressions from the second review: choice answers outside the strict
-`Answer: <letter>` form, `#` comments in http blocks, and Windows line endings.
+"""Answer extraction regressions from the second review.
+
+Choice answers outside the strict `Answer: <letter>` form, `#` comments in http blocks, and
+Windows line endings.
 """
 
 import pytest
@@ -241,9 +243,7 @@ _TASKS = all_tasks(load_suites())
 @pytest.mark.parametrize("fmt", list(AnswerFormat))
 @pytest.mark.parametrize("ending", ["\r\n", "\r"])
 def test_windows_line_endings_extract_like_unix_ones(fmt, ending):
-    """Every task's reference output, with CRLF (or CR) line endings, extracts exactly as it
-    does with LF ones.
-    """
+    """Every task's reference output extracts with CRLF (or CR) line endings exactly as with LF."""
     tasks = [t for t in _TASKS if t.answer.format is fmt]
     assert tasks, f"no {fmt} task"
     for t in tasks:

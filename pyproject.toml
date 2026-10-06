@@ -106,9 +106,6 @@ ignore = [
   "RUF012", "RUF013",  # ClassVar annotations, implicit Optional
   "SIM108",  # a ternary only where it reads better
   "TRY003",  # long messages outside exception classes
-
-  # Not passing yet: being cleared PR by PR. Take a code off once the code base passes it.
-  "D205", "E501",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -139,7 +136,10 @@ ignore = [
 "src/forcebench/runner.py" = ["S607"]
 "src/forcebench/traces.py" = ["S603", "S607"]
 # Standalone scripts, whose output is what they are run for.
-"orgs/base/data/seed.py" = ["T201"]
+"orgs/base/data/seed.py" = [
+  "E501",  # rows of seed data, one record per line
+  "T201",
+]
 "src/forcebench/agent/proxy.py" = ["T201"]
 "src/forcebench/data/scratch-def-build.py" = ["T201"]
 # Bootstrap resampling with a fixed seed: statistics, not security.

@@ -1,5 +1,6 @@
-"""Backing up private runs: only private runs of this pool, only to a private dataset. Runs on a
-made-up pool in a temporary directory; the dataset's name is put together at run time.
+"""Backing up private runs: only private runs of this pool, only to a private dataset.
+
+Runs on a made-up pool in a temporary directory; the dataset's name is put together at run time.
 """
 
 import json
