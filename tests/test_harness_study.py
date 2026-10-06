@@ -13,7 +13,8 @@ TASK = "lwc-x"
 def test_wilson_matches_known_values():
     lo, hi = wilson(5, 10)
     assert (round(lo, 3), round(hi, 3)) == (0.237, 0.763)
-    assert wilson(0, 10)[0] == 0.0 and round(wilson(0, 10)[1], 3) == 0.278
+    assert wilson(0, 10)[0] == 0.0
+    assert round(wilson(0, 10)[1], 3) == 0.278
     assert wilson(10, 10)[1] == 1.0
 
 
@@ -88,7 +89,9 @@ def test_sessions_are_grouped_by_arm_with_their_counts(runs):
     oc, cc = by[("opencode", None)], by[("claude-code", "sf-skills 1.0")]
     assert (oc["sessions"], oc["passed"], oc["skill_sessions"]) == (2, 1, None)
     assert (cc["passed"], cc["skill_sessions"], cc["tool_calls_median"]) == (2, 1, 1.5)
-    assert oc["output_tokens"]["median"] == 150.0 and oc["concurrency"] == [2]
+    assert oc["output_tokens"]["median"] == 150.0
+    assert oc["concurrency"] == [2]
     assert oc["first_prompt_tokens_median"] == 5000.5
     [cmp] = out["comparisons"]
-    assert cmp["config_id"] == "m@low" and -1 <= cmp["ci_low"] <= cmp["d"] <= cmp["ci_high"] <= 1
+    assert cmp["config_id"] == "m@low"
+    assert -1 <= cmp["ci_low"] <= cmp["d"] <= cmp["ci_high"] <= 1

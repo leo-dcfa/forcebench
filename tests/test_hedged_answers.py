@@ -277,7 +277,8 @@ def _reply(task_id: str, value: str) -> str:
 def test_alternatives_fail_where_the_key_passes(task_id, value):
     assert _grade(task_id, TASKS[task_id].reference_output).passed
     g = _grade(task_id, _reply(task_id, value))
-    assert not g.passed and "more than one candidate" in g.summary(), g.summary()
+    assert not g.passed, g.summary()
+    assert "more than one candidate" in g.summary(), g.summary()
 
 
 @pytest.mark.parametrize(

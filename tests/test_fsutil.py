@@ -169,7 +169,8 @@ def test_a_second_process_waits_for_the_lock(tmp_path):
         assert proc.stderr is not None
         assert proc.stderr.readline().strip() == "WAITING"
     out, _ = proc.communicate(timeout=30)
-    assert proc.returncode == 0 and float(out) >= 0
+    assert proc.returncode == 0
+    assert float(out) >= 0
 
 
 # --------------------------------------------------------------------------- runs

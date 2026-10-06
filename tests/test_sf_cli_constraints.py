@@ -155,7 +155,8 @@ def test_combinable_and_only_relationship(flags):
     man = synthetic({**flags, "c": {"type": "boolean"}})
     assert errors("sf demo run --a 1 --b 2", man) == []
     errs = errors("sf demo run --a 1 --c", man)
-    assert len(errs) == 1 and "`--a` cannot be used with --c" in errs[0]
+    assert len(errs) == 1
+    assert "`--a` cannot be used with --c" in errs[0]
     assert errors("sf demo run --b 2 --c", man) == []
 
 

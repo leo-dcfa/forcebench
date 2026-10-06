@@ -122,7 +122,8 @@ def _all(passed: bool = True) -> list[dict]:
 def test_complete_entry(suites):
     cases = [_case("a-0"), _case("a-1", False), _case("b-0"), _case("b-1")]
     e = build_entry([(_meta(), cases)], suites)
-    assert e["complete"] and e["pending"] == 0
+    assert e["complete"]
+    assert e["pending"] == 0
     assert e["overall"]["score"] == mean([0.5, 1.0])
     assert all("complete" not in s for s in e["suites"].values()), "unchanged for complete suites"
     assert e["progress"] == {
@@ -163,7 +164,8 @@ def test_a_partial_entry_has_no_overall_score(suites):
 
 def test_a_complete_entry_has_no_scoped_score(suites):
     e = build_entry([(_meta(), _all())], suites)
-    assert e["overall"]["score"] == 1.0 and "overall_complete_suites" not in e
+    assert e["overall"]["score"] == 1.0
+    assert "overall_complete_suites" not in e
 
 
 def test_a_pending_answer_makes_its_suite_incomplete(suites):
@@ -260,7 +262,8 @@ def test_stale_answers_are_listed_by_run_with_the_command_that_clears_them(
 def test_no_pending_notes_without_stale_answers(tmp_path, suites):
     _write_run(tmp_path, _meta("r1"), _all())
     md = render_markdown(build_leaderboard(suites, tmp_path))
-    assert "stale" not in md and "--resume" not in md
+    assert "stale" not in md
+    assert "--resume" not in md
 
 
 def test_stale_answers_of_a_legacy_run_are_legacy(make_task, suites):
@@ -340,7 +343,8 @@ def test_protocol_is_derived_for_runs_that_did_not_record_it(tmp_path, suites):
     del old["protocol"]
     _write_run(tmp_path, old, _all())
     data = build_leaderboard(suites, tmp_path)
-    assert data["entries"] == [] and data["unscored"][0]["legacy"] == 4
+    assert data["entries"] == []
+    assert data["unscored"][0]["legacy"] == 4
 
 
 def _write_run(runs_dir, meta, cases) -> None:
@@ -372,7 +376,9 @@ def test_markdown_labels_progress_by_complete_suites(tmp_path, suites):
     assert "| — | partial (1/2 suites complete) |" in row, "and no overall score"
     assert "| 100 | 100\\* |" in row, "suite b is in progress"
     assert "no overall score and no rank" in md
-    assert "Not scored yet" in md and "0/4 tasks graded" not in md and "1/4 tasks graded" in md
+    assert "Not scored yet" in md
+    assert "0/4 tasks graded" not in md
+    assert "1/4 tasks graded" in md
 
 
 # --------------------------------------------------------------------------- ordering and rank
@@ -464,7 +470,8 @@ def test_fixture_leaderboard_has_schema_v2():
     assert data["schema_version"] == SCHEMA_VERSION == 2
     assert set(data) >= V2_TOP
     assert data["version"] == BENCHMARK_VERSION
-    assert data["unscored"] and all(set(u) >= V2_UNSCORED for u in data["unscored"])
+    assert data["unscored"]
+    assert all(set(u) >= V2_UNSCORED for u in data["unscored"])
     for e in data["entries"]:
         assert set(e) >= V2_ENTRY
         assert set(e["overall"]) == {"score", "ci_low", "ci_high"}
@@ -472,8 +479,10 @@ def test_fixture_leaderboard_has_schema_v2():
             assert all(isinstance(e["overall"][k], float) for k in e["overall"])
             assert isinstance(e["rank"], int)
         else:
-            assert e["overall"] == NO_SCORE and e["rank"] is None
-        assert e["tokens"]["output_mean"] is not None and e["date"]
+            assert e["overall"] == NO_SCORE
+            assert e["rank"] is None
+        assert e["tokens"]["output_mean"] is not None
+        assert e["date"]
 
 
 def test_fixture_ranks_complete_entries_only():
@@ -489,13 +498,15 @@ def test_fixture_ranks_complete_entries_only():
     c = data["entries"][3]
     assert c["overall_complete_suites"]["score"] == 1.0
     assert c["overall_complete_suites"]["suites"] == ["alpha"]
-    assert c["suites"]["beta"]["complete"] is False and c["pending"] == 1  # a stale answer
+    assert c["suites"]["beta"]["complete"] is False
+    assert c["pending"] == 1
     assert c["stale"] == {"20260928T030000Z_model-c@medium": 1}
     assert [u["config_id"] for u in data["unscored"]] == ["model-e@on"]  # legacy only
     assert data["unscored"][0]["effort_tier"] == "on", "a thinking switch, recorded as max"
     md = (FIXTURE / "results" / "LEADERBOARD.md").read_text()
     row = next(line for line in md.splitlines() if "| Model C |" in line)
-    assert row.startswith("| — |") and "| — | partial (1/2 suites complete) |" in row
+    assert row.startswith("| — |")
+    assert "| — | partial (1/2 suites complete) |" in row
     assert (
         "- Model C Q4 (vLLM), effort medium, full set: 1 stale answer: "
         "`forcebench run --resume results/runs/20260928T030000Z_model-c@medium`"
@@ -570,7 +581,8 @@ def test_report_check_command(fixture_copy, monkeypatch):
     (results / "runs" / "20260928T020000Z_model-b@high" / "cases.jsonl").write_text("")
     stale = CliRunner().invoke(app, ["report", "--check", "--results-dir", str(results)])
     assert stale.exit_code == 1
-    assert "is out of date" in stale.output and "model-b@high" in stale.output
+    assert "is out of date" in stale.output
+    assert "model-b@high" in stale.output
     assert json.loads((results / "leaderboard.json").read_text()) == json.loads(
         before[results / "leaderboard.json"]
     ), "--check writes nothing"
@@ -792,10 +804,12 @@ def test_commit_commits_exactly_what_may_be_published(published):
     result = _publish(published, "--commit")
     assert result.exit_code == 0, result.output
     committed = _git(published, "show", "--name-only", "--format=", "HEAD").split()
-    assert committed and all(p.startswith("results/") for p in committed)
+    assert committed
+    assert all(p.startswith("results/") for p in committed)
     assert _git(published, "diff", "--cached", "--name-only").split() == ["unrelated.md"]
     again = _publish(published, "--commit")
-    assert again.exit_code == 0 and "nothing to commit" in again.output
+    assert again.exit_code == 0
+    assert "nothing to commit" in again.output
 
 
 def test_commit_needs_stage():
@@ -837,7 +851,8 @@ def test_the_agent_leaderboard_names_the_agent(tmp_path, suites):
     single = tmp_path / "runs"
     _write_run(single, _meta("r1"), _all())
     plain = build_leaderboard(suites, single)
-    assert "track" not in plain and "agent" not in plain["entries"][0]
+    assert "track" not in plain
+    assert "agent" not in plain["entries"][0]
 
 
 # --------------------------------------------------------------------------- token usage
@@ -875,7 +890,8 @@ def test_token_quantiles_interpolate_between_ranks():
 
 def test_only_runs_through_an_effort_setting_service_are_marked_inferred():
     providers = report._effort_setting_providers()
-    assert "gateway" in providers and "anthropic" not in providers
+    assert "gateway" in providers
+    assert "anthropic" not in providers
 
 
 def test_entries_list_the_tasks_whose_answer_never_arrived(suites):

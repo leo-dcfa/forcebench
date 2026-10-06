@@ -60,10 +60,8 @@ def test_the_command_reports_or_says_there_is_nothing(tmp_path, make_task):
     run_dir = _stored_run(tmp_path, tasks)
     asyncio.run(runner.grade(run_dir, tasks, GradeEnv(work_dir=tmp_path / "w"), progress=False))
     result = CliRunner().invoke(app, ["throughput", str(run_dir), "--json"])
-    assert (
-        result.exit_code == 0
-        and json.loads(result.output)["graders"]["short_answer"]["graded"] == 1
-    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["graders"]["short_answer"]["graded"] == 1
 
 
 def _graded(tmp_path, name, verdicts):
@@ -85,9 +83,8 @@ def test_compare_grades_lists_every_verdict_that_differs(tmp_path):
     same = _graded(tmp_path, "same", {"apex-a": "pass", "apex-b": "fail", "soql-c": "pass"})
     differ = CliRunner().invoke(app, ["compare-grades", str(pooled), str(fresh)])
     assert differ.exit_code == 1
-    assert (
-        "apex-b#0: fail -> pass" in differ.output and "soql-c#0: pass -> skipped" in differ.output
-    )
+    assert "apex-b#0: fail -> pass" in differ.output
+    assert "soql-c#0: pass -> skipped" in differ.output
     assert "2 verdicts differ" in differ.output
     assert CliRunner().invoke(app, ["compare-grades", str(pooled), str(same)]).exit_code == 0
 
@@ -99,6 +96,5 @@ def test_grading_can_be_pinned_only_to_registered_orgs(tmp_path, make_task, monk
     result = CliRunner().invoke(
         app, ["grade", str(run_dir), "--no-org", "--org", "base=fb-not-registered"]
     )
-    assert result.exit_code == 2 and "not a registered grader org" in " ".join(
-        result.output.split()
-    )
+    assert result.exit_code == 2
+    assert "not a registered grader org" in " ".join(result.output.split())

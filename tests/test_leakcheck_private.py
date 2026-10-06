@@ -112,7 +112,8 @@ def test_the_command_says_what_it_checked_and_fails_on_a_broken_pool(pool, monke
     monkeypatch.setenv("FORCEBENCH_PRIVATE_DIR", str(tmp_path / "missing"))
     denylist.cache_clear()
     broken = CliRunner().invoke(app, ["leakcheck"])
-    assert broken.exit_code == 1 and "not a directory" in broken.output
+    assert broken.exit_code == 1
+    assert "not a directory" in broken.output
 
 
 def test_the_repository_names_nothing_from_the_made_up_pool(pool):

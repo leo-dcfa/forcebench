@@ -35,7 +35,9 @@ def public(make_task):
 def test_the_same_question_reworded_is_a_near_duplicate(public, make_task):
     reworded = INVOICES.replace("InvoiceBatcher", "BillingGrouper").replace("unpaid", "open")
     [best, *_] = PublicIndex(public).closest(make_task({"format": "text"}, prompt=reworded))
-    assert best.id == "pub-0" and best.similarity >= SIMILARITY_LIMIT and best.near_duplicate
+    assert best.id == "pub-0"
+    assert best.similarity >= SIMILARITY_LIMIT
+    assert best.near_duplicate
 
 
 def test_a_pasted_passage_is_a_near_duplicate(public, make_task):
@@ -43,7 +45,9 @@ def test_a_pasted_passage_is_a_near_duplicate(public, make_task):
         {"format": "text"}, prompt=f"{INVOICES}\nAlso log each run to a custom object."
     )
     [best, *_] = PublicIndex(public).closest(task)
-    assert best.id == "pub-0" and best.shared >= SHARED_LIMIT and best.near_duplicate
+    assert best.id == "pub-0"
+    assert best.shared >= SHARED_LIMIT
+    assert best.near_duplicate
 
 
 def test_a_different_question_is_not(public, make_task):
@@ -74,4 +78,5 @@ def test_a_reworded_public_task_is_found_among_the_real_ones(make_task):
     reworded = " ".join(w for i, w in enumerate(words) if i % 7)  # every 7th word dropped
     copy = original.model_copy(update={"id": "docs-reworded-copy", "prompt": reworded})
     [best, *_] = PublicIndex(tasks).closest(copy)
-    assert best.id == original.id and best.near_duplicate
+    assert best.id == original.id
+    assert best.near_duplicate

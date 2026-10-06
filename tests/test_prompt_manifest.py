@@ -48,11 +48,13 @@ def test_a_changed_prompt_without_a_version_bump_fails(make_task, change):
     args = {"answer": before.answer.model_dump(), **change}
     after = make_task(args.pop("answer"), **args)
     [problem] = problems([after], manifest)
-    assert "bump `version` to 2" in problem and REGENERATE in problem
+    assert "bump `version` to 2" in problem
+    assert REGENERATE in problem
     # bumped: only the manifest is behind
     bumped = make_task(after.answer.model_dump(), version=2, **args)
     [problem] = problems([bumped], manifest)
-    assert "version 2 is not in" in problem and REGENERATE in problem
+    assert "version 2 is not in" in problem
+    assert REGENERATE in problem
     assert not problems([bumped], build([bumped]))
 
 
@@ -140,5 +142,6 @@ def test_write_manifest_command_refuses_and_writes(make_task, tmp_path, monkeypa
     changed = make_task({"format": "text"}, prompt="Do the other thing.")
     monkeypatch.setattr(cli, "all_tasks", lambda suites: [changed])
     result = runner.invoke(cli.app, ["tasks", "--write-manifest"])
-    assert result.exit_code == 1 and "Not written" in result.output
+    assert result.exit_code == 1
+    assert "Not written" in result.output
     assert json.loads(path.read_text()) == build([task])
