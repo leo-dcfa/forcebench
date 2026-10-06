@@ -1,6 +1,7 @@
-"""Defects an adversarial review found in the second round of fixes: grading several runs in
-one command, answers that could still cause an OSError, invalidate racing a resume, and
-symbolic links inside a run directory.
+"""Defects an adversarial review found in the second round of fixes.
+
+Grading several runs in one command, answers that could still cause an OSError, invalidate racing
+a resume, and symbolic links inside a run directory.
 """
 
 import asyncio
@@ -44,8 +45,9 @@ def _finished_run(runs: Path, name: str, task_id: str, samples: int = 1) -> Path
 
 @pytest.fixture
 def contended_task(make_task, monkeypatch):
-    """A task whose grader waits on the per-org semaphore, as org graders do (more cases than
-    the semaphore has slots, so some wait).
+    """A task whose grader waits on the per-org semaphore, as org graders do.
+
+    There are more cases than the semaphore has slots, so some wait.
     """
 
     async def org_like(task, answer, env):

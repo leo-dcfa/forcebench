@@ -1,5 +1,6 @@
-"""The model proxy for agent runs (forcebench.agent.proxy): what it changes in each request, the
-budget it enforces, and what it records.
+"""The model proxy for agent runs (forcebench.agent.proxy).
+
+What it changes in each request, the budget it enforces, and what it records.
 """
 
 import ast
@@ -167,9 +168,9 @@ def test_a_request_goes_through_rewritten_and_is_logged(servers):
     assert sent["body"]["chat_template_kwargs"] == {"reasoning_effort": "high"}
     assert "temperature" not in sent["body"]
     rec = json.loads(log.read_text().splitlines()[0])
-    assert (rec["status"], rec["prompt_tokens"], rec["completion_tokens"], rec["finish_reason"]) == (
-        200, 11, 3, "stop",
-    )  # fmt: skip
+    assert (
+        rec["status"], rec["prompt_tokens"], rec["completion_tokens"], rec["finish_reason"]
+    ) == (200, 11, 3, "stop")  # fmt: skip
     assert rec["dropped"] == ["temperature"], "the log says what the harness tried to set"
 
 
@@ -204,7 +205,8 @@ def test_an_anthropic_request_reaches_the_server_as_a_chat_completion(servers):
         url + "/messages?beta=true",
         json.dumps({"model": "claude-x", "system": "Be brief.", "stream": True, "max_tokens": 4096,
                     "messages": [{"role": "user", "content": "hi"}], "temperature": 1,
-                    "thinking": {"type": "adaptive"}, "output_config": {"effort": "high"}}).encode(),
+                    "thinking": {"type": "adaptive"},
+                    "output_config": {"effort": "high"}}).encode(),
         {"Content-Type": "application/json", "anthropic-version": "2023-06-01",
          "x-claude-code-request-class": "main"},
     )  # fmt: skip
@@ -267,7 +269,8 @@ def test_a_conversation_is_translated_block_by_block():
                 {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "false"}},
             ]},
             {"role": "user", "content": [
-                {"type": "tool_result", "tool_use_id": "t1", "content": [{"type": "text", "text": "x=1"}]},
+                {"type": "tool_result", "tool_use_id": "t1",
+                 "content": [{"type": "text", "text": "x=1"}]},
                 {"type": "tool_result", "tool_use_id": "t2", "content": "exit 1", "is_error": True},
                 {"type": "text", "text": "Keep going."},
             ]},
@@ -320,8 +323,10 @@ def test_a_stream_is_translated_one_block_at_a_time():
         {"choices": [{"delta": {"content": "Let me look."}}]},
         {"choices": [{"delta": {"tool_calls": [
             {"index": 0, "id": "c1", "type": "function", "function": {"name": "Read"}}]}}]},
-        {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": '{"file'}}]}}]},
-        {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": '_path": "a"}'}}]}}]},
+        {"choices": [{"delta": {"tool_calls": [
+            {"index": 0, "function": {"arguments": '{"file'}}]}}]},
+        {"choices": [{"delta": {"tool_calls": [
+            {"index": 0, "function": {"arguments": '_path": "a"}'}}]}}]},
         {"choices": [{"delta": {}, "finish_reason": "tool_calls"}]},
         {"choices": [], "usage": {"prompt_tokens": 40, "completion_tokens": 12}},
     ):  # fmt: skip

@@ -1,5 +1,7 @@
-"""Skill packs for agent runs (forcebench.agent.skills): the manifest, and that only the pinned
-files are ever mounted. Packs are fetched here from a local repository, never the network.
+"""Skill packs for agent runs (forcebench.agent.skills).
+
+The manifest, and that only the pinned files are ever mounted. Packs are fetched here from a local
+repository, never the network.
 """
 
 import json

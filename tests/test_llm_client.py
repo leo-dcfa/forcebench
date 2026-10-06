@@ -34,8 +34,10 @@ async def _noop():
 
 
 def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | None = None) -> str:
-    """A streamed reply as vLLM sends it. Without a finish reason the stream just stops, as when
-    the server dies mid-answer: no final chunk, no usage, no [DONE].
+    """A streamed reply as vLLM sends it.
+
+    Without a finish reason the stream just stops, as when the server dies mid-answer: no final
+    chunk, no usage, no [DONE].
     """
     chunks: list[dict[str, Any]] = [
         {"choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in deltas
@@ -46,7 +48,11 @@ def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | N
             {"choices": [], "usage": usage or {"prompt_tokens": 10, "completion_tokens": 64}}
         )
     body = "".join(
-        f"data: {json.dumps({'id': 'x', 'object': 'chat.completion.chunk', 'created': 0, 'model': 'm', **c})}\n\n"
+        f"data: {
+            json.dumps(
+                {'id': 'x', 'object': 'chat.completion.chunk', 'created': 0, 'model': 'm', **c}
+            )
+        }\n\n"
         for c in chunks
     )
     return body + ("data: [DONE]\n\n" if finish_reason is not None else "")
@@ -67,8 +73,9 @@ class _Status:
 
 
 class _FakeServer:
-    """An OpenAI-compatible endpoint that streams scripted replies, one per request (the last
-    one repeats).
+    """An OpenAI-compatible endpoint that streams scripted replies, one per request.
+
+    The last one repeats.
     """
 
     def __init__(self, *replies: str | _Drop | _Status):

@@ -1,5 +1,7 @@
-"""The reasoning-traces dataset: built from public runs only, pushed only to a private or gated
-dataset. Runs on a copy of the report fixture, with made-up raw replies.
+"""The reasoning-traces dataset, built from public runs only.
+
+It is pushed only to a private or gated dataset. The tests run on a copy of the report fixture,
+with made-up raw replies.
 """
 
 import json

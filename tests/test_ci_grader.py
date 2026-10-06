@@ -574,7 +574,10 @@ def test_permissions_constraint():
 
 def test_concurrency_constraint():
     exp = [{"command": "org list", "concurrency": True}]
-    base = "on: push\n{c}jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: sf org list\n"
+    base = (
+        "on: push\n{c}jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - run: sf org list\n"
+    )
     assert passes(base.format(c="concurrency: prod-deploy\n"), {"expect": exp})
     assert passes(
         base.format(c="concurrency: {group: x, cancel-in-progress: false}\n"), {"expect": exp}

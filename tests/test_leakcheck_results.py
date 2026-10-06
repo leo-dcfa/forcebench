@@ -85,8 +85,9 @@ def test_malformed_json_is_a_finding_not_a_crash():
 
 
 def test_the_agent_tracks_files_are_results_too():
-    """The agent track keeps its runs and leaderboard under results/agent/ (docs/agent-track.md),
-    checked like the single-turn track's.
+    """The agent track keeps its runs and leaderboard under results/agent/ (docs/agent-track.md).
+
+    They are checked like the single-turn track's.
     """
     run = json.dumps({"task_ids": [_public_id()]})
     assert not _check("results/agent/runs/20260930T000000Z_m@low/run.json", run)

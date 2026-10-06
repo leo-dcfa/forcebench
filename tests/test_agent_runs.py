@@ -1,6 +1,7 @@
-"""Agent runs through the runner (forcebench.runner.generate with an agent): where they are kept,
-what they record, and that a run is never resumed with another agent or none. The agent itself is
-faked here; tests/test_agent_harness.py covers it.
+"""Agent runs through the runner (forcebench.runner.generate with an agent).
+
+Where they are kept, what they record, and that a run is never resumed with another agent or none.
+The agent itself is faked here; tests/test_agent_harness.py covers it.
 """
 
 import asyncio
@@ -23,8 +24,9 @@ MODEL = "qwen3.8-27b-awq-int4"
 
 
 def _usage_error(result) -> str:
-    """A CLI usage error as plain words: no colour codes, and none of the box it is drawn in, which
-    wraps the message at the terminal's width (narrow in CI, whatever COLUMNS says).
+    """A CLI usage error as plain words: no colour codes, and none of the box it is drawn in.
+
+    The box wraps the message at the terminal's width (narrow in CI, whatever COLUMNS says).
     """
     plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     return " ".join(re.sub(r"[│╭╮╰╯─]", " ", plain).split())
@@ -32,8 +34,9 @@ def _usage_error(result) -> str:
 
 @pytest.fixture
 def agent_runs(monkeypatch, tmp_path):
-    """The agent track's results in tmp_path, an agent that answers "Answer: x" without
-    containers, and an image whose id the test can change.
+    """The agent track's results in tmp_path, a fake agent, and an image.
+
+    The agent answers "Answer: x" without containers, and the test can change the image's id.
     """
     reg = load_registry()
     monkeypatch.setenv(reg.provider_for(reg.get(MODEL)).base_url_env, "http://127.0.0.1:9/v1")

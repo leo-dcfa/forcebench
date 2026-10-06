@@ -1,6 +1,7 @@
-"""The denylist: a made-up private pool, and what it catches. Its names are put together at
-run time: spelt out, they would be found in this very file when the repository is checked
-against the made-up pool.
+"""The denylist: a made-up private pool, and what it catches.
+
+Its names are put together at run time: spelt out, they would be found in this very file when the
+repository is checked against the made-up pool.
 """
 
 import subprocess
