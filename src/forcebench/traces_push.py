@@ -39,8 +39,10 @@ class Hub(Protocol):
 
 
 def repo_state(api: Hub, repo_id: str) -> tuple[bool, str]:
-    """Whether the dataset may receive the traces, and its state in words. A dataset Hugging Face
-    will not describe (missing, or the token cannot read it) refuses the push.
+    """Whether the dataset may receive the traces, and its state in words.
+
+    A dataset Hugging Face will not describe (missing, or the token cannot read it) refuses the
+    push.
     """
     try:
         info = api.dataset_info(repo_id)
@@ -56,10 +58,11 @@ def repo_state(api: Hub, repo_id: str) -> tuple[bool, str]:
 
 
 def check_folder(folder: Path, public_ids: set[str]) -> int:
-    """The number of records in a built dataset folder, after checking it holds only README.md,
-    LICENSE.md and data/v<version>/*.jsonl, and that every record carries the canary, names a
-    public task and no provider or endpoint, reproduces no prompt or test, and has the flags the
-    access terms rely on.
+    """The number of records in a built dataset folder, after checking the folder and every record.
+
+    The folder must hold only README.md, LICENSE.md and data/v<version>/*.jsonl, and every record
+    must carry the canary, name a public task and no provider or endpoint, reproduce no prompt or
+    test, and have the flags the access terms rely on.
     """
     records = 0
     for path in sorted(p for p in folder.rglob("*") if p.is_file()):

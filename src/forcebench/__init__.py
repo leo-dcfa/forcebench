@@ -33,10 +33,12 @@ _PROTOCOL_2_SINCE = _dt.datetime(2026, 9, 26, 21, 45, 45, tzinfo=_dt.UTC)
 
 
 def run_protocol(meta: dict[str, Any]) -> int:
-    """The generation protocol of a run, from its run.json. Runs from before the protocol was
-    recorded are protocol 2 only if they streamed with SDK retries off, straight to a server
-    (``provider`` recorded), and started once that harness existed: resuming used to rewrite
-    run.json, so a run started earlier and resumed later holds answers from both protocols.
+    """The generation protocol of a run, from its run.json.
+
+    Runs from before the protocol was recorded are protocol 2 only if they streamed with SDK
+    retries off, straight to a server (``provider`` recorded), and started once that harness
+    existed: resuming used to rewrite run.json, so a run started earlier and resumed later holds
+    answers from both protocols.
     """
     if "protocol" in meta:
         return int(meta["protocol"])
