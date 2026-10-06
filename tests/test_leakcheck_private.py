@@ -142,7 +142,7 @@ def test_the_pools_hugging_face_dataset_is_found(pool):
 def test_inside_a_git_hook_the_pools_own_repository_is_read(pool, monkeypatch):
     """Git sets GIT_DIR and GIT_INDEX_FILE for the public repository while its hooks run."""
     public = subprocess.run(
-        ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True
+        ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True, check=False
     )
     monkeypatch.setenv("GIT_DIR", public.stdout.strip())
     monkeypatch.setenv("GIT_INDEX_FILE", public.stdout.strip() + "/index")

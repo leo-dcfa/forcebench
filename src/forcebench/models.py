@@ -155,14 +155,14 @@ def load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
     """
     if not path.exists():
         return
-    for line in path.read_text().splitlines():
-        line = line.strip()
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
         key = key.strip()
         if key in DOTENV_IGNORED:
-            print(
+            print(  # noqa: T201 (a warning for the operator, on stderr)
                 f"WARNING: ignoring {key} in {path.name}: set only by the sandbox", file=sys.stderr
             )
             continue

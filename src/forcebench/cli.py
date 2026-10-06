@@ -621,7 +621,7 @@ def difficulty(
     leaderboard = json.loads((RESULTS_DIR / "leaderboard.json").read_text())
     proposals = propose(leaderboard, all_tasks(load_suites()))
     if as_json:
-        print(json.dumps(proposals, indent=1))
+        typer.echo(json.dumps(proposals, indent=1))
         return
     levels = ("easy", "medium", "hard")
     table = Table(title="author's label (rows) against the label results suggest (columns)")
@@ -1093,7 +1093,7 @@ def throughput(
     """
     found = summarise(run_dir)
     if as_json:
-        print(json.dumps(found, indent=1))
+        typer.echo(json.dumps(found, indent=1))
         return
     if not found["passes"]:
         console.print("no grading timing recorded for this run (grade it again)", style="yellow")
@@ -1205,9 +1205,13 @@ def traces_push(
         allowed, state = traces_upload.repo_state(api, repo_id)
         console.print(f"{repo_id} is {state}", markup=False)
         if not allowed:
-            raise traces_upload.PushError(
-                f"refusing: {repo_id} is {state}; make it private or gated first"
+            console.print(
+                f"refusing: {repo_id} is {state}; make it private or gated first",
+                style="red",
+                markup=False,
+                soft_wrap=True,
             )
+            raise typer.Exit(1)
         n = traces_upload.check_folder(target, public)
         if not yes and not typer.confirm(f"Upload {n} answers from {target} to {repo_id}?"):
             raise typer.Exit(1)
@@ -1780,7 +1784,7 @@ def report(
             if commit:
                 unchanged = (
                     subprocess.run(
-                        [*git, "diff", "--cached", "--quiet", "--", *paths], env=env
+                        [*git, "diff", "--cached", "--quiet", "--", *paths], check=False, env=env
                     ).returncode
                     == 0
                 )

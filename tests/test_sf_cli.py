@@ -289,7 +289,7 @@ def test_split_line_operators_and_redirects():
         ["sf", "data", "query", "-q", "SELECT Id FROM A"]
     ]
     assert split_line('sf x -q "a && b; c"') == [["sf", "x", "-q", "a && b; c"]]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="No closing quotation"):
         split_line("sf x -q 'unbalanced")
 
 
@@ -348,7 +348,7 @@ def test_match_values(spec, present, values, ok):
 
 
 def test_unknown_matcher_key_is_task_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown matcher keys"):
         match_values({"equal": "x"}, True, ["x"])
 
 
@@ -379,8 +379,10 @@ DEPLOY = {
     ("line", "ok"),
     [
         (
-            "sf project deploy start --source-dir force-app/main/default/classes --target-org uat "
-            "--test-level RunSpecifiedTests --tests FooTest BarTest",
+            (
+                "sf project deploy start --source-dir force-app/main/default/classes "
+                "--target-org uat --test-level RunSpecifiedTests --tests FooTest BarTest"
+            ),
             True,
         ),
         (
@@ -475,9 +477,9 @@ def test_grade_vars(m):
 
 
 def test_task_errors_raise(m):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown command 'org:lst'"):
         grade_commands(["sf org list"], {"expect": [{"command": "org lst"}]}, m)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="has no flag '--nope'"):
         grade_commands(
             ["sf org list"], {"expect": [{"command": "org list", "flags": {"--nope": 1}}]}, m
         )

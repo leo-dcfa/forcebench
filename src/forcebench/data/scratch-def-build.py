@@ -142,9 +142,11 @@ def build_features(doc_json: Path, schema: dict, retrieved: str) -> dict:
 
 
 def build_settings(wsdl: Path, md_types: Path, retrieved: str) -> dict:
-    root = ET.parse(wsdl).getroot()
+    # The metadata WSDL the maintainer downloaded from their own scratch org.
+    root = ET.parse(wsdl).getroot()  # noqa: S314
     schema = root.find(f".//{XSD}schema")
-    assert schema is not None
+    if schema is None:
+        raise ValueError(f"{wsdl}: no XML schema in the WSDL")
     complex_types = {c.get("name"): c for c in schema.findall(f"{XSD}complexType")}
     simple_types = {s.get("name"): s for s in schema.findall(f"{XSD}simpleType")}
     header = (wsdl.read_text()[:400]).split("Metadata API version", 1)

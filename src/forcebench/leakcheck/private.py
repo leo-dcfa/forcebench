@@ -49,7 +49,9 @@ def _git(root: Path, *args: str) -> str | None:
     the like for the public repository; left in place, they would make `-C root` read that one.
     """
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    out = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, env=env)
+    out = subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False, env=env
+    )
     return out.stdout if out.returncode == 0 else None
 
 

@@ -78,7 +78,7 @@ def gate(monkeypatch, tmp_path):
     monkeypatch.setattr(lwc, "ensure_workspace", lambda: tmp_path)
     ran: list[tuple[str, bool]] = []
 
-    async def fake_jest(node, ws, run, tests, timeout, sandboxed):
+    async def fake_jest(node, ws, run, tests, timeout, sandboxed):  # noqa: ASYNC109 (lwc._jest's)
         ran.append((node, sandboxed))
         return _PASSING_JEST
 
@@ -143,14 +143,16 @@ async def test_lwc_refuses_and_runs_nothing(gate, breakage, reason):
     assert not ran
 
 
+@pytest.mark.skipif(
+    Path("/.dockerenv").exists() and os.environ.get("FORCEBENCH_SANDBOX") == "1",
+    reason="running inside the sandbox image",
+)
 async def test_real_in_sandbox_check_refuses_on_this_machine(gate):
     """Without the org.in_sandbox fake: this test process is not the sandbox container."""
     mp, _ = gate
     mp.undo()  # drop every fake, then keep only the marker and a fake Jest
     mp.setenv(lwc.OFFLINE_MARKER, "1")
     mp.setattr(lwc, "_jest", lambda *a: (_ for _ in ()).throw(AssertionError("ran")))
-    if Path("/.dockerenv").exists() and os.environ.get("FORCEBENCH_SANDBOX") == "1":
-        pytest.skip("running inside the sandbox image")
     g = await _grade_lwc()
     assert g.skipped
     assert "sandbox" in g.skipped
@@ -321,7 +323,7 @@ def test_grade_all_writes_only_into_the_run_directories(tmp_path):
     work = tmp_path / "work"
     for name in ("src", "suites"):
         shutil.copytree(REPO_ROOT / name, work / name, ignore=shutil.ignore_patterns("__pycache__"))
-    [task] = [t for t in all_tasks(load_suites(["lwc"]))][:1]
+    [task] = list(all_tasks(load_suites(["lwc"])))[:1]
     results = work / "results"
     run = results / "runs" / "20260928T000000Z_m@low"
     (run / "raw").mkdir(parents=True)

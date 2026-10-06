@@ -123,7 +123,7 @@ def exclusive_lock(path: Path, waiting: str | None = None, *, wait: bool = True)
             if not wait:
                 raise LockBusyError(f"another process holds the lock {path}") from None
             if waiting:
-                print(waiting, file=sys.stderr, flush=True)
+                print(waiting, file=sys.stderr, flush=True)  # noqa: T201 (says once that it waits)
             fcntl.flock(fd, fcntl.LOCK_EX)
         _held.add(key)
         try:

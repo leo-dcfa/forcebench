@@ -7,6 +7,7 @@ is imported on first use, so adding a grader never requires editing a shared lis
 
 import asyncio
 import dataclasses
+import functools
 import importlib
 import logging
 import pkgutil
@@ -103,7 +104,6 @@ class GradeEnv:
 GraderFn = Callable[[Task, Answer, GradeEnv], Awaitable[Grade]]
 _REGISTRY: dict[str, GraderFn] = {}
 _IMPORT_ERRORS: dict[str, str] = {}
-_loaded = False
 
 
 def grader(name: str) -> Callable[[GraderFn], GraderFn]:
@@ -116,18 +116,15 @@ def grader(name: str) -> Callable[[GraderFn], GraderFn]:
     return deco
 
 
+@functools.cache  # once per process
 def _load_all() -> None:
-    global _loaded
-    if _loaded:
-        return
     for mod in pkgutil.iter_modules(__path__):
         if not mod.name.startswith("_"):
             # One broken grader module must not take down every other grader.
             try:
                 importlib.import_module(f"{__name__}.{mod.name}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _IMPORT_ERRORS[mod.name] = f"{type(e).__name__}: {e}"
-    _loaded = True
 
 
 def get_grader(name: str) -> GraderFn:

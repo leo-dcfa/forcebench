@@ -51,8 +51,7 @@ def apply_mutant(impl: dict[str, str], mutant: dict[str, Any]) -> dict[str, str]
     """Return the implementation with the mutant's edits applied. Raises on authoring errors."""
     out = dict(impl)
     name = mutant.get("name", "?")
-    for path, content in (mutant.get("files") or {}).items():
-        out[path] = content
+    out.update((mutant.get("files") or {}).items())
     for edit in mutant.get("replace") or []:
         path = edit["file"]
         if path not in out:

@@ -183,7 +183,8 @@ def load_task(
     text = path.read_text()
     data = yaml.safe_load(text)
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: expected a mapping")
+        # A ValueError like every other problem with a task file, which callers catch.
+        raise ValueError(f"{path}: expected a mapping")  # noqa: TRY004
     if data.get("visibility") != visibility:
         found = str(data.get("visibility", "nothing"))[:40]
         raise ValueError(

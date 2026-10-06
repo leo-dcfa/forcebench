@@ -100,7 +100,7 @@ class _Upstream(BaseHTTPRequestHandler):
 
     seen: ClassVar[list[dict]] = []
 
-    def log_message(self, format, *args):
+    def log_message(self, format, *args):  # noqa: A002 (BaseHTTPRequestHandler's name)
         pass
 
     def do_POST(self):

@@ -448,7 +448,8 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"  # one response per connection, ended by closing it
 
-        def log_message(self, format: str, *args: Any) -> None:  # quiet: the JSON log is the record
+        # Quiet: the JSON log is the record. The parameter's name is BaseHTTPRequestHandler's.
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             pass
 
         def _json(self, status: int, obj: dict[str, Any]) -> None:
@@ -585,7 +586,7 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                     record["prompt_tokens"] = int(usage.get("prompt_tokens") or 0)
                     record["completion_tokens"] = int(usage.get("completion_tokens") or 0)
                     proxy.budget.spend(record["completion_tokens"])
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is answered with a 502 and logged)
                 record.update(status=502, error=f"{type(e).__name__}: {e}")
                 with contextlib.suppress(Exception):  # the client may be gone
                     self._error(anthropic, 502, f"model server: {type(e).__name__}")
@@ -624,7 +625,7 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is answered with a 502)
                 with contextlib.suppress(Exception):
                     self._json(502, {"error": {"message": f"model server: {type(e).__name__}"}})
 
@@ -634,7 +635,8 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
 def main() -> None:
     proxy = Proxy(dict(os.environ))
     port = int(os.environ.get("FB_PORT") or 8080)
-    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(proxy))
+    # Every interface of the proxy's container: the agent's internal network is its only peer.
+    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(proxy))  # noqa: S104
     print(
         f"forcebench proxy on :{port} -> {proxy.upstream.geturl()} ({proxy.model})",
         file=sys.stderr,

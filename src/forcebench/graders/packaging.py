@@ -260,9 +260,11 @@ def structure_checks(p: Project, params: dict[str, Any]) -> list[Check]:
         if bad:
             problems.append(f"{label} unknown key(s) {bad}")
         if any(k not in PLAIN_DIR_KEYS for k in d):
-            for req in ("package", "versionNumber"):
-                if not isinstance(d.get(req), str) or not d.get(req):
-                    problems.append(f"{label} ({path}) uses packaging keys but has no {req}")
+            problems.extend(
+                f"{label} ({path}) uses packaging keys but has no {req}"
+                for req in ("package", "versionNumber")
+                if not isinstance(d.get(req), str) or not d.get(req)
+            )
         vn = d.get("versionNumber")
         if isinstance(vn, str) and not VERSION_NUMBER_RE.match(vn):
             problems.append(
@@ -462,9 +464,9 @@ def _dependency_spec(p: Project, d: dict[str, Any], spec: dict[str, Any]) -> lis
     if spec.get("exact", True) and len(deps) != len(items):
         shown = [dep.package + (f" {dep.version}" if dep.version else "") for dep in deps]
         problems.append(f"expected {len(items)} dependencies, got {len(deps)}: {shown}")
-    for c in check_rules(d, spec.get("rules") or []):
-        if not c.passed:
-            problems.append(f"{c.name}: {c.detail}")
+    problems.extend(
+        f"{c.name}: {c.detail}" for c in check_rules(d, spec.get("rules") or []) if not c.passed
+    )
     return problems
 
 
@@ -500,9 +502,7 @@ def _best(results: list[list[str]]) -> list[str]:
 
 
 def expectation_checks(p: Project, params: dict[str, Any]) -> list[Check]:
-    checks: list[Check] = []
-    for c in check_rules(p.doc, params.get("rules") or []):
-        checks.append(c)
+    checks: list[Check] = list(check_rules(p.doc, params.get("rules") or []))
     for name, rules in (params.get("packages") or {}).items():
         d = p.package_dir(name)
         if d is None:

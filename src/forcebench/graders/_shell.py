@@ -1,11 +1,11 @@
-"""Shell lexing shared by the ``sf_cli`` and ``ci_workflow`` graders.
+r"""Shell lexing shared by the ``sf_cli`` and ``ci_workflow`` graders.
 
 posix ``shlex`` differs from bash in ways that change what a command means, so a line is
 pre-scanned (``prescan``) before shlex splits it (``split_words``):
 
 - ``#`` starts a comment only at the start of a word outside quotes (``--path /x#frag`` and
   ``${VAR#v}`` keep theirs), and the comment runs to the end of its line;
-- a ``$`` the shell passes literally, in single quotes or escaped (``'$KEY'``, ``\\$KEY``), is
+- a ``$`` the shell passes literally, in single quotes or escaped (``'$KEY'``, ``\$KEY``), is
   replaced by ``LITERAL_DOLLAR``, so it is never taken for the variable;
 - the file descriptor written directly before a redirect (``2>&1``, ``1> out.txt``) is prefixed
   with ``FD_MARK``; in ``--wait 2 > out.txt`` the ``2`` stays a value.
