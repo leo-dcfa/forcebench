@@ -216,26 +216,32 @@ uv run forcebench report --pool private                        # results/leaderb
   `exposure.yaml` and `suites/` read-only, plus `results/runs` when it grades
   ([sandbox.md](sandbox.md)).
 
-## Backing up private runs
+## Where private runs are kept
 
-The pool's git repository holds each private run's `run.json` and `cases.jsonl`, but never its
-full replies (`raw/`), which stay on the machine that made them. To keep a copy of everything
-elsewhere, name a private Hugging Face dataset in the pool's `pool.yaml`:
+Private runs are kept in a **private Hugging Face dataset** named in the pool's `pool.yaml`;
+the machine that made them holds a copy, and the pool's git repository holds each run's
+`run.json` and `cases.jsonl` but never its full replies (`raw/`):
 
 ```yaml
 hf_dataset: <owner>/<name>          # a private dataset, never named in this repository
 ```
 
+When a dataset is named, `forcebench run` and `forcebench grade` back the private runs up there
+as soon as they finish private work (`--no-backup` skips it). That happens on the host, which has
+`HF_TOKEN` (the environment or `.env`): the containers have no token, so `make run|grade|regrade-all
+POOL=private` back up from the host after the container is done. A backup that fails says so in
+red, without failing the run or grade before it. To back up by hand:
+
 ```bash
-uv run --extra traces forcebench private backup   # asks before uploading; HF_TOKEN from .env
+uv run --extra traces forcebench private backup   # asks before uploading
 ```
 
-It uploads each run's `run.json`, `cases.jsonl` and `raw/generations.jsonl` under
-`runs/<run id>/` (never grading artifacts), after checking that every run in the pool is a private
-run carrying the pool's canary. It refuses a dataset that is not private (a gated public dataset is
-still public) and the public traces dataset (`HF_DATASET_REPO`). The dataset's name is on the
-leakcheck denylist like the pool's repository: the pre-commit hook refuses a commit that names it.
-Whoever hosts the dataset holds private-task material, as the git host does.
+It uploads each run's `run.json`, `cases.jsonl` and `raw/generations.jsonl` under `runs/<run id>/`
+(never grading artifacts), after checking that every run in the pool is a private run carrying the
+pool's canary. It refuses a dataset that is not private (a gated public dataset is still public) and
+the public traces dataset (`HF_DATASET_REPO`). The dataset's name is on the leakcheck denylist like
+the pool's repository: the pre-commit hook refuses a commit that names it. Whoever hosts the
+dataset holds private-task material, as the git host does.
 
 ## Retiring tasks
 
