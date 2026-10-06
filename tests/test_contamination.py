@@ -176,11 +176,11 @@ def test_the_command_writes_the_study_in_the_pool_and_publishes_only_on_opt_in(
         "private": _lb({"m@low": _scores(prv, 0.0)}),
     }
     monkeypatch.setattr(
-        "forcebench.report.build_leaderboard",
+        "forcebench.cli.build_leaderboard",
         lambda s, d, visibility="public", **k: boards[visibility],
     )
     (tmp_path / "repo").mkdir()
-    monkeypatch.setattr("forcebench.REPO_ROOT", tmp_path / "repo")
+    monkeypatch.setattr("forcebench.cli.REPO_ROOT", tmp_path / "repo")
     ran = CliRunner().invoke(app, ["study", "contamination", "--samples", "50"])
     assert ran.exit_code == 0, ran.output
     assert (

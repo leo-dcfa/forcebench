@@ -5,13 +5,25 @@ import os
 import time
 from typing import TYPE_CHECKING, Any, cast
 
+import pydantic_ai.models.openai as oai
+from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from forcebench.models import ModelConfig, Provider
 
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, AgentRunResult
+    from pydantic_ai import AgentRunResult
     from pydantic_ai.messages import ModelResponse
     from pydantic_ai.settings import ModelSettings
 
@@ -39,8 +51,6 @@ def _count_hidden_output() -> None:
     the model's thinking only in the total. The difference is recorded in the usage details as
     hidden_output_tokens, so an answer's output includes everything the model generated.
     """
-    import pydantic_ai.models.openai as oai
-
     if getattr(oai._map_usage, "forcebench_hidden_output", False):
         return
     original = oai._map_usage
@@ -70,10 +80,6 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
     """
     match p.kind:
         case "openai_compatible" | "openai":
-            from openai import AsyncOpenAI
-            from pydantic_ai.models.openai import OpenAIChatModel
-            from pydantic_ai.providers.openai import OpenAIProvider
-
             _count_hidden_output()
             base_url = p.resolved_base_url()
             if p.kind == "openai_compatible" and not base_url:
@@ -83,18 +89,11 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
             )
             return OpenAIChatModel(m.endpoint_model, provider=OpenAIProvider(openai_client=client))
         case "anthropic":
-            from anthropic import AsyncAnthropic
-            from pydantic_ai.models.anthropic import AnthropicModel
-            from pydantic_ai.providers.anthropic import AnthropicProvider
-
             client = AsyncAnthropic(api_key=p.api_key(), max_retries=0, timeout=timeout)
             return AnthropicModel(
                 m.endpoint_model, provider=AnthropicProvider(anthropic_client=client)
             )
         case "google":
-            from pydantic_ai.models.google import GoogleModel
-            from pydantic_ai.providers.google import GoogleProvider
-
             return GoogleModel(m.endpoint_model, provider=GoogleProvider(api_key=p.api_key()))
     raise ValueError(p.kind)
 
@@ -197,7 +196,6 @@ def _finished(resp: ModelResponse | None) -> bool:
 
 
 def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> str:
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
 
     what = f"{type(e).__name__}: {e}"
     if e is not None and (status := _permanent_client_error(e)) is not None:
@@ -220,12 +218,6 @@ class _Streamed:
         self.response: ModelResponse | None = None
 
     async def collect(self, _ctx: Any, events: Any) -> None:
-        from pydantic_ai.messages import (
-            PartDeltaEvent,
-            PartStartEvent,
-            ThinkingPart,
-            ThinkingPartDelta,
-        )
 
         async for ev in events:
             if isinstance(ev, PartStartEvent):
@@ -260,7 +252,6 @@ class Client:
     def __init__(
         self, m: ModelConfig, p: Provider, effort: str, timeout: float = 4 * 3600, retries: int = 4
     ):
-        from pydantic_ai import Agent
 
         if effort not in m.efforts:
             raise KeyError(f"{m.id} has no effort {effort!r}; have {sorted(m.efforts)}")
@@ -287,8 +278,6 @@ class Client:
             return run.result
 
     async def generate(self, system: str, user: str) -> Generation:
-        from pydantic_ai.exceptions import UnexpectedModelBehavior
-        from pydantic_ai.messages import ThinkingPart
 
         # retries=0: pydantic-ai would otherwise re-prompt the model after an empty
         # answer, a hidden retry that would change the conversation being measured.
