@@ -71,6 +71,6 @@ def test_a_reworded_public_task_is_found_among_the_real_ones(make_task):
     original = next(t for t in tasks if t.suite == "docs")
     words = original.prompt.split()
     reworded = " ".join(w for i, w in enumerate(words) if i % 7)  # every 7th word dropped
-    copy = original.model_copy(update={"id": "docs-p001", "prompt": reworded})
+    copy = original.model_copy(update={"id": "docs-reworded-copy", "prompt": reworded})
     [best, *_] = PublicIndex(tasks).closest(copy)
     assert best.id == original.id and best.near_duplicate
