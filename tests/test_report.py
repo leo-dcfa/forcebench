@@ -912,3 +912,8 @@ def test_entries_list_the_tasks_whose_answer_never_arrived(suites):
     cases[1] = {**cases[1], "finish_reason": "error: token limit (32768) reached before answering"}
     e = build_entry([(_meta(), cases)], suites)
     assert e["no_answer_tasks"] == ["a-1"]
+
+
+def test_an_answer_recorded_as_failed_counts_as_no_answer():
+    case = {"finish_reason": "failed: the endpoint cuts responses at 30 s", "answer_error": "empty"}
+    assert report.outcome(case) == "no_answer"
