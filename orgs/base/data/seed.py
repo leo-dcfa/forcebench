@@ -658,8 +658,10 @@ def _apex_str(s: str) -> str:
 
 
 def post_load_apex() -> str:
-    """Anonymous Apex: activate the standard price book, add price book entries and line items,
-    then re-save all opportunities so their stored fiscal fields follow the org settings.
+    """Anonymous Apex that finishes the load: price book entries, line items and fiscal fields.
+
+    It activates the standard price book, adds price book entries and line items, then re-saves all
+    opportunities so their stored fiscal fields follow the org settings.
 
     Tree import cannot reference the standard price book, so this part is done in Apex.
     """
@@ -772,8 +774,10 @@ def _sf(*args: str) -> dict:
 
 
 def guard(alias: str) -> None:
-    """Refuse unless we are in the sandbox and <alias> is an active scratch org in its login
-    store that is a registered base grader org (or being provisioned as one).
+    """Refuse unless we are in the sandbox and <alias> is a base grader scratch org there.
+
+    <alias> must be an active scratch org in the sandbox's login store that is a registered base
+    grader org (or being provisioned as one).
     """
     org = _org()
     try:

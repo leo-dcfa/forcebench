@@ -4,7 +4,7 @@ Not imported at runtime. Run it when a new Salesforce release ships (see scratch
 
     uv run python src/forcebench/data/scratch-def-build.py \
         --schemas <dir of the unpacked @salesforce/schemas npm package> \
-        --features-doc <get_document_content JSON of sfdx_dev_scratch_orgs_def_file_config_values.htm> \
+        --features-doc <get_document_content JSON of the FEATURES_URL page> \
         --wsdl <metadata WSDL downloaded from a scratch org> \
         --md-types <`sf org list metadata-types --json` output from the same org> \
         --retrieved YYYY-MM-DD

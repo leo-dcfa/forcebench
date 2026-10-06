@@ -3,8 +3,9 @@
 Used by the json, http and scratch-def graders. A rule is a mapping with a ``path`` and one
 operator, e.g. ``{path: features, contains_ci: [Communities]}``.
 
-Paths are dotted, with ``[n]`` for list indexes: ``settings.communitiesSettings.enableNetworksEnabled``
-or ``records[0].attributes.type``. ``$`` (or an empty path) is the root.
+Paths are dotted, with ``[n]`` for list indexes:
+``settings.communitiesSettings.enableNetworksEnabled`` or ``records[0].attributes.type``.
+``$`` (or an empty path) is the root.
 
 Operators:
     equals, equals_ci, not_equals, in, in_ci, regex, exists (bool), absent (bool),

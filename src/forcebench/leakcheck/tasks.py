@@ -19,8 +19,9 @@ TEST_GUIDS = frozenset(
 
 @rule
 def only_the_public_canary(path: str, text: str) -> Iterator[Finding]:
-    """The only canary GUID here is the public one (and, in tests, the made-up ones). Another is
-    a private pool's: some private file, or part of one, was copied in.
+    """The only canary GUID here is the public one (and, in tests, the made-up ones).
+
+    Another is a private pool's: some private file, or part of one, was copied in.
     """
     allowed = {CANARY_GUID, *(TEST_GUIDS if path.startswith("tests/") else ())}
     for m in _CANARY_RE.finditer(text):
@@ -33,8 +34,10 @@ _TASKS_DIR_RE = re.compile(r"suites/[^/]+/tasks/[^/]+")
 
 @rule
 def public_task_files(path: str, text: str) -> Iterator[Finding]:
-    """A task directory holds only task files, and each carries the public canary on its first
-    line, says ``visibility: public`` once, and has no ``tier`` (which only private tasks have).
+    """A task directory holds only task files, each marked as a public task.
+
+    Each carries the public canary on its first line, says ``visibility: public`` once, and has
+    no ``tier`` (which only private tasks have).
     """
     if not _TASKS_DIR_RE.fullmatch(path):
         return
