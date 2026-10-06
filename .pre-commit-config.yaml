@@ -1,0 +1,57 @@
+# Checks on every commit (.githooks/pre-commit, installed by `make hooks`) and on every file in CI.
+# Task files, results and test fixtures are left out: their bytes are what the benchmark hashes,
+# grades and publishes.
+exclude: ^(results/|studies/|suites/[^/]+/tasks/|tests/fixtures/)
+repos:
+  # Lint, then format, with the version pyproject.toml pins.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  # General file checks.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-docstring-first
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-toml
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^src/forcebench/data/private-task-template\.yaml$  # YAML once its @@ fields are filled
+      - id: debug-statements
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: detect-private-key
+        exclude: ^tests/test_ci_grader\.py$  # made-up keys: the grader must refuse them in answers
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  # Python syntax for the version this project runs.
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py314-plus]
+  # Dockerfiles.
+  - repo: https://github.com/pryorda/dockerfilelint-precommit-hooks
+    rev: v0.1.0
+    hooks:
+      - id: dockerfilelint
+        stages: [pre-commit]
+  # No binaries; shell scripts checked and formatted.
+  - repo: https://github.com/syntaqx/git-hooks
+    rev: v0.0.18
+    hooks:
+      - id: forbid-binary
+      - id: shellcheck
+      - id: shfmt
+  # No secrets in the code.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks

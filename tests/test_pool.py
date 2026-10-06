@@ -832,7 +832,7 @@ def test_make_gives_containers_the_private_pool_only_when_asked(tmp_path):
     pool = init_private_dir(root)
     dry = _make_n("grade", root)
     assert dry.returncode == 0, dry.stderr
-    sandbox, offline = [ln for ln in dry.stdout.splitlines() if ln.startswith("docker run")]
+    sandbox, offline = (ln for ln in dry.stdout.splitlines() if ln.startswith("docker run"))
     assert _mount_points(sandbox)["/private"] == (str(pool.root), False)
     assert "FORCEBENCH_PRIVATE_DIR=/private" in sandbox and sandbox.endswith("--pool private")
     private_mounts = {d: m for d, m in _mount_points(offline).items() if d.startswith("/private")}
