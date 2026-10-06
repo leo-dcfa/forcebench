@@ -993,21 +993,15 @@ def private_expose(
     console.print(f"recorded {party} ({kind}) for {n} private tasks", markup=False)
 
 
-@private_app.command("backup")
-def private_backup(
-    yes: Annotated[bool, typer.Option("--yes", help="Do not ask before uploading.")] = False,
-) -> None:
-    """Back up the private runs to the pool's private Hugging Face dataset.
+def _backup(pool: PrivatePool, *, yes: bool) -> None:
+    """Upload the private runs to the pool's private dataset (src/forcebench/private_backup.py).
 
-    Uploads run.json, cases.jsonl and the full replies to `hf_dataset` in pool.yaml, with
-    HF_TOKEN (the environment or .env). Refuses a dataset that is not private
-    (src/forcebench/private_backup.py). Needs the `traces` extra.
+    On any refusal, say why and exit 1.
     """
     if backups is None:
         console.print("needs huggingface_hub: uv run --extra traces forcebench private backup")
         raise typer.Exit(1)
 
-    pool = private_pool()
     if not pool.hf_dataset:
         console.print("set hf_dataset: <owner>/<name> in the private pool's pool.yaml", style="red")
         raise typer.Exit(1)
@@ -1031,6 +1025,52 @@ def private_backup(
         console.print(str(e), style="red", markup=False, soft_wrap=True)
         raise typer.Exit(1) from None
     console.print(f"backed up {len(backup.runs)} private runs", markup=False)
+
+
+def _auto_backup(pool: PrivatePool | None, enabled: bool) -> None:
+    """After private work, back the pool's runs up to its private dataset.
+
+    That is where private runs are kept, and this machine holds a copy. Only where pool.yaml names
+    a dataset, and only on the host: a container has no token (make backs up from the host after
+    it). It never fails the command it follows, but says so when nothing was backed up.
+    """
+    if pool is None or not enabled or not pool.hf_dataset:
+        return
+    if org.in_sandbox() or os.environ.get(OFFLINE_MARKER) == "1":
+        console.print("private runs not backed up from the container: make does it from the host")
+        return
+    try:
+        _backup(pool, yes=True)
+    except typer.Exit:
+        console.print(
+            "the private runs were NOT backed up to the pool's dataset: run "
+            "`uv run --extra traces forcebench private backup`",
+            style="red",
+        )
+
+
+BackupOpt = Annotated[
+    bool,
+    typer.Option(
+        "--backup/--no-backup",
+        help="When private runs are done, back them up to the pool's private Hugging Face "
+        "dataset (default: yes, on the host).",
+    ),
+]
+
+
+@private_app.command("backup")
+def private_backup(
+    yes: Annotated[bool, typer.Option("--yes", help="Do not ask before uploading.")] = False,
+) -> None:
+    """Back up the private runs to the pool's private Hugging Face dataset.
+
+    Uploads run.json, cases.jsonl and the full replies to `hf_dataset` in pool.yaml, with
+    HF_TOKEN (the environment or .env). Refuses a dataset that is not private
+    (src/forcebench/private_backup.py). Needs the `traces` extra. `run` and `grade` do this
+    themselves when they finish private work.
+    """
+    _backup(private_pool(), yes=yes)
 
 
 @app.command()
@@ -1362,6 +1402,7 @@ def run(
             "image's id is recorded with the run.",
         ),
     ] = None,
+    backup: BackupOpt = True,
 ) -> None:
     """Generate answers for a model configuration, then grade them.
 
@@ -1466,7 +1507,9 @@ def run(
         asyncio.run(run_all())
     except (ResumeError, RunDirError, ResultsDirError, PrivatePoolError, RuntimeError) as err:
         console.print(str(err), style="red", markup=False, soft_wrap=True)
+        _auto_backup(private, backup)  # what was generated before the error is kept too
         raise typer.Exit(1) from None
+    _auto_backup(private, backup)
 
 
 def _find_run(run_dir: Path, pool: str | None) -> Path:
@@ -1552,6 +1595,7 @@ def grade_cmd(
             "--all never waits, and exits 0 having skipped such runs.",
         ),
     ] = False,
+    backup: BackupOpt = True,
 ) -> None:
     """Grade a run's stored answers (no model calls).
 
@@ -1640,6 +1684,7 @@ def grade_cmd(
 
     with _results_errors():
         asyncio.run(grade_all())
+    _auto_backup(next((p for _, p in run_dirs if p is not None), None), backup)
     if all_runs:
         console.print(
             f"graded {len(run_dirs) - len(busy)} runs, skipped {len(busy)} being generated",
