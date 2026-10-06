@@ -34,8 +34,11 @@ async def _noop():
 
 
 def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | None = None) -> str:
-    """A streamed reply as vLLM sends it. Without a finish reason the stream just stops, as when
-    the server dies mid-answer: no final chunk, no usage, no [DONE]."""
+    """A streamed reply as vLLM sends it.
+
+    Without a finish reason the stream just stops, as when the server dies mid-answer: no final
+    chunk, no usage, no [DONE].
+    """
     chunks: list[dict[str, Any]] = [
         {"choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in deltas
     ]
@@ -45,7 +48,11 @@ def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | N
             {"choices": [], "usage": usage or {"prompt_tokens": 10, "completion_tokens": 64}}
         )
     body = "".join(
-        f"data: {json.dumps({'id': 'x', 'object': 'chat.completion.chunk', 'created': 0, 'model': 'm', **c})}\n\n"
+        f"data: {
+            json.dumps(
+                {'id': 'x', 'object': 'chat.completion.chunk', 'created': 0, 'model': 'm', **c}
+            )
+        }\n\n"
         for c in chunks
     )
     return body + ("data: [DONE]\n\n" if finish_reason is not None else "")
@@ -66,8 +73,10 @@ class _Status:
 
 
 class _FakeServer:
-    """An OpenAI-compatible endpoint that streams scripted replies, one per request (the last
-    one repeats)."""
+    """An OpenAI-compatible endpoint that streams scripted replies, one per request.
+
+    The last one repeats.
+    """
 
     def __init__(self, *replies: str | _Drop | _Status):
         self.requests = 0
@@ -99,7 +108,7 @@ class _FakeServer:
                 self.end_headers()
                 self.wfile.write(reply.encode())
 
-            def log_message(self, format: str, *args: Any) -> None:
+            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 (the base's name)
                 pass
 
         self.httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
@@ -183,7 +192,8 @@ async def test_empty_reply_the_model_finished_is_scored_as_no_answer(monkeypatch
 async def test_reply_the_server_aborted_is_not_scored(monkeypatch, reason, deltas):
     # vLLM and SGLang end an aborted request with finish_reason "abort" (or "error").
     gen, _ = await _generate(monkeypatch, _sse(deltas, finish_reason=reason))
-    assert gen.error is not None and "not finished" in gen.error
+    assert gen.error is not None
+    assert "not finished" in gen.error
     assert reason in gen.error
 
 
@@ -228,8 +238,10 @@ ANSWER = _sse([{"role": "assistant", "content": "Answer: x"}])
 async def test_client_errors_that_cannot_succeed_are_not_retried(monkeypatch, no_backoff, code):
     gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
     assert requests == 1, "a bad request is not sent again"
-    assert gen.error is not None and f"client error {code}, not retried" in gen.error
-    assert gen.attempts == 1 and gen.text == ""
+    assert gen.error is not None
+    assert f"client error {code}, not retried" in gen.error
+    assert gen.attempts == 1
+    assert gen.text == ""
 
 
 @pytest.mark.asyncio
@@ -237,14 +249,18 @@ async def test_client_errors_that_cannot_succeed_are_not_retried(monkeypatch, no
 async def test_transient_errors_are_retried(monkeypatch, no_backoff, code):
     gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
     assert requests == 2
-    assert gen.error is None and gen.text == "Answer: x" and gen.attempts == 2
+    assert gen.error is None
+    assert gen.text == "Answer: x"
+    assert gen.attempts == 2
 
 
 @pytest.mark.asyncio
 async def test_retries_stop_at_the_limit_and_leave_the_answer_unscored(monkeypatch, no_backoff):
     gen, requests = await _generate(monkeypatch, _Status(429), retries=3)
     assert requests == 3
-    assert gen.error is not None and "not retried" not in gen.error and gen.attempts == 3
+    assert gen.error is not None
+    assert "not retried" not in gen.error
+    assert gen.attempts == 3
 
 
 def _google_config(**overrides: Any):

@@ -1,4 +1,4 @@
-"""``ci_workflow``: grade GitHub Actions workflows and CI shell scripts for Salesforce CI/CD.
+r"""``ci_workflow``: grade GitHub Actions workflows and CI shell scripts for Salesforce CI/CD.
 
 The answer is a GitHub Actions workflow (``.github/workflows/*.yml``) or a shell script
 (``*.sh``). The grader never runs anything: it parses the file and checks the properties
@@ -15,7 +15,7 @@ What is parsed
 - **Shell** in ``run:`` steps (and whole ``.sh`` answers) is lexed as ``sf_cli`` lexes it
   (``graders/_shell.py``: ``#`` starts a comment only at the start of a word, so ``${VAR#v}``
   keeps its ``#``; a ``$`` in single quotes or escaped stays literal, so ``'$VAR'`` is not the
-  variable) and split into commands: ``\\`` continuations are joined, comments and heredoc
+  variable) and split into commands: ``\`` continuations are joined, comments and heredoc
   bodies are skipped, ``&&``, ``||``, ``;``, ``|`` and ``&`` separate commands, redirections
   are dropped, ``if``/``then``/``do``/``!``/``{``/``(`` prefixes are stripped, and ``$(...)`` /
   backtick substitutions are extracted as commands of their own that run before the line that
@@ -154,6 +154,7 @@ from forcebench.graders import Check, Grade, GradeEnv, TaskError, _shell, grader
 from forcebench.graders._rules import check_rules
 from forcebench.tasks import Task
 
+
 # --------------------------------------------------------------------------- manifest
 
 # Third-party plugins used in CI that are not part of @salesforce/cli. Same shape as the
@@ -270,7 +271,7 @@ _WorkflowLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, 
 
 
 def load_yaml(text: str) -> Any:
-    return yaml.load(text, Loader=_WorkflowLoader)
+    return yaml.load(text, Loader=_WorkflowLoader)  # noqa: S506 (a SafeLoader subclass)
 
 
 def _as_list(v: Any) -> list[str]:
@@ -436,9 +437,11 @@ def _extract_substitutions(line: str) -> tuple[str, list[str]]:
 
 
 def _lex(line: str) -> tuple[list[str], list[str]]:
-    """The words of a shell line, lexed like ``sf_cli`` does (``graders/_shell.py``), with
-    substitutions as ``__SUBn__`` placeholders, and the substitution bodies. Raises ValueError
-    on unbalanced quotes."""
+    """The words of a shell line, lexed like ``sf_cli`` does, and the substitution bodies.
+
+    The lexer is ``graders/_shell.py``'s; in the words, substitutions are ``__SUBn__``
+    placeholders. Raises ValueError on unbalanced quotes.
+    """
     main, subs = _extract_substitutions(_shell.prescan(line))
     return _shell.split_words(main), subs
 
@@ -487,8 +490,7 @@ class ScriptParser:
 
     def restore(self, tok: str) -> str:
         tok = _PH_RE.sub(lambda m: self.exprs[int(m.group(1))], tok)
-        tok = _ENV_EXPR_RE.sub(lambda m: self.vars.get(m.group(1), m.group(0)), tok)
-        return tok
+        return _ENV_EXPR_RE.sub(lambda m: self.vars.get(m.group(1), m.group(0)), tok)
 
     def subst(self, tok: str) -> str:
         def rep(m: re.Match[str]) -> str:
@@ -759,8 +761,8 @@ def parse_unit(text: str, kind: str, allow_dep: bool = False) -> Unit:
     if not isinstance(jobs, dict) or not jobs:
         unit.errors.append("missing or empty `jobs`")
         return unit
-    for jid, job in jobs.items():
-        jid = str(jid)
+    for key, job in jobs.items():
+        jid = str(key)
         if not isinstance(job, dict):
             unit.errors.append(f"job {jid}: must be a mapping")
             continue
@@ -1443,7 +1445,8 @@ def match_item(item: Item, spec: dict[str, Any], m: sf_cli.Manifest) -> list[str
     if kind != item.kind:
         return [f"is a {item.kind} item, expected {kind}"]
     if kind == "sf":
-        assert item.pc is not None
+        if item.pc is None:
+            raise ValueError(f"an sf item without its parsed command: {item.text!r}")
         return sf_cli._match_expectation(item.pc, _sf_spec(spec), m)
     if kind == "shell":
         return [] if re.search(spec["shell"], item.text) else [f"`{item.display}` does not match"]
@@ -1702,8 +1705,10 @@ _CREDENTIAL_PATTERNS = [
     ("access token", r"\b00D[A-Za-z0-9]{12,15}![A-Za-z0-9._]{20,}"),
     (
         "password or client secret",
-        r"(?i)(password|passwd|client[_-]?secret|consumer[_-]?secret)\w*[\"']?\s*[:=]\s*"
-        r"[\"']?(?![\"'$])[^\s\"'#]{6,}",
+        (
+            r"(?i)(password|passwd|client[_-]?secret|consumer[_-]?secret)\w*[\"']?\s*[:=]\s*"
+            r"[\"']?(?![\"'$])[^\s\"'#]{6,}"
+        ),
     ),
 ]
 
@@ -1742,8 +1747,10 @@ def _injection_checks(unit: Unit) -> list[Check]:
         for si, st in enumerate(job.get("steps") or [], 1):
             run = st.get("run") if isinstance(st, dict) else None
             if isinstance(run, str):
-                for m in _UNTRUSTED_RE.finditer(run):
-                    bad.append(f"job {jid} step {si}: {' '.join(m.group(0).split())}")
+                bad.extend(
+                    f"job {jid} step {si}: {' '.join(m.group(0).split())}"
+                    for m in _UNTRUSTED_RE.finditer(run)
+                )
     return [
         Check(
             name="no script injection",
@@ -1813,7 +1820,8 @@ def _grade_file(text: str, params: dict[str, Any], kind: str) -> list[Check]:
         return checks
     for it in unit.items:
         if it.kind == "sf":
-            assert it.pc is not None
+            if it.pc is None:
+                raise ValueError(f"an sf item without its parsed command: {it.text!r}")
             checks.append(
                 Check(
                     name=f"sf command valid: {it.display}",
@@ -1851,14 +1859,14 @@ def _grade_file(text: str, params: dict[str, Any], kind: str) -> list[Check]:
                 detail=f"`${{{{ secrets.{name} }}}}` not referenced",
             )
         )
-    for ev in _as_list(params.get("forbid_triggers")):
-        checks.append(
-            Check(
-                name=f"no {ev} trigger",
-                passed=ev not in unit.triggers,
-                detail=f"the workflow is triggered by {ev}",
-            )
+    checks.extend(
+        Check(
+            name=f"no {ev} trigger",
+            passed=ev not in unit.triggers,
+            detail=f"the workflow is triggered by {ev}",
         )
+        for ev in _as_list(params.get("forbid_triggers"))
+    )
     for i, spec in enumerate(params.get("text") or [], 1):
         label = spec.get("name") or f"text check {i}"
         anys = spec.get("any") or []

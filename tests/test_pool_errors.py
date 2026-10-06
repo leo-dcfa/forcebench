@@ -4,6 +4,7 @@ import pytest
 
 from forcebench.pool import PrivatePoolError, _main, init_private_dir, load_private_pool
 
+
 SECRET = "SECRET-MARKER"
 
 
@@ -51,4 +52,5 @@ def test_a_filesystem_error_preparing_mounts_does_not_print_the_path(pool, monke
     monkeypatch.setattr("pathlib.Path.mkdir", refuse)
     assert _main(["docker-args", "sandbox"]) == 1
     out = capsys.readouterr().out
-    assert "Permission denied" in out and SECRET not in out
+    assert "Permission denied" in out
+    assert SECRET not in out

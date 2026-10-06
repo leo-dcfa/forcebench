@@ -8,6 +8,7 @@ from forcebench import CANARY
 from forcebench.leakcheck import check
 from forcebench.leakcheck.results import only_public_results, public_task_ids
 
+
 UNKNOWN = "apex-" + "not-a-public-task"  # a task id no public task has ever had
 RUN = "results/runs/20260930T000000Z_m@low/run.json"
 CASES = "results/runs/20260930T000000Z_m@low/cases.jsonl"
@@ -84,8 +85,10 @@ def test_malformed_json_is_a_finding_not_a_crash():
 
 
 def test_the_agent_tracks_files_are_results_too():
-    """The agent track keeps its runs and leaderboard under results/agent/ (docs/agent-track.md),
-    checked like the single-turn track's."""
+    """The agent track keeps its runs and leaderboard under results/agent/ (docs/agent-track.md).
+
+    They are checked like the single-turn track's.
+    """
     run = json.dumps({"task_ids": [_public_id()]})
     assert not _check("results/agent/runs/20260930T000000Z_m@low/run.json", run)
     good = {"visibility": "public", "tasks": [{"id": _public_id()}], "entries": []}

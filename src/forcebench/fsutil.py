@@ -27,6 +27,7 @@ import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
+
 __all__ = [
     "LockBusyError",
     "ResultsDirError",
@@ -41,9 +42,12 @@ class ResultsDirError(ValueError):
 
 
 def check_results_dir(results_dir: Path, runs_dir: Path | None = None) -> None:
-    """Refuse ``results_dir`` (``results/``) and ``runs_dir`` (default ``results_dir/runs``) if
-    either is a symbolic link: runs would be read and graded, and grades and the leaderboard
-    written, wherever it points. A missing directory is not refused (a new checkout)."""
+    """Refuse ``results_dir`` (``results/``) and ``runs_dir`` if either is a symbolic link.
+
+    ``runs_dir`` defaults to ``results_dir/runs``. Through a link, runs would be read and graded,
+    and grades and the leaderboard written, wherever it points. A missing directory is not
+    refused (a new checkout).
+    """
     runs_dir = results_dir / "runs" if runs_dir is None else runs_dir
     links = [str(d) for d in (results_dir, runs_dir) if d.is_symlink()]
     if links:
@@ -55,8 +59,11 @@ def check_results_dir(results_dir: Path, runs_dir: Path | None = None) -> None:
 
 
 def _fsync_dir(directory: Path) -> None:
-    """Make a rename in ``directory`` durable. Not every file system can sync a directory (some
-    Docker bind mounts cannot); the rename itself is atomic either way."""
+    """Make a rename in ``directory`` durable.
+
+    Not every file system can sync a directory (some Docker bind mounts cannot); the rename
+    itself is atomic either way.
+    """
     with contextlib.suppress(OSError):
         fd = os.open(directory, os.O_RDONLY)
         try:
@@ -91,8 +98,10 @@ def atomic_write_text(path: Path, text: str) -> None:
 
 
 class LockBusyError(RuntimeError):
-    """Another process holds the lock, and the caller asked not to wait for it
-    (``exclusive_lock(..., wait=False)``)."""
+    """Another process holds the lock, and the caller asked not to wait for it.
+
+    The caller passed ``exclusive_lock(..., wait=False)``.
+    """
 
 
 # Locks this process holds, by path. flock locks belong to an open file description, so taking
@@ -119,7 +128,7 @@ def exclusive_lock(path: Path, waiting: str | None = None, *, wait: bool = True)
             if not wait:
                 raise LockBusyError(f"another process holds the lock {path}") from None
             if waiting:
-                print(waiting, file=sys.stderr, flush=True)
+                print(waiting, file=sys.stderr, flush=True)  # noqa: T201 (says once that it waits)
             fcntl.flock(fd, fcntl.LOCK_EX)
         _held.add(key)
         try:

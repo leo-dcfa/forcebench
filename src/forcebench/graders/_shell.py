@@ -1,11 +1,11 @@
-"""Shell lexing shared by the ``sf_cli`` and ``ci_workflow`` graders.
+r"""Shell lexing shared by the ``sf_cli`` and ``ci_workflow`` graders.
 
 posix ``shlex`` differs from bash in ways that change what a command means, so a line is
 pre-scanned (``prescan``) before shlex splits it (``split_words``):
 
 - ``#`` starts a comment only at the start of a word outside quotes (``--path /x#frag`` and
   ``${VAR#v}`` keep theirs), and the comment runs to the end of its line;
-- a ``$`` the shell passes literally, in single quotes or escaped (``'$KEY'``, ``\\$KEY``), is
+- a ``$`` the shell passes literally, in single quotes or escaped (``'$KEY'``, ``\$KEY``), is
   replaced by ``LITERAL_DOLLAR``, so it is never taken for the variable;
 - the file descriptor written directly before a redirect (``2>&1``, ``1> out.txt``) is prefixed
   with ``FD_MARK``; in ``--wait 2 > out.txt`` the ``2`` stays a value.
@@ -15,6 +15,7 @@ Double quotes nest inside ``$(...)`` as in bash (``"$(cmd "a # b")"``).
 
 import re
 import shlex
+
 
 # Private-use markers set by prescan.
 LITERAL_DOLLAR = ""
@@ -29,8 +30,10 @@ _WORD_BREAKS = frozenset(";&|()<>")
 
 
 def prescan(line: str, mark: bool = True) -> str:
-    """Cut comments and set the markers described in the module docstring. With
-    ``mark=False`` only comments are cut; the rest of the text is unchanged."""
+    """Cut comments and set the markers described in the module docstring.
+
+    With ``mark=False`` only comments are cut; the rest of the text is unchanged.
+    """
     out: list[str] = []
     stack: list[str] = []  # open double quotes ('"'), $(...) ("$(") and groups ("(")
     word_start = True
@@ -114,8 +117,10 @@ def _split_punct(tok: str) -> list[str]:
 
 
 def split_words(text: str) -> list[str]:
-    """shlex-split pre-scanned text: quotes removed, operators and redirections as tokens of
-    their own. Raises ValueError on unbalanced quotes."""
+    """shlex-split pre-scanned text, with operators and redirections as tokens of their own.
+
+    Quotes are removed. Raises ValueError on unbalanced quotes.
+    """
     lex = shlex.shlex(text, posix=True, punctuation_chars=True)
     lex.whitespace_split = True
     lex.commenters = ""  # prescan cut the comments

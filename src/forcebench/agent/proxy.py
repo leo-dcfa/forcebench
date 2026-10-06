@@ -35,6 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+
 # Request fields the harness may not set: the configuration decides them (injected), or the
 # benchmark does (max_tokens). How the model reasons is the configuration's, so a harness's own
 # reasoning or thinking switches go too. Each request's log says which of these the harness sent.
@@ -92,8 +93,9 @@ def _text(content: Any) -> str:
 
 
 def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    """An Anthropic-style request as a chat completions request, and how many system messages it
-    had mid-conversation.
+    """An Anthropic-style request as a chat completions request.
+
+    Also returns how many system messages the request had mid-conversation.
 
     Text, thinking (as reasoning_content), tool calls and tool results are kept; Anthropic-only
     fields (cache markers, betas, effort, context management, server tools) are not sent. Chat
@@ -101,7 +103,8 @@ def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     sends its environment and how many tokens are left that way) goes where the harness put it, as
     a system reminder in a user turn, the way Claude Code gives its other reminders. Folding it
     into the first system message instead would change the start of every request, so the model
-    server could never reuse its cache of the conversation so far."""
+    server could never reuse its cache of the conversation so far.
+    """
     system = [_text(body["system"])] if body.get("system") else []
     messages: list[dict[str, Any]] = []
     inline = 0
@@ -245,8 +248,11 @@ def _event(kind: str, data: dict[str, Any]) -> bytes:
 
 
 class AnthropicStream:
-    """Chat completion chunks in, Anthropic-style stream events out: one content block at a time
-    (thinking, text, or a tool call), then the stop reason and usage."""
+    """Chat completion chunks in, Anthropic-style stream events out.
+
+    The events give one content block at a time (thinking, text, or a tool call), then the stop
+    reason and usage.
+    """
 
     def __init__(self, model: str) -> None:
         self.model = model
@@ -338,8 +344,11 @@ class AnthropicStream:
 
 
 def anthropic_error(status: int, message: str) -> dict[str, Any]:
-    """An error in Anthropic's shape. The model server's context-length error is given the words
-    Anthropic's API uses ("prompt is too long"), which is what makes Claude Code compact."""
+    """An error in Anthropic's shape.
+
+    The model server's context-length error is given the words Anthropic's API uses
+    ("prompt is too long"), which is what makes Claude Code compact.
+    """
     kind = {400: "invalid_request_error", 401: "authentication_error", 404: "not_found_error",
             429: "rate_limit_error"}.get(status, "api_error")  # fmt: skip
     if "context length" in message or "maximum context" in message:
@@ -444,7 +453,8 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"  # one response per connection, ended by closing it
 
-        def log_message(self, format: str, *args: Any) -> None:  # quiet: the JSON log is the record
+        # Quiet: the JSON log is the record. The parameter's name is BaseHTTPRequestHandler's.
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             pass
 
         def _json(self, status: int, obj: dict[str, Any]) -> None:
@@ -581,7 +591,7 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                     record["prompt_tokens"] = int(usage.get("prompt_tokens") or 0)
                     record["completion_tokens"] = int(usage.get("completion_tokens") or 0)
                     proxy.budget.spend(record["completion_tokens"])
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is answered with a 502 and logged)
                 record.update(status=502, error=f"{type(e).__name__}: {e}")
                 with contextlib.suppress(Exception):  # the client may be gone
                     self._error(anthropic, 502, f"model server: {type(e).__name__}")
@@ -589,8 +599,10 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
             proxy.log(record)
 
         def _count_tokens(self) -> None:
-            """Anthropic's token counting endpoint: forwarded with the served model's name, outside
-            the budget (it generates nothing)."""
+            """Anthropic's token counting endpoint, forwarded with the served model's name.
+
+            It is outside the budget (it generates nothing).
+            """
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
             except ValueError:
@@ -619,7 +631,7 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is answered with a 502)
                 with contextlib.suppress(Exception):
                     self._json(502, {"error": {"message": f"model server: {type(e).__name__}"}})
 
@@ -629,7 +641,8 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
 def main() -> None:
     proxy = Proxy(dict(os.environ))
     port = int(os.environ.get("FB_PORT") or 8080)
-    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(proxy))
+    # Every interface of the proxy's container: the agent's internal network is its only peer.
+    server = ThreadingHTTPServer(("0.0.0.0", port), make_handler(proxy))  # noqa: S104
     print(
         f"forcebench proxy on :{port} -> {proxy.upstream.geturl()} ({proxy.model})",
         file=sys.stderr,

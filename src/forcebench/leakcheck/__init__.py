@@ -89,9 +89,11 @@ def check_tracked(root: Path = REPO_ROOT) -> list[Finding]:
 
 
 def check_staged(root: Path = REPO_ROOT) -> list[Finding]:
-    """Every rule over every file staged for the next commit, as staged (the pre-commit hook):
-    what the commit would contain, not the working tree. A staged symbolic link is checked as
-    the path it points to."""
+    """Every rule over every file staged for the next commit, as staged (the pre-commit hook).
+
+    That is what the commit would contain, not the working tree. A staged symbolic link is
+    checked as the path it points to.
+    """
     git = ["git", "-C", str(root)]
     names = subprocess.run(
         [*git, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"],

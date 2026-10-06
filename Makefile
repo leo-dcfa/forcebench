@@ -181,8 +181,8 @@ report: ## Aggregate results into results/leaderboard.json
 test: ## Unit tests (no orgs)
 	uv run pytest -q
 
-lint:
-	uv run ruff check && uv run ruff format --check
+lint: ## Every check of .pre-commit-config.yaml (ruff and the file checks) on every file
+	uvx pre-commit run --all-files
 
 # Run directory names never reach a shell: `grade --all` lists results/runs itself and refuses
 # any directory whose name is not a run id (runner.RUN_ID_RE), e.g. from a contributed run. A run

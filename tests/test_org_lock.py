@@ -139,8 +139,10 @@ def test_grading_runs_again_once_the_devhub_is_logged_out(provisioning):
 
 
 def test_only_the_org_being_created_may_be_set_up_meanwhile(provisioning):
-    """orgs create runs the profile's setup in another process: its lock check (and seed.py's
-    sf calls) may target the org being created, and nothing else."""
+    """Orgs create runs the profile's setup in another process.
+
+    Its lock check (and seed.py's sf calls) may target the org being created, and nothing else.
+    """
     org._set_pending("fb-new", "base")
     check_command(("org", "display", "--target-org", "fb-new"))
     check_command(("apex", "run", "--file", "wipe.apex", "--target-org", "new@example.com"))
@@ -203,8 +205,10 @@ def test_a_pending_entry_records_when_it_was_made(sandbox, clock):
 
 
 def test_a_pending_entry_expires_after_a_day(provisioning, clock):
-    """An orgs create whose setup failed or was abandoned must not leave its org usable with
-    the Dev Hub logged in (or wipeable as a grader org) for good."""
+    """An orgs create whose setup failed or was abandoned must not leave its org usable for good.
+
+    Usable here means with the Dev Hub logged in, or wipeable as a grader org.
+    """
     display = ("org", "display", "--target-org", "fb-new")
     org._set_pending("fb-new", "base")
     clock["later"] = dt.timedelta(hours=23, minutes=59)
@@ -233,7 +237,8 @@ def test_a_pending_entry_of_unknown_age_is_expired(provisioning, entry):
     org.PENDING.parent.mkdir(parents=True, exist_ok=True)
     org.PENDING.write_text(json.dumps({"fb-new": entry}))
     [p] = org.pending_orgs()
-    assert (p.alias, p.profile) == ("fb-new", "base") and p.expired()
+    assert (p.alias, p.profile) == ("fb-new", "base")
+    assert p.expired()
     with pytest.raises(OrgError, match="a Dev Hub is logged in"):
         check_command(("org", "display", "--target-org", "fb-new"))
 
@@ -247,7 +252,8 @@ def test_orgs_list_shows_pending_and_expired_entries(sandbox, clock):
     out = " ".join(result.output.split())
     assert "pending: fb-new (npsp), being set up by orgs create since" in out
     assert "expired: fb-old (base), pending since" in out
-    assert "no longer used" in out and "forcebench orgs register base fb-old" in out
+    assert "no longer used" in out
+    assert "forcebench orgs register base fb-old" in out
 
 
 def test_orgs_list_shows_pending_entries_even_while_a_devhub_is_logged_in(provisioning):
@@ -256,7 +262,8 @@ def test_orgs_list_shows_pending_entries_even_while_a_devhub_is_logged_in(provis
     result = CliRunner().invoke(app, ["orgs", "list"])
     assert result.exit_code == 1
     out = " ".join(result.output.split())
-    assert "pending: fb-new (base)" in out and "a Dev Hub is logged in to the sandbox" in out
+    assert "pending: fb-new (base)" in out
+    assert "a Dev Hub is logged in to the sandbox" in out
 
 
 def test_create_refuses_names_that_are_not_plain(provisioning):
@@ -291,7 +298,8 @@ def test_the_check_prints_its_confirmation_only_when_it_passes(sandbox, monkeypa
     for argv in (["check", "--", "-h"], ["check", "--", "client-prod"]):
         assert org.main(argv) == 1
         out = capsys.readouterr()
-        assert out.out == "" and "refusing to touch" in out.err
+        assert out.out == ""
+        assert "refusing to touch" in out.err
 
 
 # --------------------------------------------------------------------------- auth URLs
@@ -361,9 +369,11 @@ def test_import_logs_in_with_a_private_copy_of_the_checked_url(sandbox, monkeypa
     monkeypatch.setattr(org, "sf_json_sync", fake_sf)
     monkeypatch.setattr(org, "register", lambda profile, alias: seen.update(registered=alias))
     org.import_auth("base", "fb-grader-2", src)
-    assert seen["path"] != src and not seen["path"].exists(), "a temporary copy, removed after"
+    assert seen["path"] != src, "a temporary copy, removed after"
+    assert not seen["path"].exists(), "a temporary copy, removed after"
     assert (seen["text"], seen["mode"]) == (GOOD_URL + "\n", 0o600)
-    assert seen["args"][-2:] == ("--alias", "fb-grader-2") and seen["registered"] == "fb-grader-2"
+    assert seen["args"][-2:] == ("--alias", "fb-grader-2")
+    assert seen["registered"] == "fb-grader-2"
 
 
 def test_import_runs_nothing_for_a_refused_url_or_alias(sandbox, monkeypatch, tmp_path):
@@ -379,7 +389,8 @@ def test_import_runs_nothing_for_a_refused_url_or_alias(sandbox, monkeypatch, tm
 
 
 def test_scratch_instance_urls_are_parsed_strictly():
-    assert org.is_scratch_url(SCRATCH) and org.is_scratch_url(SCRATCH + "/")
+    assert org.is_scratch_url(SCRATCH)
+    assert org.is_scratch_url(SCRATCH + "/")
     for url in (
         "http://fun-1234-dev-ed.scratch.my.salesforce.com",
         "https://client.my.salesforce.com@fun.scratch.my.salesforce.com",

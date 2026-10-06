@@ -1,6 +1,9 @@
-"""orgs/guard.sh trusts nothing the environment chooses: the alias must be a plain name, the
-check runs with the sandbox image's own Python in isolated mode, and only its confirmation line
-(not its exit status) lets a setup script continue. Nothing here runs sf or Docker."""
+"""orgs/guard.sh trusts nothing the environment chooses.
+
+The alias must be a plain name, the check runs with the sandbox image's own Python in isolated
+mode, and only its confirmation line (not its exit status) lets a setup script continue. Nothing
+here runs sf or Docker.
+"""
 
 import os
 import re
@@ -12,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from forcebench import REPO_ROOT, org
+
 
 GUARD = REPO_ROOT / "orgs" / "guard.sh"
 BASH = shutil.which("bash")
@@ -36,14 +40,16 @@ def _bash(
 @pytest.mark.parametrize("alias", ["-h", "--help", "-o", "x;touch PWNED", "a b", "../x", "é"])
 def test_an_alias_that_is_not_a_plain_name_is_refused_first(alias, tmp_path):
     done = _bash('fb_guard "$FB_ORG"; echo PASSED', {"FB_ORG": alias}, cwd=tmp_path)
-    assert done.returncode == 1 and "PASSED" not in done.stdout
+    assert done.returncode == 1
+    assert "PASSED" not in done.stdout
     assert "is not a valid org alias" in done.stderr
     assert not (tmp_path / "PWNED").exists()
 
 
 def test_a_profile_that_is_not_a_plain_name_is_refused():
     done = _bash('fb_guard fb-grader-1 "../base"; echo PASSED')
-    assert done.returncode == 1 and "is not a valid org profile" in done.stderr
+    assert done.returncode == 1
+    assert "is not a valid org profile" in done.stderr
 
 
 def test_the_alias_pattern_is_the_python_one():
@@ -106,7 +112,8 @@ def _check(*argv: str, env: dict[str, str] | None = None) -> subprocess.Complete
 def test_an_exit_status_of_zero_is_not_a_confirmation():
     """The review's case: `check -h` exits 0 (argparse help) without checking anything."""
     done = _check("check", "-h")
-    assert done.returncode == 0 and "usage" in done.stdout
+    assert done.returncode == 0
+    assert "usage" in done.stdout
     assert "FORCEBENCH_ORG_LOCK_OK" not in done.stdout
 
 
@@ -115,7 +122,8 @@ def test_the_check_refuses_here_and_prints_no_confirmation():
         pytest.skip("running inside the sandbox image")
     for argv in (["check", "--", "fb-grader-1"], ["check", "--", "-h"]):
         done = _check(*argv, env={"FORCEBENCH_SANDBOX": "1"})
-        assert done.returncode == 1 and done.stdout == ""
+        assert done.returncode == 1
+        assert done.stdout == ""
         assert "refusing to touch" in done.stderr
 
 
@@ -140,7 +148,8 @@ def test_isolated_mode_ignores_code_put_on_the_python_path(tmp_path):
 def test_base_setup_runs_seed_with_the_guards_interpreter():
     base = (REPO_ROOT / "orgs" / "base" / "setup.sh").read_text()
     assert "PYTHON" not in base.replace("FB_PYTHON", "")
-    assert base.count('"$PY" -I data/seed.py') == 3 and "PY=$FB_PYTHON" in base
+    assert base.count('"$PY" -I data/seed.py') == 3
+    assert "PY=$FB_PYTHON" in base
 
 
 @pytest.mark.skipif(shutil.which("shellcheck") is None, reason="shellcheck not installed")

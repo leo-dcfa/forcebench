@@ -1,5 +1,8 @@
-"""Answer extraction regressions from the second review: choice answers outside the strict
-`Answer: <letter>` form, `#` comments in http blocks, and Windows line endings."""
+"""Answer extraction regressions from the second review.
+
+Choice answers outside the strict `Answer: <letter>` form, `#` comments in http blocks, and
+Windows line endings.
+"""
 
 import pytest
 
@@ -90,7 +93,8 @@ def test_choice_fallbacks(five, reply, expected):
 )
 def test_choice_fallbacks_never_read_prose(nine, reply):
     a = extract(nine, f"Some reasoning.\n\n{reply}")
-    assert a.choices == [] and a.error, a.choices
+    assert a.choices == [], a.choices
+    assert a.error, a.choices
 
 
 @pytest.mark.parametrize(
@@ -222,7 +226,8 @@ def test_http_comment_lines_are_ignored(make_task):
 def test_http_request_with_only_a_comment_after_it_has_no_body(make_task):
     t = make_task({"format": "http"})
     a = extract(t, "```http\nGET /services/data/v67.0/limits HTTP/1.1\n\n# expect 200\n```")
-    assert a.requests[0].raw_body == "" and a.requests[0].body is None
+    assert a.requests[0].raw_body == ""
+    assert a.requests[0].body is None
 
 
 # --------------------------------------------------------------------------- line endings
@@ -238,8 +243,7 @@ _TASKS = all_tasks(load_suites())
 @pytest.mark.parametrize("fmt", list(AnswerFormat))
 @pytest.mark.parametrize("ending", ["\r\n", "\r"])
 def test_windows_line_endings_extract_like_unix_ones(fmt, ending):
-    """Every task's reference output, with CRLF (or CR) line endings, extracts exactly as it
-    does with LF ones."""
+    """Every task's reference output extracts with CRLF (or CR) line endings exactly as with LF."""
     tasks = [t for t in _TASKS if t.answer.format is fmt]
     assert tasks, f"no {fmt} task"
     for t in tasks:

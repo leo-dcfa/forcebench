@@ -5,12 +5,25 @@ import os
 import time
 from typing import TYPE_CHECKING, Any, cast
 
+import pydantic_ai.models.openai as oai
+from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from forcebench.models import ModelConfig, Provider
 
+
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, AgentRunResult
+    from pydantic_ai import AgentRunResult
     from pydantic_ai.messages import ModelResponse
     from pydantic_ai.settings import ModelSettings
 
@@ -33,12 +46,13 @@ class Generation(BaseModel):
 
 
 def _count_hidden_output() -> None:
-    """Keep the thinking a server leaves out of completion_tokens. pydantic-ai keeps prompt and
-    completion tokens but drops total_tokens, and some OpenAI-compatible servers (Gemini's) count
-    the model's thinking only in the total. The difference is recorded in the usage details as
-    hidden_output_tokens, so an answer's output includes everything the model generated."""
-    import pydantic_ai.models.openai as oai
+    """Keep the thinking a server leaves out of completion_tokens.
 
+    pydantic-ai keeps prompt and completion tokens but drops total_tokens, and some
+    OpenAI-compatible servers (Gemini's) count the model's thinking only in the total. The
+    difference is recorded in the usage details as hidden_output_tokens, so an answer's output
+    includes everything the model generated.
+    """
     if getattr(oai._map_usage, "forcebench_hidden_output", False):
         return
     original = oai._map_usage
@@ -63,14 +77,13 @@ def _hidden(used: Any) -> int:
 
 
 def _build_model(m: ModelConfig, p: Provider, timeout: float):
-    """Build the pydantic-ai model with SDK retries OFF: a retry silently restarts the answer,
-    and retrying only the answers that take long biases results towards short answers."""
+    """Build the pydantic-ai model with SDK retries OFF.
+
+    A retry silently restarts the answer, and retrying only the answers that take long biases
+    results towards short answers.
+    """
     match p.kind:
         case "openai_compatible" | "openai":
-            from openai import AsyncOpenAI
-            from pydantic_ai.models.openai import OpenAIChatModel
-            from pydantic_ai.providers.openai import OpenAIProvider
-
             _count_hidden_output()
             base_url = p.resolved_base_url()
             if p.kind == "openai_compatible" and not base_url:
@@ -80,18 +93,11 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
             )
             return OpenAIChatModel(m.endpoint_model, provider=OpenAIProvider(openai_client=client))
         case "anthropic":
-            from anthropic import AsyncAnthropic
-            from pydantic_ai.models.anthropic import AnthropicModel
-            from pydantic_ai.providers.anthropic import AnthropicProvider
-
             client = AsyncAnthropic(api_key=p.api_key(), max_retries=0, timeout=timeout)
             return AnthropicModel(
                 m.endpoint_model, provider=AnthropicProvider(anthropic_client=client)
             )
         case "google":
-            from pydantic_ai.models.google import GoogleModel
-            from pydantic_ai.providers.google import GoogleProvider
-
             return GoogleModel(m.endpoint_model, provider=GoogleProvider(api_key=p.api_key()))
     raise ValueError(p.kind)
 
@@ -109,9 +115,12 @@ def _settings(m: ModelConfig, effort: str) -> dict[str, Any]:
 
 
 def _check_settings(m: ModelConfig, p: Provider, effort: str, settings: dict[str, Any]) -> None:
-    """Refuse settings the provider would silently drop. pydantic-ai's Google model has no
-    ``extra_body``: sampling keys other than temperature/top_p/seed and every effort field
-    would never reach the API, while the run records them as sent."""
+    """Refuse settings the provider would silently drop.
+
+    pydantic-ai's Google model has no ``extra_body``: sampling keys other than
+    temperature/top_p/seed and every effort field would never reach the API, while the run
+    records them as sent.
+    """
     if p.kind == "google" and settings.get("extra_body"):
         raise ValueError(
             f"{m.id}@{effort}: a Google provider cannot send extra request-body fields "
@@ -122,8 +131,10 @@ def _check_settings(m: ModelConfig, p: Provider, effort: str, settings: dict[str
 
 
 def recorded_request(m: ModelConfig, effort: str) -> dict[str, Any]:
-    """The request as a run records it (run.json ``request``): the model settings sent, and
-    how they are sent (streamed, SDK retries off; see Client)."""
+    """The request as a run records it (run.json ``request``).
+
+    The model settings sent, and how they are sent (streamed, SDK retries off; see Client).
+    """
     return {**_settings(m, effort), "stream": True, "sdk_retries": 0}
 
 
@@ -134,8 +145,10 @@ RETRYABLE_CLIENT_ERRORS = frozenset({408, 409, 425, 429})
 
 
 def _status_code(e: BaseException) -> int | None:
-    """The HTTP status of an endpoint error, from the exception or the ones it was raised from
-    (pydantic-ai's ModelHTTPError wraps the SDK's status error)."""
+    """The HTTP status of an endpoint error, from the exception or the ones it was raised from.
+
+    pydantic-ai's ModelHTTPError wraps the SDK's status error.
+    """
     seen: set[int] = set()
     cur: BaseException | None = e
     while cur is not None and id(cur) not in seen:
@@ -151,7 +164,7 @@ def _attr(obj: object, name: str) -> Any:
     """obj.name, or None; some SDK exceptions raise from properties they cannot fill."""
     try:
         return getattr(obj, name, None)
-    except Exception:
+    except Exception:  # noqa: BLE001 (whatever such a property raises)
         return None
 
 
@@ -178,9 +191,11 @@ def _raw_finish_reason(resp: ModelResponse) -> str | None:
 
 
 def _finished(resp: ModelResponse | None) -> bool:
-    """Whether the server finished the reply, i.e. reported how it ended (stop, length, content
-    filter...). A raw reason pydantic-ai does not map counts too, unless it says the server
-    aborted the request."""
+    """Whether the server finished the reply, i.e. reported how it ended.
+
+    The reported end is stop, length, content filter... A raw reason pydantic-ai does not map
+    counts too, unless it says the server aborted the request.
+    """
     if resp is None:
         return False
     raw = _raw_finish_reason(resp)
@@ -190,7 +205,6 @@ def _finished(resp: ModelResponse | None) -> bool:
 
 
 def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> str:
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
 
     what = f"{type(e).__name__}: {e}"
     if e is not None and (status := _permanent_client_error(e)) is not None:
@@ -203,8 +217,11 @@ def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> s
 
 
 class _Streamed:
-    """What the model has streamed so far, per response part. A reply that fails still leaves a
-    record of what the model wrote, e.g. the reasoning that used up the token budget."""
+    """What the model has streamed so far, per response part.
+
+    A reply that fails still leaves a record of what the model wrote, e.g. the reasoning that
+    used up the token budget.
+    """
 
     def __init__(self) -> None:
         self.parts: dict[int, tuple[bool, list[str]]] = {}  # index -> (is_thinking, chunks)
@@ -212,12 +229,6 @@ class _Streamed:
         self.response: ModelResponse | None = None
 
     async def collect(self, _ctx: Any, events: Any) -> None:
-        from pydantic_ai.messages import (
-            PartDeltaEvent,
-            PartStartEvent,
-            ThinkingPart,
-            ThinkingPartDelta,
-        )
 
         async for ev in events:
             if isinstance(ev, PartStartEvent):
@@ -245,13 +256,15 @@ class _Streamed:
 
 
 class Client:
-    """One model configuration. Responses are streamed: proxies commonly cap the time to a
-    complete (non-streamed) response, which would cut off slow machines' long answers."""
+    """One model configuration.
+
+    Responses are streamed: proxies commonly cap the time to a complete (non-streamed) response,
+    which would cut off slow machines' long answers.
+    """
 
     def __init__(
         self, m: ModelConfig, p: Provider, effort: str, timeout: float = 4 * 3600, retries: int = 4
     ):
-        from pydantic_ai import Agent
 
         if effort not in m.efforts:
             raise KeyError(f"{m.id} has no effort {effort!r}; have {sorted(m.efforts)}")
@@ -262,9 +275,12 @@ class Client:
         self._agent_cls = Agent
 
     async def _run(self, agent: Agent[None, str], user: str, streamed: _Streamed) -> AgentRunResult:
-        """One model call. Driving the run node by node streams every model request through
-        `streamed` and keeps the last response, so a failure can be classified by how the
-        reply ended (its finish reason)."""
+        """One model call.
+
+        Driving the run node by node streams every model request through `streamed` and keeps
+        the last response, so a failure can be classified by how the reply ended (its finish
+        reason). A reply the server did not finish raises _UnfinishedReplyError.
+        """
         settings = cast("ModelSettings", self.settings)  # plus provider fields (extra_body)
         async with agent.iter(user, model_settings=settings) as run:
             async for node in run:
@@ -273,12 +289,14 @@ class Client:
                         await streamed.collect(run.ctx, events)
                 elif agent.is_call_tools_node(node):
                     streamed.response = node.model_response
-            assert run.result is not None, "the agent run did not finish"
-            return run.result
+            if run.result is None:
+                raise RuntimeError("the agent run did not finish")
+            result = run.result
+        if not _finished(result.response):
+            raise _UnfinishedReplyError("the answer was cut off")
+        return result
 
     async def generate(self, system: str, user: str) -> Generation:
-        from pydantic_ai.exceptions import UnexpectedModelBehavior
-        from pydantic_ai.messages import ThinkingPart
 
         # retries=0: pydantic-ai would otherwise re-prompt the model after an empty
         # answer, a hidden retry that would change the conversation being measured.
@@ -289,9 +307,7 @@ class Client:
             streamed = _Streamed()
             try:
                 r = await self._run(agent, user, streamed)
-                if not _finished(r.response):
-                    raise _UnfinishedReplyError("the answer was cut off")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 (any failure is retried or recorded)
                 last_err = e
                 elapsed = time.monotonic() - t0
                 # The budget is tokens (max_tokens), not wall-clock time: slow hardware must not
@@ -305,8 +321,11 @@ class Client:
                 # token budget, or it ended its reply without an answer. What it wrote is kept.
                 # A reply the server never finished (an empty stream, or one that stopped with no
                 # finish reason because the server died mid-answer) is the endpoint's failure.
-                if isinstance(e, UnexpectedModelBehavior) and _finished(streamed.response):
-                    assert streamed.response is not None
+                if (
+                    isinstance(e, UnexpectedModelBehavior)
+                    and streamed.response is not None
+                    and _finished(streamed.response)
+                ):
                     # The server stops at exactly max_tokens when the budget runs out.
                     budget = "token limit" in str(e)
                     used = streamed.response.usage

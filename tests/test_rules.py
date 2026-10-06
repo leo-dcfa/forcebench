@@ -1,5 +1,6 @@
 from forcebench.graders._rules import check_rule, resolve
 
+
 DOC = {
     "edition": "Enterprise",
     "features": ["Communities", "MultiCurrency", "ContributorsPlus:5"],

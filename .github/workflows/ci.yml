@@ -30,6 +30,11 @@ jobs:
         run: |
           uv run ruff check
           uv run ruff format --check
+      - name: Pre-commit checks on every file
+        # The shell hooks use the system's shellcheck (on the runner already) and shfmt.
+        run: |
+          sudo apt-get install -y --no-install-recommends shfmt
+          uvx pre-commit run --all-files --show-diff-on-failure
       - name: Type check
         # pyright, configured in pyproject.toml ([tool.pyright]). The files listed had type errors
         # when this check was added and are skipped until they pass; every other file, new ones

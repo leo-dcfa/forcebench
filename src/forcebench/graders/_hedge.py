@@ -68,6 +68,7 @@ import re
 import unicodedata
 from typing import NamedTuple
 
+
 _LIMIT = 4000
 # Distinct values compared pairwise in one headline, so the check stays cheap on runaway input.
 _MAX_CANDIDATES = 64
@@ -270,8 +271,10 @@ def _is_clause_word(w: str) -> bool:
 
 
 def _restated(conclusion: str, numeric: bool) -> int | None:
-    """Where the value a conclusion restates starts in ``conclusion``, or None when the
-    conclusion is a sentence (a consequence of the answer) rather than a restated value.
+    """Where the value a conclusion restates starts in ``conclusion``, or None.
+
+    It is None when the conclusion is a sentence (a consequence of the answer) rather than a
+    restated value.
 
     After a numeric answer the value is a number that opens the conclusion, followed by a few
     words or by what it is ("5 for this org", "5 is the limit here", "the maximum is thirty
@@ -379,8 +382,11 @@ def headline(value: str) -> str:
 
 
 def committed(value: str) -> str:
-    """The part of the answer its patterns are matched against: all of it, unless it concludes
-    ("X, so Y", "1 + 25 x 2 = 51"); then the conclusion and the explanation after it."""
+    """The part of the answer its patterns are matched against.
+
+    It is all of the answer, unless the answer concludes ("X, so Y", "1 + 25 x 2 = 51"); then it is
+    the conclusion and the explanation after it.
+    """
     p = _parts(value)
     if (p.start, p.end) == (0, p.cut):
         return value
@@ -405,8 +411,10 @@ def _close(x: float, y: float) -> bool:
 
 
 def _same(a: re.Match[str], b: re.Match[str]) -> bool:
-    """The same candidate: one quantity in any units, or a bare number and that number with a
-    unit ("12 MB ... 12")."""
+    """The same candidate: one quantity in any units, or a bare number and that number with a unit.
+
+    For example, "12 MB ... 12".
+    """
     qa, qb = _quantity(a), _quantity(b)
     if not (qa[0] and qb[0]):
         return _close(_raw(a), _raw(b))
@@ -431,8 +439,11 @@ def _word_values(s: str) -> list[float]:
 
 
 def _is_context(seg: str, m: re.Match[str], stated: set[float]) -> bool:
-    """Whether a number is context, not a candidate. A number the prompt states is context only
-    with a label ("for 20 leads"): offered on its own ("61, 60") it is a candidate."""
+    """Whether a number is context, not a candidate.
+
+    A number the prompt states is context only with a label ("for 20 leads"): offered on its own
+    ("61, 60") it is a candidate.
+    """
     if _CONTEXT_BEFORE_RE.search(seg[max(0, m.start() - 40) : m.start()]):
         return True
     return (
@@ -443,10 +454,12 @@ def _is_context(seg: str, m: re.Match[str], stated: set[float]) -> bool:
 
 
 def _offers_a_name(phrase: str) -> bool:
-    """Whether the phrase after an "or" offers another candidate ("flow", "just the flow", "use
-    a flow", "in some cases the flow", "Lightning Web Security") rather than something to do,
-    a place or a qualifier ("search Quick Find", "call /limits", "enable it in Setup", "via
-    Quick Find", "later", "so")."""
+    """Whether the phrase after an "or" offers another candidate.
+
+    Candidates: "flow", "just the flow", "use a flow", "in some cases the flow",
+    "Lightning Web Security". Not candidates: something to do, a place or a qualifier
+    ("search Quick Find", "call /limits", "enable it in Setup", "via Quick Find", "later", "so").
+    """
     phrase = _CASES_RE.sub(" ", phrase)
     words = [w for w in _TOKEN_RE.findall(phrase.lower()) if w not in _FILLER]
     if not words:
@@ -468,9 +481,11 @@ class _Head(NamedTuple):
 
 
 def _aside_offers_another(named: str, head: _Head) -> bool:
-    """Whether an "(or ...)" aside names a candidate other than the headline's. After "or" a
-    labelled value ("(or up to 50)") or a number the prompt states ("61 (or 60)") is an
-    alternative too; only a rate's period, an API version or a release name is not."""
+    """Whether an "(or ...)" aside names a candidate other than the headline's.
+
+    After "or" a labelled value ("(or up to 50)") or a number the prompt states ("61 (or 60)") is
+    an alternative too; only a rate's period, an API version or a release name is not.
+    """
     if not head.numeric:
         return _has_number(named) or _offers_a_name(named)
     for m in _NUMBER_RE.finditer(named):
@@ -489,8 +504,11 @@ def _label(seg: str, m: re.Match[str]) -> tuple[str, ...]:
 
 
 def _alternatives(a: tuple[str, ...], b: tuple[str, ...]) -> bool:
-    """Whether two numbers with these labels are offered as alternatives: nothing tells them
-    apart, or one is bare and the other only carries a noun ("25, 50 requests")."""
+    """Whether two numbers with these labels are offered as alternatives.
+
+    They are when nothing tells them apart, or when one is bare and the other only carries a noun
+    ("25, 50 requests").
+    """
     if a == b:
         return True
     plain = [lab for lab in (a, b) if lab]
@@ -498,10 +516,12 @@ def _alternatives(a: tuple[str, ...], b: tuple[str, ...]) -> bool:
 
 
 def _or_offers_another(head: str) -> bool:
-    """Whether an "or" in the headline offers another candidate: between two different numbers
-    ("1 or 50", "1 or fifty"; not "10 seconds or 10,000 ms"), or, in an answer without numbers,
-    before its first comma or right after a comma, followed by a name ("trigger or flow",
-    "trigger, or flow"; not "Session Settings, or search Quick Find")."""
+    """Whether an "or" in the headline offers another candidate.
+
+    It does between two different numbers ("1 or 50", "1 or fifty"; not "10 seconds or 10,000 ms"),
+    or, in an answer without numbers, before its first comma or right after a comma, followed by a
+    name ("trigger or flow", "trigger, or flow"; not "Session Settings, or search Quick Find").
+    """
     if _has_number(head):
         for before, after in itertools.pairwise(re.split(r"\bor\b", head, flags=re.I)):
             left = list(_NUMBER_RE.finditer(before))

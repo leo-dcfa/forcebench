@@ -4,7 +4,7 @@ Not imported at runtime. Run it when a new Salesforce release ships (see scratch
 
     uv run python src/forcebench/data/scratch-def-build.py \
         --schemas <dir of the unpacked @salesforce/schemas npm package> \
-        --features-doc <get_document_content JSON of sfdx_dev_scratch_orgs_def_file_config_values.htm> \
+        --features-doc <get_document_content JSON of the FEATURES_URL page> \
         --wsdl <metadata WSDL downloaded from a scratch org> \
         --md-types <`sf org list metadata-types --json` output from the same org> \
         --retrieved YYYY-MM-DD
@@ -23,6 +23,7 @@ import re
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
 
 HERE = Path(__file__).resolve().parent
 XSD = "{http://www.w3.org/2001/XMLSchema}"
@@ -141,9 +142,11 @@ def build_features(doc_json: Path, schema: dict, retrieved: str) -> dict:
 
 
 def build_settings(wsdl: Path, md_types: Path, retrieved: str) -> dict:
-    root = ET.parse(wsdl).getroot()
+    # The metadata WSDL the maintainer downloaded from their own scratch org.
+    root = ET.parse(wsdl).getroot()  # noqa: S314
     schema = root.find(f".//{XSD}schema")
-    assert schema is not None
+    if schema is None:
+        raise ValueError(f"{wsdl}: no XML schema in the WSDL")
     complex_types = {c.get("name"): c for c in schema.findall(f"{XSD}complexType")}
     simple_types = {s.get("name"): s for s in schema.findall(f"{XSD}simpleType")}
     header = (wsdl.read_text()[:400]).split("Metadata API version", 1)

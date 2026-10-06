@@ -33,7 +33,10 @@ sf project deploy start --source-dir force-app --target-org "$FB_ORG" --wait 30
 
 echo "==> assigning permission set"
 if ! out=$(sf org assign permset --name Forcebench_Base_Data --target-org "$FB_ORG" 2>&1); then
-  grep -q "Duplicate PermissionSetAssignment" <<<"$out" || { echo "$out" >&2; exit 1; }
+  grep -q "Duplicate PermissionSetAssignment" <<<"$out" || {
+    echo "$out" >&2
+    exit 1
+  }
 fi
 
 work=$(mktemp -d)
@@ -41,7 +44,7 @@ trap 'rm -rf "$work"' EXIT
 "$PY" -I data/seed.py build "$work"
 
 echo "==> wiping seeded objects"
-"$PY" -I data/seed.py wipe "$FB_ORG"  # re-checks the lock itself: registered base org only
+"$PY" -I data/seed.py wipe "$FB_ORG" # re-checks the lock itself: registered base org only
 
 echo "==> importing seed data"
 quiet sf data import tree --plan "$work/plan.json" --target-org "$FB_ORG"

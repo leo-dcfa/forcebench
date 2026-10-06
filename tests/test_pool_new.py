@@ -2,7 +2,8 @@
 
 The public suites here are the small alpha and beta fixtures: a real suite's numbered ids
 (<suite>-p001, ...) are real private task ids, which leakcheck rightly refuses to see in this
-repository."""
+repository.
+"""
 
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from typer.testing import CliRunner
 from forcebench.cli import app
 from forcebench.pool import init_private_dir, load_private_pool
 from forcebench.tasks import EVERY_STATUS, all_tasks, load_suites
+
 
 PUBLIC_FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 
@@ -39,7 +41,8 @@ def test_a_new_task_is_a_loadable_draft_with_the_pools_canary(pool):
         "draft",
         "private",
     )
-    assert loaded.canary_guid in task.canary and task.authors == ["leo"]
+    assert loaded.canary_guid in task.canary
+    assert task.authors == ["leo"]
     assert loaded.exposure["alpha-fresh-question"] == []
     assert all_tasks(load_suites(pool="private", private=loaded)) == [], "a draft is never run"
     checked = CliRunner().invoke(app, ["validate", "--pool", "private", "--no-org"])
@@ -50,7 +53,8 @@ def test_a_new_task_needs_a_known_suite_and_a_fresh_id(pool):
     assert CliRunner().invoke(app, ["private", "new", "nosuch-question"]).exit_code == 2
     assert CliRunner().invoke(app, ["private", "new", "alpha-twice"]).exit_code == 0
     again = CliRunner().invoke(app, ["private", "new", "alpha-twice"])
-    assert again.exit_code == 1 and "already exists" in again.output
+    assert again.exit_code == 1
+    assert "already exists" in again.output
 
 
 def test_without_an_id_the_suite_gets_its_next_numbered_one(pool):
@@ -81,7 +85,8 @@ def test_a_new_task_needs_an_id_or_a_suite_and_known_values(pool):
 def test_a_public_id_is_refused(pool):
     public = all_tasks(load_suites(["alpha"]))[0].id
     result = CliRunner().invoke(app, ["private", "new", public])
-    assert result.exit_code == 1 and "public task id" in result.output
+    assert result.exit_code == 1
+    assert "public task id" in result.output
     assert not list((pool / "suites").glob("*/tasks/*.yaml"))
 
 
@@ -96,7 +101,8 @@ def test_a_numbered_id_a_past_run_used_is_never_given_out_again(pool):
 def test_an_id_another_suite_has_is_refused(pool):
     assert CliRunner().invoke(app, ["private", "new", "alpha-shared-name"]).exit_code == 0
     again = CliRunner().invoke(app, ["private", "new", "alpha-shared-name", "--suite", "beta"])
-    assert again.exit_code == 1 and "already exists" in again.output
+    assert again.exit_code == 1
+    assert "already exists" in again.output
 
 
 def test_a_pool_it_cannot_write_is_reported_without_its_path(pool):
@@ -107,5 +113,6 @@ def test_a_pool_it_cannot_write_is_reported_without_its_path(pool):
         result = CliRunner().invoke(app, ["private", "new", "--suite", "beta"])
     finally:
         tasks.chmod(0o700)
-    assert result.exit_code == 1 and "could not read or write the private pool" in result.output
+    assert result.exit_code == 1
+    assert "could not read or write the private pool" in result.output
     assert str(pool) not in result.output

@@ -20,6 +20,7 @@ from huggingface_hub.errors import HfHubHTTPError
 
 from forcebench.pool import PrivatePool
 
+
 # What a run holds that is worth keeping: its metadata, its graded cases and its full replies.
 # Grading artifacts and locks stay behind.
 RUN_FILES = ("run.json", "cases.jsonl", "raw/generations.jsonl")
@@ -52,8 +53,10 @@ class Backup:
 
 
 def collect(pool: PrivatePool) -> Backup:
-    """The files to upload, after checking every run in the pool's results: a private run with
-    the pool's canary, and no symbolic links among its files."""
+    """The files to upload, after checking every run in the pool's results.
+
+    Each must be a private run with the pool's canary, with no symbolic links among its files.
+    """
     runs: list[str] = []
     files: dict[str, Path] = {}
     for meta_path in sorted(pool.runs_dir.glob("*/run.json")):

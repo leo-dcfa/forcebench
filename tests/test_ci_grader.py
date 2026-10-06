@@ -143,7 +143,8 @@ def test_script_parser_splits_and_resolves():
         "exit 1",
     ]
     assert all(c.errexit and c.pipefail for c in cmds)
-    assert cmds[4].conditional and cmds[4].script_exits
+    assert cmds[4].conditional
+    assert cmds[4].script_exits
 
 
 def test_script_parser_substitutions():
@@ -573,7 +574,10 @@ def test_permissions_constraint():
 
 def test_concurrency_constraint():
     exp = [{"command": "org list", "concurrency": True}]
-    base = "on: push\n{c}jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: sf org list\n"
+    base = (
+        "on: push\n{c}jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - run: sf org list\n"
+    )
     assert passes(base.format(c="concurrency: prod-deploy\n"), {"expect": exp})
     assert passes(
         base.format(c="concurrency: {group: x, cancel-in-progress: false}\n"), {"expect": exp}
@@ -595,7 +599,8 @@ def test_process_substitution_and_npx():
         'sf org login jwt -i x -o y -f <(echo "$KEY") -a prod\nnpx sf org list\n', {}, "script"
     )
     unit = parse_unit("npx @salesforce/cli@latest org list\n", "script")
-    assert unit.items[0].kind == "sf" and unit.items[0].pc.valid
+    assert unit.items[0].kind == "sf"
+    assert unit.items[0].pc.valid
 
 
 def test_from_json_in_conditions():

@@ -1,0 +1,4 @@
+# dockerfilelint (.pre-commit-config.yaml). Dockerfile.harnesses is built FROM a build argument,
+# whose default names the image; the tag comes with the argument.
+rules:
+  missing_tag: off

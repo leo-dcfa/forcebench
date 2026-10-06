@@ -1,5 +1,7 @@
-"""Backing up private runs: only private runs of this pool, only to a private dataset. Runs on a
-made-up pool in a temporary directory; the dataset's name is put together at run time."""
+"""Backing up private runs: only private runs of this pool, only to a private dataset.
+
+Runs on a made-up pool in a temporary directory; the dataset's name is put together at run time.
+"""
 
 import json
 import subprocess
@@ -11,6 +13,7 @@ from typer.testing import CliRunner
 from forcebench.cli import app
 from forcebench.pool import init_private_dir, load_private_pool
 from forcebench.private_backup import BackupError, collect, push
+
 
 DATASET = "someone/" + "held-out" + "-traces"
 RUN = "20261005T000000Z_model-a@low"
@@ -105,7 +108,8 @@ def test_the_public_traces_dataset_never_receives_private_runs(pool):
 def test_the_command_uploads_to_the_dataset_named_in_pool_yaml(pool, monkeypatch):
     monkeypatch.setenv("HF_TOKEN", "hf_secret_token_value")
     missing = CliRunner().invoke(app, ["private", "backup", "--yes"])
-    assert missing.exit_code == 1 and "hf_dataset" in missing.output
+    assert missing.exit_code == 1
+    assert "hf_dataset" in missing.output
     (pool.root / "pool.yaml").write_text(
         (pool.root / "pool.yaml").read_text() + f"hf_dataset: {DATASET}\n"
     )
@@ -115,4 +119,5 @@ def test_the_command_uploads_to_the_dataset_named_in_pool_yaml(pool, monkeypatch
     done = CliRunner().invoke(app, ["private", "backup", "--yes"])
     assert done.exit_code == 0, done.output
     assert hub.commits == [sorted(collect(pool).files)]
-    assert "hf_secret_token_value" not in done.output and DATASET not in done.output
+    assert "hf_secret_token_value" not in done.output
+    assert DATASET not in done.output

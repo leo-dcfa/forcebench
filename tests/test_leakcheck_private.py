@@ -1,6 +1,8 @@
-"""The denylist: a made-up private pool, and what it catches. Its names are put together at
-run time: spelt out, they would be found in this very file when the repository is checked
-against the made-up pool."""
+"""The denylist: a made-up private pool, and what it catches.
+
+Its names are put together at run time: spelt out, they would be found in this very file when the
+repository is checked against the made-up pool.
+"""
 
 import subprocess
 from pathlib import Path
@@ -12,6 +14,7 @@ from forcebench.cli import app
 from forcebench.leakcheck import check, check_tracked
 from forcebench.leakcheck.private import denylist, nothing_from_the_private_pool
 from forcebench.pool import init_private_dir
+
 
 TASK_ID = "docs-denylist-" + "sample"
 HIDDEN = "FB_Denylist" + "SampleTest"
@@ -110,7 +113,8 @@ def test_the_command_says_what_it_checked_and_fails_on_a_broken_pool(pool, monke
     monkeypatch.setenv("FORCEBENCH_PRIVATE_DIR", str(tmp_path / "missing"))
     denylist.cache_clear()
     broken = CliRunner().invoke(app, ["leakcheck"])
-    assert broken.exit_code == 1 and "not a directory" in broken.output
+    assert broken.exit_code == 1
+    assert "not a directory" in broken.output
 
 
 def test_the_repository_names_nothing_from_the_made_up_pool(pool):
@@ -137,9 +141,9 @@ def test_the_pools_hugging_face_dataset_is_found(pool):
 
 
 def test_inside_a_git_hook_the_pools_own_repository_is_read(pool, monkeypatch):
-    """git sets GIT_DIR and GIT_INDEX_FILE for the public repository while its hooks run."""
+    """Git sets GIT_DIR and GIT_INDEX_FILE for the public repository while its hooks run."""
     public = subprocess.run(
-        ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True
+        ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True, check=False
     )
     monkeypatch.setenv("GIT_DIR", public.stdout.strip())
     monkeypatch.setenv("GIT_INDEX_FILE", public.stdout.strip() + "/index")

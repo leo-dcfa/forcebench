@@ -26,11 +26,13 @@ def _entry(config_id, score, incomplete=(), subset="full", n_suites=MIN_SUITES +
 def test_every_entry_is_scored_on_the_common_complete_suites():
     data = _data([_entry("a", 0.5, incomplete=["s0"]), _entry("b", 0.8, incomplete=["s1"])])
     prov = provisional(data)
-    assert prov is not None and "lite" not in prov
+    assert prov is not None
+    assert "lite" not in prov
     full = prov["full"]
     assert full["suites"] == [f"s{i}" for i in range(2, MIN_SUITES + 2)]
     assert full["n_tasks"] == 3 * MIN_SUITES
-    assert full["entries"]["b"]["rank"] == 1 and full["entries"]["a"]["rank"] == 2
+    assert full["entries"]["b"]["rank"] == 1
+    assert full["entries"]["a"]["rank"] == 2
     assert full["entries"]["a"]["score"] == 0.5
 
 

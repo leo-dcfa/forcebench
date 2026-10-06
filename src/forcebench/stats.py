@@ -12,6 +12,7 @@ import math
 import random
 from collections.abc import Mapping, Sequence
 
+
 N_BOOT = 10_000
 SEED = 20260926
 

@@ -37,7 +37,7 @@ proj="$work/project"
 mkdir -p "$proj/apex-mocks" "$proj/apex-common"
 cp -R "$mocks/sfdx-source/apex-mocks/main" "$proj/apex-mocks/main"
 cp -R "$common/sfdx-source/apex-common/main" "$proj/apex-common/main"
-cat > "$proj/sfdx-project.json" <<JSON
+cat >"$proj/sfdx-project.json" <<JSON
 {
   "packageDirectories": [
     { "path": "apex-mocks", "default": true },

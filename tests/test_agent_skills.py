@@ -1,5 +1,8 @@
-"""Skill packs for agent runs (forcebench.agent.skills): the manifest, and that only the pinned
-files are ever mounted. Packs are fetched here from a local repository, never the network."""
+"""Skill packs for agent runs (forcebench.agent.skills).
+
+The manifest, and that only the pinned files are ever mounted. Packs are fetched here from a local
+repository, never the network.
+"""
 
 import json
 import shutil
@@ -13,8 +16,10 @@ from forcebench.agent.skills import load_pack, prepare, skill_block, tree_sha256
 
 def test_the_shipped_pack_is_pinned():
     pack = load_pack("sf-skills")
-    assert len(pack.commit) == 40 and len(pack.sha256) == 64
-    assert "platform-apex-generate" in pack.skills and len(pack.skills) == 16
+    assert len(pack.commit) == 40
+    assert len(pack.sha256) == 64
+    assert "platform-apex-generate" in pack.skills
+    assert len(pack.skills) == 16
     assert set(pack.describe()) == {"name", "version", "source", "commit", "skills", "sha256"}
 
 
@@ -113,7 +118,8 @@ def test_a_symlink_in_a_pack_is_refused(upstream):
 def test_preloading_names_skills_by_suite(upstream):
     _, write, _ = upstream
     pack = write(preload={"apex": ["apex"]})
-    assert pack.preload_for("apex") == ("apex",) and pack.preload_for("lwc") == ()
+    assert pack.preload_for("apex") == ("apex",)
+    assert pack.preload_for("lwc") == ()
     with pytest.raises(ValueError, match="preload for apex"):
         write(preload={"apex": ["other"]})  # in the repository, not in the pack
     assert load_pack("sf-skills").preload_for("permissions") == (
@@ -135,5 +141,7 @@ def test_a_skill_block_is_what_opencode_hands_the_model(tmp_path):
     )
     assert "name: apex" not in block, "front matter is left out"
     assert "Base directory for this skill: /m/apex\n" in block
-    assert block.count("<file>") == 10 and "<file>/m/apex/assets/f00.cls</file>" in block
-    assert "SKILL.md</file>" not in block and block.endswith("</skill_files>\n</skill_content>")
+    assert block.count("<file>") == 10
+    assert "<file>/m/apex/assets/f00.cls</file>" in block
+    assert "SKILL.md</file>" not in block
+    assert block.endswith("</skill_files>\n</skill_content>")
