@@ -185,7 +185,8 @@ async def test_empty_reply_the_model_finished_is_scored_as_no_answer(monkeypatch
 async def test_reply_the_server_aborted_is_not_scored(monkeypatch, reason, deltas):
     # vLLM and SGLang end an aborted request with finish_reason "abort" (or "error").
     gen, _ = await _generate(monkeypatch, _sse(deltas, finish_reason=reason))
-    assert gen.error is not None and "not finished" in gen.error
+    assert gen.error is not None
+    assert "not finished" in gen.error
     assert reason in gen.error
 
 
@@ -230,8 +231,10 @@ ANSWER = _sse([{"role": "assistant", "content": "Answer: x"}])
 async def test_client_errors_that_cannot_succeed_are_not_retried(monkeypatch, no_backoff, code):
     gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
     assert requests == 1, "a bad request is not sent again"
-    assert gen.error is not None and f"client error {code}, not retried" in gen.error
-    assert gen.attempts == 1 and gen.text == ""
+    assert gen.error is not None
+    assert f"client error {code}, not retried" in gen.error
+    assert gen.attempts == 1
+    assert gen.text == ""
 
 
 @pytest.mark.asyncio
@@ -239,14 +242,18 @@ async def test_client_errors_that_cannot_succeed_are_not_retried(monkeypatch, no
 async def test_transient_errors_are_retried(monkeypatch, no_backoff, code):
     gen, requests = await _generate(monkeypatch, _Status(code), ANSWER, retries=4)
     assert requests == 2
-    assert gen.error is None and gen.text == "Answer: x" and gen.attempts == 2
+    assert gen.error is None
+    assert gen.text == "Answer: x"
+    assert gen.attempts == 2
 
 
 @pytest.mark.asyncio
 async def test_retries_stop_at_the_limit_and_leave_the_answer_unscored(monkeypatch, no_backoff):
     gen, requests = await _generate(monkeypatch, _Status(429), retries=3)
     assert requests == 3
-    assert gen.error is not None and "not retried" not in gen.error and gen.attempts == 3
+    assert gen.error is not None
+    assert "not retried" not in gen.error
+    assert gen.attempts == 3
 
 
 def _google_config(**overrides: Any):

@@ -50,11 +50,14 @@ def test_the_configuration_wins_over_the_harness():
     }
     out = rewrite(body, "served-name", inject, 32768)
     assert out["model"] == "served-name"
-    assert out["temperature"] == 1.0 and "top_p" not in out  # sampling is the config's only
-    assert out["max_tokens"] == 32768 and "max_completion_tokens" not in out
+    assert out["temperature"] == 1.0
+    assert "top_p" not in out
+    assert out["max_tokens"] == 32768
+    assert "max_completion_tokens" not in out
     # How the model reasons is the configuration's alone: none of the harness's switches survive.
     assert out["chat_template_kwargs"] == {"reasoning_effort": 75, "thinking": True}
-    assert "reasoning_effort" not in out and "seed" not in out
+    assert "reasoning_effort" not in out
+    assert "seed" not in out
     assert out["stream_options"] == {"include_usage": True}
     assert out["messages"] == body["messages"]
 
@@ -69,7 +72,8 @@ def test_merge_is_recursive_and_the_extra_side_wins():
 
 def test_the_budget_refuses_once_requests_or_tokens_are_spent():
     b = Budget(max_requests=2, max_output_tokens=100)
-    assert b.take() is None and b.take() is None
+    assert b.take() is None
+    assert b.take() is None
     assert "request budget" in (b.take() or "")
     b = Budget(max_requests=0, max_output_tokens=100)
     assert b.take() is None
@@ -154,7 +158,8 @@ def _post(url: str, body: dict) -> tuple[int, bytes]:
 def test_a_request_goes_through_rewritten_and_is_logged(servers):
     url, log = servers
     status, body = _post(url, {"model": "model", "messages": [], "stream": True, "temperature": 0})
-    assert status == 200 and b"Answer: B" in body
+    assert status == 200
+    assert b"Answer: B" in body
     sent = _Upstream.seen[0]
     assert sent["path"] == "/v1/chat/completions"
     assert sent["auth"] == "Bearer secret"  # the key is added here; the agent never has it
@@ -172,7 +177,8 @@ def test_a_spent_budget_ends_the_session(servers):
     url, log = servers
     assert _post(url, {"messages": [], "stream": True})[0] == 200
     status, body = _post(url, {"messages": [], "stream": True})
-    assert status == 400 and b"budget exhausted" in body
+    assert status == 400
+    assert b"budget exhausted" in body
     assert len(_Upstream.seen) == 1, "nothing more reaches the model"
     assert "refused" in json.loads(log.read_text().splitlines()[-1])
 
@@ -182,7 +188,8 @@ def test_only_chat_completions_are_proxied(servers):
     req = request.Request(url.replace("/v1", "/admin"), b"{}", {"Content-Type": "application/json"})
     with pytest.raises(error.HTTPError) as e:
         request.urlopen(req, timeout=10)
-    assert e.value.code == 404 and not _Upstream.seen
+    assert e.value.code == 404
+    assert not _Upstream.seen
     with request.urlopen(url + "/models", timeout=10) as r:
         assert json.loads(r.read())["data"][0]["id"] == "model"
 
@@ -204,17 +211,20 @@ def test_an_anthropic_request_reaches_the_server_as_a_chat_completion(servers):
     with request.urlopen(req, timeout=10) as r:
         events = _events(r.read())
     sent = _Upstream.seen[0]
-    assert sent["path"] == "/v1/chat/completions" and sent["auth"] == "Bearer secret"
+    assert sent["path"] == "/v1/chat/completions"
+    assert sent["auth"] == "Bearer secret"
     assert sent["body"]["messages"] == [
         {"role": "system", "content": "Be brief."},
         {"role": "user", "content": "hi"},
     ]
-    assert sent["body"]["model"] == "served-name" and sent["body"]["max_tokens"] == 32768
+    assert sent["body"]["model"] == "served-name"
+    assert sent["body"]["max_tokens"] == 32768
     assert sent["body"]["chat_template_kwargs"] == {"reasoning_effort": "high"}
     for k in ("thinking", "output_config", "temperature", "system"):
         assert k not in sent["body"], "the harness can't change how the model thinks"
     kinds = [e["type"] for e in events]
-    assert kinds[:2] == ["message_start", "ping"] and kinds[-2:] == [
+    assert kinds[:2] == ["message_start", "ping"]
+    assert kinds[-2:] == [
         "message_delta",
         "message_stop",
     ]
@@ -238,7 +248,8 @@ def test_a_spent_budget_answers_an_anthropic_harness_in_its_own_shape(servers):
     with pytest.raises(error.HTTPError) as e:
         request.urlopen(req, timeout=10)
     body = json.loads(e.value.read())
-    assert e.value.code == 400 and body["type"] == "error"
+    assert e.value.code == 400
+    assert body["type"] == "error"
     assert "budget exhausted" in body["error"]["message"]
 
 
@@ -295,7 +306,8 @@ def test_a_conversation_is_translated_block_by_block():
         {"type": "function", "function": {"name": "Read", "description": "Read a file",
                                           "parameters": {"type": "object"}}},
     ], "server tools need Anthropic's servers: not offered"  # fmt: skip
-    assert out["tool_choice"] == "required" and out["stop"] == ["END"]
+    assert out["tool_choice"] == "required"
+    assert out["stop"] == ["END"]
 
 
 def test_a_stream_is_translated_one_block_at_a_time():

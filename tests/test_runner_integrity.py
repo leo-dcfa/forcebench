@@ -162,7 +162,8 @@ def test_answer_to_an_older_task_version_is_not_graded_against_the_new_one(
 ):
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     (case,) = _grade(run_dir, [_task(make_task, version=2)])
-    assert case["stale"] and "stale" in case["skipped"]
+    assert case["stale"]
+    assert "stale" in case["skipped"]
     assert case["task_version"] == 1, "the answer's own version, which the report leaves out"
     assert (case["passed"], case["checks"]) == (False, [])
 
@@ -294,7 +295,8 @@ def test_cli_resume_with_another_effort_fails_clearly(model, make_task, tmp_path
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
     result = CliRunner().invoke(app, ["run", "--resume", str(run_dir), "-e", "xhigh", "--no-grade"])
     assert result.exit_code == 1
-    assert "cannot resume" in result.output and "'low'" in result.output
+    assert "cannot resume" in result.output
+    assert "'low'" in result.output
     assert len(model.prompts) == 1
 
 

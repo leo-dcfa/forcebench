@@ -73,19 +73,26 @@ def test_the_dataset_holds_public_runs_graded_answers_with_their_canary(tree, tm
     out = tmp_path / "dataset"
     summary = build(_suites(tree), tree / "results", out, CARD, TERMS, set())
     records = _records(out)
-    assert summary["runs"] == {RUN: len(records)} and records, "only the run with raw replies"
+    assert summary["runs"] == {RUN: len(records)}, "only the run with raw replies"
+    assert records, "only the run with raw replies"
     rec = records[0]
-    assert rec["canary"] == CANARY and rec["reasoning"] == "I think it is x."
+    assert rec["canary"] == CANARY
+    assert rec["reasoning"] == "I think it is x."
     assert not {"provider", "endpoint_model", "request"} & set(rec), "no provider or endpoint"
     cases = (tree / "results" / "runs" / RUN / "cases.jsonl").read_text().splitlines()
     case = next(c for c in map(json.loads, cases) if c["task_id"] == rec["task_id"])
-    assert "prompt" not in rec and rec["prompt_sha"] == case["prompt_sha"], "the hash, no prompt"
-    assert rec["open_material"] is False and rec["hosted_model_output"] is False
+    assert "prompt" not in rec, "the hash, no prompt"
+    assert rec["prompt_sha"] == case["prompt_sha"], "the hash, no prompt"
+    assert rec["open_material"] is False
+    assert rec["hosted_model_output"] is False
     card = (out / "README.md").read_text()
-    assert "@@" not in card and CANARY in card and "extra_gated_fields" in card
+    assert "@@" not in card
+    assert CANARY in card
+    assert "extra_gated_fields" in card
     assert "https://forcebench.ai/privacy/" in card
     terms = (out / "LICENSE.md").read_text()
-    assert "Azul Labs Pty Ltd (ACN 662 440 913)" in terms and "DRAFT" not in terms
+    assert "Azul Labs Pty Ltd (ACN 662 440 913)" in terms
+    assert "DRAFT" not in terms
 
 
 def test_a_private_run_in_the_results_refuses_the_whole_build(tree, tmp_path):
@@ -159,7 +166,8 @@ def test_only_a_private_or_gated_dataset_receives_the_traces(built, hub, allowed
     out, public = built
     assert repo_state(hub, "someone/traces") == (allowed, state)
     if allowed:
-        assert push(out, "someone/traces", public, hub, "msg") > 0 and hub.uploads
+        assert push(out, "someone/traces", public, hub, "msg") > 0
+        assert hub.uploads
     else:
         with pytest.raises(PushError, match="not gated"):
             push(out, "someone/traces", public, hub, "msg")
@@ -177,8 +185,10 @@ def test_the_push_command_needs_its_settings_and_never_prints_the_token(built, m
     hub = FakeHub()
     monkeypatch.setattr("forcebench.traces_push.hub", lambda token: hub)
     refused = CliRunner().invoke(app, ["traces", "push", "--dir", str(out), "--yes"])
-    assert refused.exit_code == 1 and "public and not gated" in refused.output
-    assert "hf_secret_token_value" not in refused.output and hub.uploads == []
+    assert refused.exit_code == 1
+    assert "public and not gated" in refused.output
+    assert "hf_secret_token_value" not in refused.output
+    assert hub.uploads == []
 
 
 @pytest.mark.parametrize("status", [401, 404])
@@ -194,7 +204,8 @@ def test_without_the_traces_extra_the_push_says_how_to_get_it(built, monkeypatch
     out, _ = built
     monkeypatch.setitem(sys.modules, "forcebench.traces_push", None)
     result = CliRunner().invoke(app, ["traces", "push", "--dir", str(out)])
-    assert result.exit_code == 1 and "--extra traces" in result.output
+    assert result.exit_code == 1
+    assert "--extra traces" in result.output
 
 
 def _keys(node) -> list[str]:
@@ -208,7 +219,8 @@ def _keys(node) -> list[str]:
 def test_the_card_metadata_is_what_hugging_face_accepts():
     """Hugging Face rejects the whole upload if any metadata key holds a dot or a dollar sign."""
     header = yaml.safe_load(CARD.split("---\n")[1])
-    assert header["extra_gated_fields"] and header["license"] == "other"
+    assert header["extra_gated_fields"]
+    assert header["license"] == "other"
     assert not [k for k in _keys(header) if "." in str(k) or "$" in str(k)]
 
 
@@ -231,7 +243,8 @@ def test_an_answer_recorded_without_its_prompt_hash_gets_the_tasks(tree, tmp_pat
     build(_suites(tree), tree / "results", out, CARD, TERMS, set())
     tasks = {t.id: t for s in _suites(tree) for t in s.tasks}
     records = _records(out)
-    assert records and all(r["prompt_sha"] == prompt_sha(tasks[r["task_id"]]) for r in records)
+    assert records
+    assert all(r["prompt_sha"] == prompt_sha(tasks[r["task_id"]]) for r in records)
 
 
 def test_a_reply_once_committed_to_the_repository_is_open_material(tree, tmp_path):
@@ -243,7 +256,8 @@ def test_a_reply_once_committed_to_the_repository_is_open_material(tree, tmp_pat
         _suites(tree), tree / "results", out, CARD, TERMS, {reply_digest(RUN, first["key"], gen)}
     )
     flagged = [r for r in _records(out) if r["open_material"]]
-    assert summary["open_material"] == 1 and len(flagged) == 1
+    assert summary["open_material"] == 1
+    assert len(flagged) == 1
     assert f"{flagged[0]['task_id']}#{flagged[0]['sample']}" == first["key"]
     elsewhere = {reply_digest("20260901T000000Z_other@low", first["key"], gen)}
     summary = build(_suites(tree), tree / "results", out, CARD, TERMS, elsewhere)

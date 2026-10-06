@@ -221,7 +221,8 @@ def _dry_run(target: str) -> list[str]:
 def test_regrade_all_lists_runs_in_python_not_in_the_shell():
     lines = _dry_run("regrade-all")
     docker = [ln for ln in lines if ln.startswith("docker run")]
-    assert len(docker) == 2 and len(lines) == 3  # and the host-side results symlink guard
+    assert len(docker) == 2
+    assert len(lines) == 3
     assert "grade --all --exclude-grader lwc_jest" in docker[0]
     assert "--network none" in docker[1]
     assert "grade --all --only-grader lwc_jest --no-org" in docker[1]
@@ -240,7 +241,8 @@ def test_no_make_target_substitutes_a_run_directory_into_a_recipe():
     for recipe in recipes:
         if "results/runs/*" not in recipe:
             continue
-        assert "$(MAKE)" not in recipe and "ARGS=" not in recipe, recipe
+        assert "$(MAKE)" not in recipe, recipe
+        assert "ARGS=" not in recipe, recipe
         assert "$(RUN_ID_PATTERN)" in recipe, recipe
         unquoted = re.sub(r'"[^"\n]*"', "", recipe)
         assert re.search(r"\$\$[dn]\b", unquoted) is None, "a run directory outside quotes"
@@ -354,5 +356,6 @@ def test_the_offline_grading_passes_check_for_a_symlinked_results_directory(tmp_
         shutil.rmtree(link)
         link.symlink_to(elsewhere if linked == "results" else elsewhere / "runs")
         refused = subprocess.run(["sh", "-c", guard], capture_output=True, text=True, check=False)
-        assert refused.returncode == 1 and "symbolic link" in refused.stderr
+        assert refused.returncode == 1
+        assert "symbolic link" in refused.stderr
         link.unlink()

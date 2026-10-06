@@ -132,7 +132,8 @@ def test_unknown_and_incomplete_commands(m):
 
 def test_non_sf_command_is_shell(m):
     pc = one("cd my-project", m)
-    assert pc.shell and not pc.valid
+    assert pc.shell
+    assert not pc.valid
 
 
 # --------------------------------------------------------------------------- flags
@@ -268,7 +269,8 @@ def test_varargs(m):
     assert one("sf config set target-org=uat", m).varargs()[0] == {"target-org": "uat"}
     assert one("sf config set target-org uat", m).varargs()[0] == {"target-org": "uat"}
     pc = one("sf config set --global target-org=uat org-api-version=62.0", m)
-    assert pc.valid and pc.varargs()[0] == {"target-org": "uat", "org-api-version": "62.0"}
+    assert pc.valid
+    assert pc.varargs()[0] == {"target-org": "uat", "org-api-version": "62.0"}
     assert not one("sf config set target-org uat extra", m).valid
     assert not one("sf alias set", m).valid
 
@@ -293,7 +295,8 @@ def test_split_line_operators_and_redirects():
 
 def test_env_prefix_is_skipped(m):
     pc = one("SF_LOG_LEVEL=debug sf org list", m)
-    assert pc.valid and pc.command.id == "org:list"
+    assert pc.valid
+    assert pc.command.id == "org:list"
 
 
 def test_unbalanced_quotes_fail(m):
@@ -482,14 +485,18 @@ def test_task_errors_raise(m):
 
 def test_redirects_are_captured(m):
     pc = one("sf apex run -o uat < scripts/fix.apex", m)
-    assert pc.valid and pc.stdin == "scripts/fix.apex"
+    assert pc.valid
+    assert pc.stdin == "scripts/fix.apex"
     pc = one("cat scripts/fix.apex | sf apex run -o uat", m)
-    assert pc.valid and pc.stdin == "scripts/fix.apex"
+    assert pc.valid
+    assert pc.stdin == "scripts/fix.apex"
     pc = one("sf data query -q 'SELECT Id FROM Account' -r csv > out.csv 2> err.log", m)
-    assert pc.valid and pc.stdout == "out.csv"
+    assert pc.valid
+    assert pc.stdout == "out.csv"
     # a numeric flag value right before a redirect is not a file descriptor
     pc = one("sf project deploy start -d force-app --wait 10 > deploy.log", m)
-    assert pc.flags["wait"].values == ["10"] and pc.stdout == "deploy.log"
+    assert pc.flags["wait"].values == ["10"]
+    assert pc.stdout == "deploy.log"
 
 
 def test_grade_stdin_matcher(m):
@@ -558,16 +565,20 @@ def test_literal_dollar_is_not_the_variable(m):
 
 def test_adjacent_file_descriptors(m):
     pc = one("sf project deploy start -d force-app --wait 2 > deploy.log", m)
-    assert pc.flags["wait"].values == ["2"] and pc.stdout == "deploy.log"
+    assert pc.flags["wait"].values == ["2"]
+    assert pc.stdout == "deploy.log"
     pc = one("sf data query -q 'SELECT Id FROM Account' 1> out.txt 2>&1", m)
-    assert pc.valid and pc.stdout == "out.txt"
+    assert pc.valid
+    assert pc.stdout == "out.txt"
     pc = one("sf apex run -o uat 0< fix.apex", m)
-    assert pc.valid and pc.stdin == "fix.apex"
+    assert pc.valid
+    assert pc.stdin == "fix.apex"
 
 
 def test_comments_only_at_word_start(m):
     pc = one("sf org open -o qa --path /x#frag  # opens the page", m)
-    assert pc.valid and pc.flags["path"].values == ["/x#frag"]
+    assert pc.valid
+    assert pc.flags["path"].values == ["/x#frag"]
 
 
 def test_launcher_flags_are_ignored(m):

@@ -91,7 +91,8 @@ def test_choice_fallbacks(five, reply, expected):
 )
 def test_choice_fallbacks_never_read_prose(nine, reply):
     a = extract(nine, f"Some reasoning.\n\n{reply}")
-    assert a.choices == [] and a.error, a.choices
+    assert a.choices == [], a.choices
+    assert a.error, a.choices
 
 
 @pytest.mark.parametrize(
@@ -223,7 +224,8 @@ def test_http_comment_lines_are_ignored(make_task):
 def test_http_request_with_only_a_comment_after_it_has_no_body(make_task):
     t = make_task({"format": "http"})
     a = extract(t, "```http\nGET /services/data/v67.0/limits HTTP/1.1\n\n# expect 200\n```")
-    assert a.requests[0].raw_body == "" and a.requests[0].body is None
+    assert a.requests[0].raw_body == ""
+    assert a.requests[0].body is None
 
 
 # --------------------------------------------------------------------------- line endings
