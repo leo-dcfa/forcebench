@@ -43,22 +43,98 @@ dev = [
 line-length = 100
 target-version = "py314"
 
-[tool.ruff.lint]
-# PLC0415: imports go at the top of the module, never inside a function.
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N", "PLC0415"]
-ignore = ["E501"]
+[tool.ruff.format]
+quote-style = "double"
 
-# Files that had imports inside functions when PLC0415 was turned on. They are moved to the top
-# file by file; take a file off this list once it passes. Every other file, new ones included,
-# must pass now.
+[tool.ruff.lint]
+select = [
+  "A",  # flake8-builtins
+  "ANN",  # flake8-annotations
+  "ASYNC",  # flake8-async
+  "B",  # flake8-bugbear
+  "BLE",  # flake8-blind-except
+  "C90",  # mccabe
+  "C4",  # flake8-comprehensions
+  "COM",  # flake8-commas
+  "D",  # pydocstyle
+  "DJ",  # flake8-django
+  "DTZ",  # flake8-datetimez
+  "E",  # pycodestyle errors
+  "ERA",  # commented-out code
+  "EXE",  # flake8-executable
+  "F",  # pyflakes
+  "FLY",  # flynt
+  "G",  # flake8-logging-format
+  "I",  # isort
+  "ICN",  # flake8-import-conventions
+  "ISC",  # flake8-implicit-str-concat
+  "LOG",  # flake8-logging
+  "NPY",  # NumPy
+  "PD",  # pandas-vet
+  "PERF",  # perflint
+  "PIE",  # flake8-pie
+  "PLC",  # Pylint conventions (PLC0415: imports at the top of the module only)
+  "PLE",  # Pylint errors
+  "PLW",  # Pylint warnings
+  "PT",  # flake8-pytest-style
+  "PTH",  # flake8-use-pathlib
+  "Q",  # flake8-quotes
+  "RET",  # flake8-return
+  "RUF",  # Ruff's own rules
+  "S",  # flake8-bandit (security)
+  "SIM",  # flake8-simplify
+  "T",  # flake8-debugger and print
+  "TD",  # flake8-todos
+  "TID",  # flake8-tidy-imports (no relative imports)
+  "TRY",  # tryceratops
+  "UP",  # pyupgrade
+  "W",  # pycodestyle warnings
+  "FAST",  # FastAPI
+]
+ignore = [
+  "ANN",  # annotations: pyright checks the types
+  "C901",  # complexity
+  "COM", "COM812",  # trailing commas: the formatter decides
+  "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",  # missing docstrings
+  "D203",  # one of D203 and D211 (this keeps D211)
+  "D213",  # one of D212 and D213 (this keeps D212)
+  "DTZ",  # naive datetimes
+  "E731",  # a lambda assigned to a name
+  "PERF203",  # try/except in a loop is sometimes necessary
+  "PT006", "PT007",  # parametrize argument types
+  "RET503",  # explicit return
+  "RUF012", "RUF013",  # ClassVar annotations, implicit Optional
+  "SIM108",  # a ternary only where it reads better
+  "TRY003",  # long messages outside exception classes
+
+  # Not passing yet: being cleared PR by PR. Take a code off once the code base passes it.
+  "A002", "ASYNC109", "ASYNC240", "BLE001", "C416", "C420", "D205", "D209", "D301", "D403",
+  "D415", "E501", "ERA001", "I001", "ISC004", "PERF101", "PERF401", "PERF402", "PERF403", "PLC0207",
+  "PLW0108", "PLW0603", "PLW1510", "PLW2901", "PT011", "PT018", "RET504", "S101", "S104", "S105",
+  "S311", "S314", "S506", "S603", "S607", "S608", "T201", "TRY004", "TRY300", "TRY301",
+]
+
 [tool.ruff.lint.per-file-ignores]
-# Imports inside functions on purpose: each command imports only what it needs (a fast start, and
-# the optional traces extra may be missing), and each provider's SDK loads only when it is used.
+"tests/**/*.py" = [
+  "B018",  # a useless expression, to check that it raises
+  "S",  # security checks do not apply to tests
+]
+# Not passing yet: imports inside functions, moved to the top in a PR of their own.
 "src/forcebench/cli.py" = ["PLC0415"]
 "src/forcebench/llm.py" = ["PLC0415"]
 
-[tool.ruff.format]
-quote-style = "double"
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
