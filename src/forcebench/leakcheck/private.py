@@ -69,7 +69,9 @@ def _hidden_classes(task_files: list[Path]) -> set[str]:
 
 
 def _copies(root: Path) -> frozenset[str]:
-    listed = _git(root, "ls-files", "-z")
+    """Every file of the pool's repository, tracked or not yet (a task being written), that its
+    .gitignore does not leave out."""
+    listed = _git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
     files = [root / p for p in listed.split("\0") if p] if listed else []
     hashes = set()
     for f in files:
