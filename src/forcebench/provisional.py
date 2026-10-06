@@ -22,8 +22,9 @@ def _r(x: float, nd: int = 4) -> float | None:
 
 
 def provisional(data: dict[str, Any]) -> dict[str, Any] | None:
-    """Per subset with an incomplete entry: the common complete suites and every entry's score
-    on them, ranked. None when there is nothing provisional to publish.
+    """Per subset with an incomplete entry: the common complete suites and every entry's score.
+
+    The scores are on those suites, ranked. None when there is nothing provisional to publish.
     """
     suite_of = {t["id"]: t["suite"] for t in data["tasks"]}
     order = [s["id"] for s in data["suites"]]

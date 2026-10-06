@@ -46,10 +46,12 @@ class Generation(BaseModel):
 
 
 def _count_hidden_output() -> None:
-    """Keep the thinking a server leaves out of completion_tokens. pydantic-ai keeps prompt and
-    completion tokens but drops total_tokens, and some OpenAI-compatible servers (Gemini's) count
-    the model's thinking only in the total. The difference is recorded in the usage details as
-    hidden_output_tokens, so an answer's output includes everything the model generated.
+    """Keep the thinking a server leaves out of completion_tokens.
+
+    pydantic-ai keeps prompt and completion tokens but drops total_tokens, and some
+    OpenAI-compatible servers (Gemini's) count the model's thinking only in the total. The
+    difference is recorded in the usage details as hidden_output_tokens, so an answer's output
+    includes everything the model generated.
     """
     if getattr(oai._map_usage, "forcebench_hidden_output", False):
         return
@@ -75,8 +77,10 @@ def _hidden(used: Any) -> int:
 
 
 def _build_model(m: ModelConfig, p: Provider, timeout: float):
-    """Build the pydantic-ai model with SDK retries OFF: a retry silently restarts the answer,
-    and retrying only the answers that take long biases results towards short answers.
+    """Build the pydantic-ai model with SDK retries OFF.
+
+    A retry silently restarts the answer, and retrying only the answers that take long biases
+    results towards short answers.
     """
     match p.kind:
         case "openai_compatible" | "openai":
@@ -111,9 +115,11 @@ def _settings(m: ModelConfig, effort: str) -> dict[str, Any]:
 
 
 def _check_settings(m: ModelConfig, p: Provider, effort: str, settings: dict[str, Any]) -> None:
-    """Refuse settings the provider would silently drop. pydantic-ai's Google model has no
-    ``extra_body``: sampling keys other than temperature/top_p/seed and every effort field
-    would never reach the API, while the run records them as sent.
+    """Refuse settings the provider would silently drop.
+
+    pydantic-ai's Google model has no ``extra_body``: sampling keys other than
+    temperature/top_p/seed and every effort field would never reach the API, while the run
+    records them as sent.
     """
     if p.kind == "google" and settings.get("extra_body"):
         raise ValueError(
@@ -125,8 +131,9 @@ def _check_settings(m: ModelConfig, p: Provider, effort: str, settings: dict[str
 
 
 def recorded_request(m: ModelConfig, effort: str) -> dict[str, Any]:
-    """The request as a run records it (run.json ``request``): the model settings sent, and
-    how they are sent (streamed, SDK retries off; see Client).
+    """The request as a run records it (run.json ``request``).
+
+    The model settings sent, and how they are sent (streamed, SDK retries off; see Client).
     """
     return {**_settings(m, effort), "stream": True, "sdk_retries": 0}
 
@@ -138,8 +145,9 @@ RETRYABLE_CLIENT_ERRORS = frozenset({408, 409, 425, 429})
 
 
 def _status_code(e: BaseException) -> int | None:
-    """The HTTP status of an endpoint error, from the exception or the ones it was raised from
-    (pydantic-ai's ModelHTTPError wraps the SDK's status error).
+    """The HTTP status of an endpoint error, from the exception or the ones it was raised from.
+
+    pydantic-ai's ModelHTTPError wraps the SDK's status error.
     """
     seen: set[int] = set()
     cur: BaseException | None = e
@@ -183,9 +191,10 @@ def _raw_finish_reason(resp: ModelResponse) -> str | None:
 
 
 def _finished(resp: ModelResponse | None) -> bool:
-    """Whether the server finished the reply, i.e. reported how it ended (stop, length, content
-    filter...). A raw reason pydantic-ai does not map counts too, unless it says the server
-    aborted the request.
+    """Whether the server finished the reply, i.e. reported how it ended.
+
+    The reported end is stop, length, content filter... A raw reason pydantic-ai does not map
+    counts too, unless it says the server aborted the request.
     """
     if resp is None:
         return False
@@ -208,8 +217,10 @@ def _endpoint_error(e: Exception | None, resp: ModelResponse | None = None) -> s
 
 
 class _Streamed:
-    """What the model has streamed so far, per response part. A reply that fails still leaves a
-    record of what the model wrote, e.g. the reasoning that used up the token budget.
+    """What the model has streamed so far, per response part.
+
+    A reply that fails still leaves a record of what the model wrote, e.g. the reasoning that
+    used up the token budget.
     """
 
     def __init__(self) -> None:
@@ -245,8 +256,10 @@ class _Streamed:
 
 
 class Client:
-    """One model configuration. Responses are streamed: proxies commonly cap the time to a
-    complete (non-streamed) response, which would cut off slow machines' long answers.
+    """One model configuration.
+
+    Responses are streamed: proxies commonly cap the time to a complete (non-streamed) response,
+    which would cut off slow machines' long answers.
     """
 
     def __init__(
@@ -262,10 +275,11 @@ class Client:
         self._agent_cls = Agent
 
     async def _run(self, agent: Agent[None, str], user: str, streamed: _Streamed) -> AgentRunResult:
-        """One model call. Driving the run node by node streams every model request through
-        `streamed` and keeps the last response, so a failure can be classified by how the
-        reply ended (its finish reason). A reply the server did not finish raises
-        _UnfinishedReplyError.
+        """One model call.
+
+        Driving the run node by node streams every model request through `streamed` and keeps
+        the last response, so a failure can be classified by how the reply ended (its finish
+        reason). A reply the server did not finish raises _UnfinishedReplyError.
         """
         settings = cast("ModelSettings", self.settings)  # plus provider fields (extra_body)
         async with agent.iter(user, model_settings=settings) as run:

@@ -53,8 +53,9 @@ class Backup:
 
 
 def collect(pool: PrivatePool) -> Backup:
-    """The files to upload, after checking every run in the pool's results: a private run with
-    the pool's canary, and no symbolic links among its files.
+    """The files to upload, after checking every run in the pool's results.
+
+    Each must be a private run with the pool's canary, with no symbolic links among its files.
     """
     runs: list[str] = []
     files: dict[str, Path] = {}

@@ -44,8 +44,10 @@ MIN_NEGATIVES = 2
 
 
 def trivial_outputs(task: Task) -> dict[str, str]:
-    """Answers that took no work, each of which must fail: nothing, the prompt sent back, and by
-    answer format the files as given (or empty), an empty JSON object, or every choice.
+    """Answers that took no work, each of which must fail.
+
+    They are nothing, the prompt sent back, and by answer format the files as given (or empty), an
+    empty JSON object, or every choice.
     """
     out = {"empty": "", "the prompt sent back": render_prompt(task)}
     spec = task.answer
@@ -105,8 +107,9 @@ class CheckResult:
 async def check_task(
     task: Task, env: GradeEnv, public: PublicIndex, *, authored: bool = True
 ) -> CheckResult:
-    """Every check of one task (the module docstring), with the time its grades took. With
-    ``authored`` (the default; not in the offline container, as for validate), every grade runs
+    """Every check of one task (the module docstring), with the time its grades took.
+
+    With ``authored`` (the default; not in the offline container, as for validate), every grade runs
     inside ``lwc.authored_answers()``: all of them are the author's answers, never a model's.
     """
     result = CheckResult(task=task, closest=public.closest(task))
@@ -175,9 +178,10 @@ DETAILS_DIR = ".check-details"
 
 
 def write_details(pool: PrivatePool, result: CheckResult) -> str | None:
-    """The graders' reports of a failed check, in the pool's .check-details/<id>.txt (kept out of
-    its git history), where the author can read them; the path relative to the pool, or None
-    when there are none (an older report is removed).
+    """Write the graders' reports of a failed check where the author can read them.
+
+    They go in the pool's .check-details/<id>.txt (kept out of its git history). Returns the path
+    relative to the pool, or None when there are none (an older report is removed).
     """
     path = pool.root / DETAILS_DIR / f"{result.task.id}.txt"
     if not result.details:
@@ -192,8 +196,10 @@ _STATUS_LINE = re.compile(r"^status:[^\n]*$", re.MULTILINE)
 
 
 def mark_ready(pool: PrivatePool, result: CheckResult, on: dt.date) -> None:
-    """Record a passing check in checks.yaml and, for a draft, change its file's status line to
-    ``status: ready``. The rewritten file must read as the same task, now ready.
+    """Record a passing check in checks.yaml, and make a draft ready.
+
+    A draft's file has its status line changed to ``status: ready``. The rewritten file must read as
+    the same task, now ready.
     """
     task = result.task
     if not result.passed or task.path is None:
@@ -213,8 +219,9 @@ def mark_ready(pool: PrivatePool, result: CheckResult, on: dt.date) -> None:
 
 
 def unready(pool: PrivatePool, task: Task) -> None:
-    """Send a ready task that has failed its check back to draft: its check record goes, and its
-    status line says ``status: draft`` again.
+    """Send a ready task that has failed its check back to draft.
+
+    Its check record goes, and its status line says ``status: draft`` again.
     """
     if task.status != "ready" or task.path is None:
         return

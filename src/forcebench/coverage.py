@@ -59,8 +59,9 @@ def _counts(tasks: list[Task], pool: PrivatePool) -> tuple[Counter, Counter]:
 
 
 def table(tasks: list[Task], targets: dict[str, dict[Difficulty, int]], pool: PrivatePool) -> str:
-    """COVERAGE.md: per suite and difficulty, ready tasks against the target (+ drafts), then
-    the cells furthest from their targets.
+    """COVERAGE.md: per suite and difficulty, ready tasks against the target (+ drafts).
+
+    The table is followed by the cells furthest from their targets.
     """
     ready, drafts = _counts(tasks, pool)
     suites = sorted({*targets, *(s for s, _ in ready + drafts)})
