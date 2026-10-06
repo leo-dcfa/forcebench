@@ -806,9 +806,12 @@ def test_make_backs_private_work_up_from_the_host(tmp_path):
     root = tmp_path / "pool"
     root.mkdir()
     init_private_dir(root)
+    backup = "uv run --quiet --extra traces forcebench private backup --yes"
     for target in ("run", "grade"):
-        private = _make_n(target, root).stdout.splitlines()
-        assert private[-1] == "uv run --quiet --extra traces forcebench private backup --yes"
+        # make may also print "Entering/Leaving directory" lines (MAKEFLAGS -w, as in CI).
+        private = [ln for ln in _make_n(target, root).stdout.splitlines() if "make:" not in ln]
+        assert private[-1] == backup, "after the containers, from the host"
+        assert all(ln.startswith("docker run") for ln in private[:-1] if "docker" in ln)
         public = _make_n(target, root, "public").stdout
         assert "private backup" not in public
 
