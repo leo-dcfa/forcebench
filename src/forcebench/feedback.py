@@ -145,7 +145,9 @@ async def _attempts(
     m, effort, registry, first, chain, by_id, todo, run_dir, concurrency, on_answer
 ):
     meta = read_run(run_dir) or {
-        k: v for k, v in first.items() if k not in ("graded_at", "grader_orgs", "generated_at")
+        k: v
+        for k, v in first.items()
+        if k not in ("graded_at", "grader_orgs", "generated_at", "started_at")
     }
     meta |= {
         "run_id": run_dir.name,
