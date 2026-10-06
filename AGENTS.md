@@ -20,8 +20,9 @@ Read these before running anything. They are not style preferences.
    records or chat. Read them inside commands and code; don't echo them.
 3. **The private task pool** (`FORCEBENCH_PRIVATE_DIR`, [docs/private-pool.md](docs/private-pool.md))
    is never published. Nothing from it (tasks, ids, prompts, results, paths) goes into this
-   repository. Install the pre-commit hook once per clone with `make hooks`; it runs
-   `forcebench leakcheck --staged` on every commit. If it refuses a commit, fix the cause or ask.
+   repository. Install the pre-commit hook once per clone with `make hooks`; it runs the checks
+   of `.pre-commit-config.yaml` (ruff and the file checks) and `forcebench leakcheck --staged`
+   on every commit. If it refuses a commit, fix the cause or ask.
    Never use `--no-verify`.
 4. **Reasoning traces stay private.** A run's `raw/` (full replies and reasoning) and
    `artifacts/` are git-ignored and never published. Only `run.json` and `cases.jsonl` are
@@ -43,7 +44,7 @@ Read these before running anything. They are not style preferences.
 ```bash
 uv sync                      # Python 3.14, pinned in .python-version
 cp .env.example .env         # then fill in the endpoints and keys you use
-make hooks                   # the pre-commit leak check
+make hooks                   # the pre-commit checks and leak check
 make sandbox-build           # the grading sandbox (Docker)
 ```
 
@@ -158,7 +159,7 @@ turns up. Pushing is a separate step. After a task or grader fix, re-grade every
 ## Before you open a PR
 
 ```bash
-uv run ruff check && uv run ruff format --check
+make lint                                   # ruff and the file checks, every file
 uvx pyright@1.1.414 <changed .py files>    # CI type-checks every file not on its baseline list
 uv run pytest -q
 uv run forcebench leakcheck
