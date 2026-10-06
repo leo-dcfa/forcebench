@@ -1,5 +1,6 @@
 """The reasoning-traces dataset: built from public runs only, pushed only to a private or gated
-dataset. Runs on a copy of the report fixture, with made-up raw replies."""
+dataset. Runs on a copy of the report fixture, with made-up raw replies.
+"""
 
 import json
 import shutil
@@ -22,6 +23,7 @@ from forcebench.report import RunDataError
 from forcebench.tasks import load_suite
 from forcebench.traces import build, published_replies, reply_digest
 from forcebench.traces_push import PushError, check_folder, push, repo_state
+
 
 FIXTURE = Path(__file__).parent / "fixtures" / "report"
 RUN = "20260928T010000Z_model-a@low"

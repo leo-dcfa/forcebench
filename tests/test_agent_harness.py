@@ -1,6 +1,7 @@
 """The agent harnesses (forcebench.agent.harness: opencode, Claude Code, pi): what the agent is
 given, how each harness's events are read, and how its answer is assembled. Containers are not
-started here."""
+started here.
+"""
 
 import json
 

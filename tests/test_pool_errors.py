@@ -4,6 +4,7 @@ import pytest
 
 from forcebench.pool import PrivatePoolError, _main, init_private_dir, load_private_pool
 
+
 SECRET = "SECRET-MARKER"
 
 

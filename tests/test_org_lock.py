@@ -139,8 +139,9 @@ def test_grading_runs_again_once_the_devhub_is_logged_out(provisioning):
 
 
 def test_only_the_org_being_created_may_be_set_up_meanwhile(provisioning):
-    """orgs create runs the profile's setup in another process: its lock check (and seed.py's
-    sf calls) may target the org being created, and nothing else."""
+    """Orgs create runs the profile's setup in another process: its lock check (and seed.py's
+    sf calls) may target the org being created, and nothing else.
+    """
     org._set_pending("fb-new", "base")
     check_command(("org", "display", "--target-org", "fb-new"))
     check_command(("apex", "run", "--file", "wipe.apex", "--target-org", "new@example.com"))
@@ -204,7 +205,8 @@ def test_a_pending_entry_records_when_it_was_made(sandbox, clock):
 
 def test_a_pending_entry_expires_after_a_day(provisioning, clock):
     """An orgs create whose setup failed or was abandoned must not leave its org usable with
-    the Dev Hub logged in (or wipeable as a grader org) for good."""
+    the Dev Hub logged in (or wipeable as a grader org) for good.
+    """
     display = ("org", "display", "--target-org", "fb-new")
     org._set_pending("fb-new", "base")
     clock["later"] = dt.timedelta(hours=23, minutes=59)

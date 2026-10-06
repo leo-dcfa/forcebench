@@ -9,6 +9,7 @@ from forcebench.leakcheck import check
 from forcebench.leakcheck.studies import studies_hold_aggregates_only
 from forcebench.tasks import all_tasks, load_suites
 
+
 INTERVAL = {"score": 0.1, "ci_low": 0.0, "ci_high": 0.2}
 GOOD = {
     "study": "contamination",

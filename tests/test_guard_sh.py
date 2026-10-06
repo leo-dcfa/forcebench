@@ -1,6 +1,7 @@
 """orgs/guard.sh trusts nothing the environment chooses: the alias must be a plain name, the
 check runs with the sandbox image's own Python in isolated mode, and only its confirmation line
-(not its exit status) lets a setup script continue. Nothing here runs sf or Docker."""
+(not its exit status) lets a setup script continue. Nothing here runs sf or Docker.
+"""
 
 import os
 import re
@@ -12,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from forcebench import REPO_ROOT, org
+
 
 GUARD = REPO_ROOT / "orgs" / "guard.sh"
 BASH = shutil.which("bash")

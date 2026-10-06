@@ -33,6 +33,7 @@ from forcebench.report import (
 from forcebench.stats import mean
 from forcebench.tasks import Suite, load_suite
 
+
 FIXTURE = Path(__file__).parent / "fixtures" / "report"
 
 # Schema v2 as the website reads it (docs/leaderboard-schema.md): within a version fields may be
@@ -69,7 +70,7 @@ def _case(task_id: str, passed: bool = True, sample: int = 0, **kw) -> dict:
     return {
         "task_id": task_id,
         "sample": sample,
-        "suite": task_id.split("-")[0],
+        "suite": task_id.split("-", maxsplit=1)[0],
         "task_version": 1,
         "passed": passed,
         "skipped": None,
@@ -188,7 +189,8 @@ def test_entry_without_a_complete_suite_is_not_scored(suites):
 
 def test_a_thinking_switch_is_tier_on_even_in_runs_that_recorded_max(suites):
     """Runs of a plain thinking switch recorded before the tier "on" existed called it "max";
-    the report publishes them, and new runs, as "on"."""
+    the report publishes them, and new runs, as "on".
+    """
     model = {**_meta()["model"], "efforts": {"off": {}, "on": {}}}
     old = _meta(effort="on", effort_tier="max", model=model)
     assert build_entry([(old, _all())], suites)["effort_tier"] == "on"
@@ -235,7 +237,8 @@ def test_stale_answers_are_listed_by_run_with_the_command_that_clears_them(
     make_task, suites, tmp_path
 ):
     """Only resuming the run that holds a stale answer regenerates it, so the leaderboard's
-    pending notes give that command per entry (and per run, when several hold some)."""
+    pending notes give that command per entry (and per run, when several hold some).
+    """
     suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
     stale = {"task_version": 1, "stale": True, "skipped": "stale: ..."}
     _write_run(tmp_path, _meta("r1"), [_case("a-1", **stale), _case("b-0"), _case("b-1")])
@@ -262,7 +265,8 @@ def test_no_pending_notes_without_stale_answers(tmp_path, suites):
 
 def test_stale_answers_of_a_legacy_run_are_legacy(make_task, suites):
     """A protocol-1 run cannot be resumed (a resume never mixes protocols): its stale answers
-    are legacy, replaced by a new run, and get no resume command."""
+    are legacy, replaced by a new run, and get no resume command.
+    """
     suites[0].tasks[1] = make_task({"format": "text"}, id="a-1", suite="a", version=2)
     stale = _case("a-1", task_version=1, stale=True, skipped="stale: ...")
     e = build_entry([(_meta("r1", protocol=1), [stale])], suites)
@@ -281,7 +285,8 @@ def test_stale_answers_of_a_legacy_run_are_legacy(make_task, suites):
 )
 def test_a_run_whose_id_is_not_its_run_id_directory_is_refused(tmp_path, suites, directory, run_id):
     """Run ids are published, and printed in LEADERBOARD.md inside a command to run: a
-    contributed run.json must not choose what that command says."""
+    contributed run.json must not choose what that command says.
+    """
     meta = {**_meta(), "run_id": run_id}
     run = tmp_path / directory
     run.mkdir()
@@ -375,7 +380,8 @@ def test_markdown_labels_progress_by_complete_suites(tmp_path, suites):
 
 def test_partial_entries_follow_complete_ones_and_are_never_ranked(tmp_path, suites, monkeypatch):
     """The review's case: configurations that finished one easy suite must not be ranked
-    above (or among) those that finished everything, whatever their partial average."""
+    above (or among) those that finished everything, whatever their partial average.
+    """
     monkeypatch.setattr("forcebench.report.load_subset", lambda name: None)
     one_suite = [_case("a-0"), _case("a-1")]  # 100% on suite a, nothing else yet
     _write_run(tmp_path, _meta("r1", config_id="partial-high@low"), one_suite)
@@ -445,7 +451,8 @@ def fixture_copy(tmp_path):
 
 def test_fixture_leaderboard_is_up_to_date():
     """The committed fixture leaderboard is what the fixture runs build now. Regenerate it
-    (FORCEBENCH_UPDATE_FIXTURES=1) only for an intended change, and review the diff."""
+    (FORCEBENCH_UPDATE_FIXTURES=1) only for an intended change, and review the diff.
+    """
     out = FIXTURE / "results" / "leaderboard.json"
     if os.environ.get("FORCEBENCH_UPDATE_FIXTURES") == "1":
         write_leaderboard(_fixture_suites(), out)
@@ -669,7 +676,8 @@ def test_report_command_refuses_a_private_run_in_the_public_results(fixture_copy
 )
 def test_runs_the_leaderboard_leaves_out_are_checked_too(tmp_path, suites, meta, graded):
     """An ungraded run, or one of another benchmark version, is not on the leaderboard, but it
-    is in results/runs: a private one there must refuse the report all the same."""
+    is in results/runs: a private one there must refuse the report all the same.
+    """
     _write_run(tmp_path, _meta("r1"), _all())
     _write_run(tmp_path, _meta("r2", **meta), _all() if graded else [])
     if not graded:
@@ -807,7 +815,8 @@ _AGENT = {
 
 def test_each_track_refuses_the_other_tracks_runs(tmp_path, suites):
     """Single-turn and agent runs are separate leaderboards (docs/agent-track.md): an agent run
-    copied among single-turn runs, or the reverse, refuses the whole report."""
+    copied among single-turn runs, or the reverse, refuses the whole report.
+    """
     single = tmp_path / "runs"
     _write_run(single, _meta("r1"), _all())
     _write_run(single, _meta("r2", track="agent", agent=_AGENT), _all())

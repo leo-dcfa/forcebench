@@ -45,7 +45,8 @@ def test_atomic_write_keeps_the_permission_bits(tmp_path):
 
 def test_the_target_is_untouched_until_the_new_content_is_on_disk(tmp_path, monkeypatch):
     """The content is written and synced to another file; the target changes only by the
-    rename, so a reader at any moment before it sees the complete old file."""
+    rename, so a reader at any moment before it sees the complete old file.
+    """
     path = tmp_path / "cases.jsonl"
     path.write_text("old\n")
     seen: list[str] = []
@@ -81,7 +82,8 @@ def test_a_failed_write_leaves_the_old_file_and_no_temp_file(tmp_path, monkeypat
 
 def test_a_crash_mid_write_leaves_the_old_file(tmp_path):
     """A process killed while writing (here: os._exit from inside the write) never leaves a
-    truncated target behind."""
+    truncated target behind.
+    """
     path = tmp_path / "cases.jsonl"
     path.write_text("complete old content\n")
     code = textwrap.dedent(
@@ -104,7 +106,8 @@ def test_a_crash_mid_write_leaves_the_old_file(tmp_path):
 
 def _locked_elsewhere(path) -> bool:
     """Whether another open file description can take the lock right now (as another process
-    would: flock locks belong to the open file, not the process)."""
+    would: flock locks belong to the open file, not the process).
+    """
     fd = os.open(path, os.O_RDWR)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -1,6 +1,7 @@
 """Defects an adversarial review found in the second round of fixes: grading several runs in
 one command, answers that could still cause an OSError, invalidate racing a resume, and
-symbolic links inside a run directory."""
+symbolic links inside a run directory.
+"""
 
 import asyncio
 import fcntl
@@ -21,6 +22,7 @@ from forcebench.graders import _REGISTRY, Grade, GradeEnv, grade, lwc, scratch_d
 from forcebench.llm import Generation
 from forcebench.runner import RunDirError, check_run_dir
 from forcebench.tasks import load_task
+
 
 RUN_A = "20260928T000000Z_m@low"
 RUN_B = "20260928T000001Z_m@low"
@@ -43,7 +45,8 @@ def _finished_run(runs: Path, name: str, task_id: str, samples: int = 1) -> Path
 @pytest.fixture
 def contended_task(make_task, monkeypatch):
     """A task whose grader waits on the per-org semaphore, as org graders do (more cases than
-    the semaphore has slots, so some wait)."""
+    the semaphore has slots, so some wait).
+    """
 
     async def org_like(task, answer, env):
         async with env.lock("fb-grader-1"):

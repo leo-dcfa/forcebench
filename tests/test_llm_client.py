@@ -35,7 +35,8 @@ async def _noop():
 
 def _sse(deltas: list[dict], finish_reason: str | None = "stop", usage: dict | None = None) -> str:
     """A streamed reply as vLLM sends it. Without a finish reason the stream just stops, as when
-    the server dies mid-answer: no final chunk, no usage, no [DONE]."""
+    the server dies mid-answer: no final chunk, no usage, no [DONE].
+    """
     chunks: list[dict[str, Any]] = [
         {"choices": [{"index": 0, "delta": d, "finish_reason": None}]} for d in deltas
     ]
@@ -67,7 +68,8 @@ class _Status:
 
 class _FakeServer:
     """An OpenAI-compatible endpoint that streams scripted replies, one per request (the last
-    one repeats)."""
+    one repeats).
+    """
 
     def __init__(self, *replies: str | _Drop | _Status):
         self.requests = 0

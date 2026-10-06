@@ -6,6 +6,7 @@ import pytest
 
 from forcebench.agent.harness_study import collect, newcombe, study, wilson
 
+
 TASK = "lwc-x"
 
 

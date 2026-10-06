@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from forcebench import MODELS_DIR, REPO_ROOT
 
+
 # The common scale effort labels map to, for comparing models: "off", then the graded levels
 # low < medium < high < max. "on" is the tier of a plain thinking switch (efforts "off" and "on"
 # only) switched on: thinking at the model's own default depth, which no request set, so it is
@@ -150,7 +151,8 @@ DOTENV_IGNORED = frozenset(
 def load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
     """Minimal .env loader (KEY=VALUE lines); existing environment variables win.
 
-    Keys in DOTENV_IGNORED are skipped with a warning."""
+    Keys in DOTENV_IGNORED are skipped with a warning.
+    """
     if not path.exists():
         return
     for line in path.read_text().splitlines():

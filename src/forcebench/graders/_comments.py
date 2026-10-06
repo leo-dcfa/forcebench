@@ -23,6 +23,7 @@ from pathlib import PurePosixPath
 
 from forcebench.graders._shell import strip_comment
 
+
 # A string runs to its closing quote or, unterminated, to the end of its line (so the rest of
 # that line is never read as a comment, and scanning stays linear).
 _STRING = r"'(?:\\.|[^'\\\n])*(?:'|(?=\n)|\Z)|\"(?:\\.|[^\"\\\n])*(?:\"|(?=\n)|\Z)"

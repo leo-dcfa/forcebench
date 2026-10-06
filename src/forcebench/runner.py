@@ -78,6 +78,7 @@ from forcebench.pool import (
 )
 from forcebench.tasks import AnswerFormat, Task, TaskFilter
 
+
 RUNS_DIR = RESULTS_DIR / "runs"
 # Agent runs (the same tasks answered by a coding agent, forcebench.agent) are a separate track,
 # with their own runs and leaderboard; neither leaderboard accepts the other's runs.
@@ -124,7 +125,8 @@ def _read_records(path: Path) -> tuple[list[dict[str, Any]], bytes | None]:
     """The records of a generations file, and the bytes of a torn last line to the end of the
     file (None if there is none). A crash mid-write can leave the last line incomplete: it is
     skipped with a warning. A corrupt line anywhere else means the file was damaged some other
-    way, so reading stops with an error instead of silently losing answers."""
+    way, so reading stops with an error instead of silently losing answers.
+    """
     if not path.exists():
         return [], None
     data = path.read_bytes()
@@ -185,13 +187,15 @@ class GenerationStore:
 
     def task_version(self, key: str, run_versions: dict[str, int]) -> int:
         """The task version a stored answer was generated for. Older records did not store it:
-        they fall back to the version in run.json (``task_versions``)."""
+        they fall back to the version in run.json (``task_versions``).
+        """
         stored = self.provenance.get(key, {}).get("task_version")
         return stored if stored is not None else run_versions.get(key.partition("#")[0], 1)
 
     def append(self, records: list[dict[str, Any]]) -> None:
         """Append records durably: one write per complete line, synced to disk before
-        returning, so a crash can tear at most the line being written."""
+        returning, so a crash can tear at most the line being written.
+        """
         fd = os.open(self.path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o644)
         try:
             size = os.fstat(fd).st_size
@@ -290,7 +294,8 @@ RUN_ENTRIES = ("run.json", "cases.jsonl", "raw", "raw/generations.jsonl", "artif
 def check_run_dir(run_dir: Path) -> None:
     """Refuse a run directory whose name is not a run id (``RUN_ID_RE``, as run_id_for makes
     them), or that is, or holds as one of ``RUN_ENTRIES``, a symbolic link (its files would be
-    read or written wherever it points)."""
+    read or written wherever it points).
+    """
     if not RUN_ID_RE.fullmatch(run_dir.name):
         raise RunDirError(
             f"refusing {run_dir.name[:120]!r}: not a Forcebench run directory (the name must be "
@@ -305,7 +310,8 @@ def check_run_dir(run_dir: Path) -> None:
 def check_results(private: PrivatePool | None = None) -> None:
     """Refuse to generate, grade or invalidate while results/ or results/runs (of the private
     pool, with ``private``) is a symbolic link (fsutil.check_results_dir). Raises
-    ResultsDirError."""
+    ResultsDirError.
+    """
     if private is not None:
         try:
             check_results_dir(private.results_dir, private.runs_dir)
@@ -320,7 +326,8 @@ def check_results(private: PrivatePool | None = None) -> None:
 
 def run_visibility(meta: dict[str, Any]) -> str:
     """The pool a run belongs to, from its run.json. Runs from before it was recorded were all
-    of public tasks."""
+    of public tasks.
+    """
     return str(meta.get("visibility", "public"))
 
 
@@ -330,7 +337,8 @@ def check_run_pool(
     """Refuse to work on a run as a member of the wrong pool: a private run without the private
     pool, a public run with it, a private run anywhere but in the private pool's results/runs,
     tasks of the other pool, or private work while telemetry export or a proxy may be
-    configured."""
+    configured.
+    """
     visibility = "private" if private is not None else "public"
     if meta and run_visibility(meta) != visibility:
         found = run_visibility(meta)
@@ -399,7 +407,8 @@ def write_run(run_dir: Path, meta: dict[str, Any]) -> None:
 
 class RunBusyError(RuntimeError):
     """Another forcebench process holds the run's lock (it is being generated, graded or
-    invalidated), and the caller asked not to wait for it."""
+    invalidated), and the caller asked not to wait for it.
+    """
 
 
 @contextlib.contextmanager
@@ -408,7 +417,8 @@ def run_lock(run_dir: Path, *, wait: bool = True) -> Iterator[None]:
     invalidating), so two processes never interleave their writes of its files. A second
     command on the same run waits for the first to finish, or with ``wait=False`` raises
     RunBusyError without touching the run. Readers (``report``) take no lock: run.json and
-    cases.jsonl are only ever replaced atomically. The run directory must exist."""
+    cases.jsonl are only ever replaced atomically. The run directory must exist.
+    """
     with contextlib.ExitStack() as stack:
         try:
             stack.enter_context(
@@ -428,7 +438,8 @@ def run_lock(run_dir: Path, *, wait: bool = True) -> Iterator[None]:
 
 def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any]) -> None:
     """Refuse to resume a run with settings other than those it was started with: its stored
-    answers would be published under the new settings (e.g. low-effort answers as xhigh)."""
+    answers would be published under the new settings (e.g. low-effort answers as xhigh).
+    """
     was = {
         "model": started.get("model", {}).get("id"),
         "effort": started.get("effort"),
@@ -708,7 +719,8 @@ def invalidate(
 ) -> int:
     """Mark stored answers to be regenerated on the next resume (appends; keeps history).
     ``keys`` may be a function of the stored records: it then chooses them under the run's lock,
-    from the records as they are once no other command is writing the run."""
+    from the records as they are once no other command is writing the run.
+    """
     check_results()
     check_run_dir(run_dir)
     with run_lock(run_dir):
@@ -813,13 +825,15 @@ _ANSWER_FILE = {
 
 def _write_model_text(path: Path, text: str) -> None:
     """Write text the model produced. Text that is not valid Unicode (a lone surrogate from the
-    endpoint) is escaped rather than failing the whole grading run."""
+    endpoint) is escaped rather than failing the whole grading run.
+    """
     path.write_text(text, encoding="utf-8", errors="backslashreplace")
 
 
 def _write_answer_file(files_dir: Path, path: str, content: str) -> None:
     """Keep one of the answer's files. A path that cannot be written (answer_files) is left out:
-    such an answer failed its format check, and its reply.md holds every file anyway."""
+    such an answer failed its format check, and its reply.md holds every file anyway.
+    """
     if path_problem(path) is not None:
         return
     dest = files_dir / PurePosixPath(path)
@@ -836,7 +850,8 @@ def _write_answer_file(files_dir: Path, path: str, content: str) -> None:
 
 def write_artifacts(case_dir: Path, gen: Generation, ans: Answer | None, g: Grade) -> None:
     """Save what a case produced: the files it generated, its reply and reasoning, grade and org
-    evidence."""
+    evidence.
+    """
     if case_dir.exists():
         shutil.rmtree(case_dir)
     case_dir.mkdir(parents=True)
@@ -888,7 +903,8 @@ def _write_grading_timing(
     grades: dict[str, Grade],
 ) -> None:
     """Record how long this grading pass took, per case, in artifacts/grading/ (kept locally
-    with the other artifacts, never published): what `forcebench throughput` reads."""
+    with the other artifacts, never published): what `forcebench throughput` reads.
+    """
     if not timing:
         return
     finished_at = dt.datetime.now(dt.UTC)
