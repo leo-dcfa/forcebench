@@ -24,6 +24,7 @@ from forcebench.pool import (
 from forcebench.rotation import RotationError, apply, plan, public_text
 from forcebench.tasks import Task, load_task
 
+
 FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 DAY = dt.date(2026, 10, 1)
 

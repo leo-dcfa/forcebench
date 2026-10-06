@@ -1,5 +1,6 @@
 """Run directory names are data, never code: every command that takes a run directory refuses a
-name that is not a run id, and `make regrade-all` never hands a name to a shell."""
+name that is not a run id, and `make regrade-all` never hands a name to a shell.
+"""
 
 import contextlib
 import fcntl
@@ -21,6 +22,7 @@ from forcebench.graders import GradeEnv
 from forcebench.llm import Generation
 from forcebench.models import ModelConfig, load_registry
 from forcebench.runner import RUN_ID_RE, RunDirError, check_run_dir, gradable_runs, run_id_for
+
 
 GOOD = "20260928T000000Z_qwen3.8-27b-awq-int4@low"
 HOSTILE = [
@@ -126,7 +128,8 @@ def test_grade_all_grades_run_directories_and_leaves_the_rest_alone(
 @contextlib.contextmanager
 def _held_elsewhere(run: Path) -> Iterator[None]:
     """Hold the run's lock as another process would (a separate open file: flock locks belong
-    to the open file, so this process's own attempt to take it is refused too)."""
+    to the open file, so this process's own attempt to take it is refused too).
+    """
     fd = os.open(run / runner.LOCK_FILE, os.O_RDWR | os.O_CREAT)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -137,7 +140,8 @@ def _held_elsewhere(run: Path) -> Iterator[None]:
 
 def test_grade_all_skips_a_run_being_generated_instead_of_waiting(tmp_path, make_task, monkeypatch):
     """The maintainer's grader loop (grade --all) must not stall behind a run whose lock a
-    generation holds: that run is reported as skipped, left untouched, and the rest graded."""
+    generation holds: that run is reported as skipped, left untouched, and the rest graded.
+    """
     task = make_task({"format": "text"})
     monkeypatch.setattr(runner, "RUNS_DIR", tmp_path)
     monkeypatch.setattr("forcebench.cli.select_tasks", lambda *a, **k: ([], [task]))
@@ -229,7 +233,8 @@ def test_regrade_all_lists_runs_in_python_not_in_the_shell():
 
 def test_no_make_target_substitutes_a_run_directory_into_a_recipe():
     """A shell loop over results/runs may only use the name as a quoted value after checking it
-    is a run id (bundle); it may never pass it back through make ($(MAKE) ... ARGS=...)."""
+    is a run id (bundle); it may never pass it back through make ($(MAKE) ... ARGS=...).
+    """
     makefile = (REPO_ROOT / "Makefile").read_text()
     recipes = re.split(r"\n(?=[a-z-]+:)", makefile)
     for recipe in recipes:
@@ -256,7 +261,8 @@ def test_grading_a_run_that_does_not_exist_creates_nothing(tmp_path):
 @pytest.fixture(params=["results", "runs"])
 def linked_results(request, tmp_path, monkeypatch) -> tuple[Path, Path]:
     """results/ (or results/runs) as a symbolic link to a directory elsewhere, which holds a
-    finished run; runner.RUNS_DIR is results/runs. Returns (results, the run through it)."""
+    finished run; runner.RUNS_DIR is results/runs. Returns (results, the run through it).
+    """
     elsewhere = tmp_path / "elsewhere"
     results = tmp_path / "results"
     if request.param == "results":
@@ -328,7 +334,8 @@ def test_plain_or_missing_results_directories_are_accepted(tmp_path):
 def test_the_offline_grading_passes_check_for_a_symlinked_results_directory(tmp_path, linked):
     """Docker follows a symlinked mount source, so the offline container cannot see the link:
     make checks on the host before it mounts results/runs. The guard itself is run here (in a
-    scratch directory), never the docker command."""
+    scratch directory), never the docker command.
+    """
     if not shutil.which("make"):
         pytest.skip("make not installed")
     for target in ("grade", "regrade-all"):

@@ -2,4 +2,5 @@
 
 from forcebench.cli import app
 
+
 app()

@@ -11,6 +11,7 @@ from forcebench.cli import app
 from forcebench.pool import CHECKS_FILE, CheckRecord, write_checks
 from forcebench.tasks import Task
 
+
 GUID = "11111111-2222-4333-8444-555555555555"
 PUBLIC_FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 

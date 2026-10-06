@@ -1,5 +1,6 @@
 """The model proxy for agent runs (forcebench.agent.proxy): what it changes in each request, the
-budget it enforces, and what it records."""
+budget it enforces, and what it records.
+"""
 
 import ast
 import json

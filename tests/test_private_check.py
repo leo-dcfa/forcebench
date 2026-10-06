@@ -22,6 +22,7 @@ from forcebench.private_check import check_task, mark_ready, trivial_outputs
 from forcebench.similarity import PublicIndex
 from forcebench.tasks import EVERY_STATUS, all_tasks, load_suites
 
+
 GUID = "11111111-2222-4333-8444-555555555555"
 PUBLIC_FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 DAY = dt.date(2026, 10, 5)

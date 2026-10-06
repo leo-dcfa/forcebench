@@ -1,5 +1,6 @@
 """Run bookkeeping that the leaderboard's integrity rests on: the generations store, resuming,
-task versions and per-case retry counts."""
+task versions and per-case retry counts.
+"""
 
 import asyncio
 import json
@@ -23,6 +24,7 @@ from forcebench.runner import (
     invalidate,
     read_records,
 )
+
 
 # A run directory name as runner.run_id_for makes them (commands refuse any other name).
 RUN = "20260928T000000Z_qwen3.8-27b-awq-int4@low"

@@ -17,6 +17,7 @@ from huggingface_hub.errors import HfHubHTTPError
 
 from forcebench import CANARY
 
+
 _DATA_RE = re.compile(r"data/v[0-9][0-9.]*/[A-Za-z0-9._-]+\.jsonl")
 # Never in a record: what would name a provider, an endpoint or a machine.
 _FORBIDDEN_FIELDS = frozenset({"provider", "endpoint_model", "base_url", "request", "grader_orgs"})
@@ -39,7 +40,8 @@ class Hub(Protocol):
 
 def repo_state(api: Hub, repo_id: str) -> tuple[bool, str]:
     """Whether the dataset may receive the traces, and its state in words. A dataset Hugging Face
-    will not describe (missing, or the token cannot read it) refuses the push."""
+    will not describe (missing, or the token cannot read it) refuses the push.
+    """
     try:
         info = api.dataset_info(repo_id)
     except HfHubHTTPError as e:
@@ -57,7 +59,8 @@ def check_folder(folder: Path, public_ids: set[str]) -> int:
     """The number of records in a built dataset folder, after checking it holds only README.md,
     LICENSE.md and data/v<version>/*.jsonl, and that every record carries the canary, names a
     public task and no provider or endpoint, reproduces no prompt or test, and has the flags the
-    access terms rely on."""
+    access terms rely on.
+    """
     records = 0
     for path in sorted(p for p in folder.rglob("*") if p.is_file()):
         rel = path.relative_to(folder).as_posix()

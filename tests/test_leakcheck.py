@@ -11,6 +11,7 @@ from forcebench.cli import app
 from forcebench.leakcheck import Finding, all_rules, check, check_tracked, read_text
 from forcebench.leakcheck.tasks import only_the_public_canary, public_task_files
 
+
 PRIVATE_GUID = "5d2c9a41-7f3e-4b8a-9c1d-2e6f0a4b8c3d"  # stands in for a real pool's canary
 
 

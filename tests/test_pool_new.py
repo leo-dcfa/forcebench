@@ -2,7 +2,8 @@
 
 The public suites here are the small alpha and beta fixtures: a real suite's numbered ids
 (<suite>-p001, ...) are real private task ids, which leakcheck rightly refuses to see in this
-repository."""
+repository.
+"""
 
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from typer.testing import CliRunner
 from forcebench.cli import app
 from forcebench.pool import init_private_dir, load_private_pool
 from forcebench.tasks import EVERY_STATUS, all_tasks, load_suites
+
 
 PUBLIC_FIXTURE = Path(__file__).parent / "fixtures" / "report" / "suites"
 

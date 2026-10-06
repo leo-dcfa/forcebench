@@ -25,6 +25,7 @@ from typing import Any
 
 from forcebench import CACHE_DIR, REPO_ROOT
 
+
 PACKS_DIR = REPO_ROOT / "docker" / "agent" / "skills"
 _NAME = re.compile(r"[a-z0-9][a-z0-9-]*")
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -82,7 +83,8 @@ def load_pack(name: str, packs: Path = PACKS_DIR) -> SkillPack:
 
 def tree_sha256(root: Path) -> str:
     """One hash over every file's path and content under root. A symlink is refused: copied, it
-    could bring in a file from anywhere on the host."""
+    could bring in a file from anywhere on the host.
+    """
     h = hashlib.sha256()
     for p in sorted(root.rglob("*"), key=lambda p: p.relative_to(root).as_posix()):
         if p.is_symlink():
@@ -102,7 +104,8 @@ def _git(*args: str, cwd: Path) -> str:
 
 def prepare(pack: SkillPack, cache: Path = CACHE_DIR) -> Path:
     """The pack's directory, fetched and copied on first use, its hash checked every time. A
-    RuntimeError when it cannot be fetched or its files are not the manifest's."""
+    RuntimeError when it cannot be fetched or its files are not the manifest's.
+    """
     dest = pack.directory(cache)
     if not dest.exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -145,7 +148,8 @@ def _body(skill_md: str) -> str:
 
 def skill_block(pack_dir: Path, skill: str, mount: str, max_files: int = 10) -> str:
     """A skill as opencode's skill tool hands it to the model (opencode 2.0.21): its instructions,
-    where it lives in the container, and up to ``max_files`` of its other files."""
+    where it lives in the container, and up to ``max_files`` of its other files.
+    """
     root = pack_dir / skill
     files = sorted(
         p.relative_to(root).as_posix()

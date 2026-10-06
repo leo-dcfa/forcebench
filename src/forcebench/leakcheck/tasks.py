@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from forcebench import CANARY_GUID
 from forcebench.leakcheck import Finding, line_of, rule
 
+
 _GUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 # "canary GUID <guid>", as task files and runs carry it, and "canary_guid: <guid>", as a private
 # pool's pool.yaml has it.
@@ -19,7 +20,8 @@ TEST_GUIDS = frozenset(
 @rule
 def only_the_public_canary(path: str, text: str) -> Iterator[Finding]:
     """The only canary GUID here is the public one (and, in tests, the made-up ones). Another is
-    a private pool's: some private file, or part of one, was copied in."""
+    a private pool's: some private file, or part of one, was copied in.
+    """
     allowed = {CANARY_GUID, *(TEST_GUIDS if path.startswith("tests/") else ())}
     for m in _CANARY_RE.finditer(text):
         if m.group(1).lower() not in allowed:
@@ -32,7 +34,8 @@ _TASKS_DIR_RE = re.compile(r"suites/[^/]+/tasks/[^/]+")
 @rule
 def public_task_files(path: str, text: str) -> Iterator[Finding]:
     """A task directory holds only task files, and each carries the public canary on its first
-    line, says ``visibility: public`` once, and has no ``tier`` (which only private tasks have)."""
+    line, says ``visibility: public`` once, and has no ``tier`` (which only private tasks have).
+    """
     if not _TASKS_DIR_RE.fullmatch(path):
         return
     if not path.endswith(".yaml"):

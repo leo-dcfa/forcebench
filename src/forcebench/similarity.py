@@ -27,6 +27,7 @@ from itertools import pairwise
 
 from forcebench.tasks import Task
 
+
 SIMILARITY_LIMIT = 0.7
 SHARED_LIMIT = 0.3
 RUN = 8  # words per passage

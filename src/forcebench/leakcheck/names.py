@@ -11,6 +11,7 @@ from collections.abc import Iterator
 
 from forcebench.leakcheck import Finding, line_of, rule
 
+
 # This project's repositories: the harness and the website. Any other repository of the same
 # owner named here is refused.
 OWNER = "leo-dcfa"

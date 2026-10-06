@@ -35,6 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+
 # Request fields the harness may not set: the configuration decides them (injected), or the
 # benchmark does (max_tokens). How the model reasons is the configuration's, so a harness's own
 # reasoning or thinking switches go too. Each request's log says which of these the harness sent.
@@ -101,7 +102,8 @@ def to_chat(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     sends its environment and how many tokens are left that way) goes where the harness put it, as
     a system reminder in a user turn, the way Claude Code gives its other reminders. Folding it
     into the first system message instead would change the start of every request, so the model
-    server could never reuse its cache of the conversation so far."""
+    server could never reuse its cache of the conversation so far.
+    """
     system = [_text(body["system"])] if body.get("system") else []
     messages: list[dict[str, Any]] = []
     inline = 0
@@ -246,7 +248,8 @@ def _event(kind: str, data: dict[str, Any]) -> bytes:
 
 class AnthropicStream:
     """Chat completion chunks in, Anthropic-style stream events out: one content block at a time
-    (thinking, text, or a tool call), then the stop reason and usage."""
+    (thinking, text, or a tool call), then the stop reason and usage.
+    """
 
     def __init__(self, model: str) -> None:
         self.model = model
@@ -339,7 +342,8 @@ class AnthropicStream:
 
 def anthropic_error(status: int, message: str) -> dict[str, Any]:
     """An error in Anthropic's shape. The model server's context-length error is given the words
-    Anthropic's API uses ("prompt is too long"), which is what makes Claude Code compact."""
+    Anthropic's API uses ("prompt is too long"), which is what makes Claude Code compact.
+    """
     kind = {400: "invalid_request_error", 401: "authentication_error", 404: "not_found_error",
             429: "rate_limit_error"}.get(status, "api_error")  # fmt: skip
     if "context length" in message or "maximum context" in message:
@@ -590,7 +594,8 @@ def make_handler(proxy: Proxy) -> type[BaseHTTPRequestHandler]:
 
         def _count_tokens(self) -> None:
             """Anthropic's token counting endpoint: forwarded with the served model's name, outside
-            the budget (it generates nothing)."""
+            the budget (it generates nothing).
+            """
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
             except ValueError:

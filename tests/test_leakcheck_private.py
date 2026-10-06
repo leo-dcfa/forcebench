@@ -1,6 +1,7 @@
 """The denylist: a made-up private pool, and what it catches. Its names are put together at
 run time: spelt out, they would be found in this very file when the repository is checked
-against the made-up pool."""
+against the made-up pool.
+"""
 
 import subprocess
 from pathlib import Path
@@ -12,6 +13,7 @@ from forcebench.cli import app
 from forcebench.leakcheck import check, check_tracked
 from forcebench.leakcheck.private import denylist, nothing_from_the_private_pool
 from forcebench.pool import init_private_dir
+
 
 TASK_ID = "docs-denylist-" + "sample"
 HIDDEN = "FB_Denylist" + "SampleTest"
@@ -137,7 +139,7 @@ def test_the_pools_hugging_face_dataset_is_found(pool):
 
 
 def test_inside_a_git_hook_the_pools_own_repository_is_read(pool, monkeypatch):
-    """git sets GIT_DIR and GIT_INDEX_FILE for the public repository while its hooks run."""
+    """Git sets GIT_DIR and GIT_INDEX_FILE for the public repository while its hooks run."""
     public = subprocess.run(
         ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True
     )

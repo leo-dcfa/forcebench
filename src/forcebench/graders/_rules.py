@@ -22,6 +22,7 @@ from typing import Any
 
 from forcebench.graders import Check, TaskError
 
+
 _MISSING = object()
 _TOKEN_RE = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
 

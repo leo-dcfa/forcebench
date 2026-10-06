@@ -18,6 +18,7 @@ from forcebench.graders.scratch_def import (
     structure_problems,
 )
 
+
 KNOWN = frozenset({"AccountSettings", "LightningExperienceSettings"})
 
 

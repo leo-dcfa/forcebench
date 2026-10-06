@@ -1,5 +1,6 @@
 """scratch-def-fix-broken-definition grades more than "the org is created": its prompt must
-say so (external review)."""
+say so (external review).
+"""
 
 import json
 

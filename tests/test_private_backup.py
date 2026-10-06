@@ -1,5 +1,6 @@
 """Backing up private runs: only private runs of this pool, only to a private dataset. Runs on a
-made-up pool in a temporary directory; the dataset's name is put together at run time."""
+made-up pool in a temporary directory; the dataset's name is put together at run time.
+"""
 
 import json
 import subprocess
@@ -11,6 +12,7 @@ from typer.testing import CliRunner
 from forcebench.cli import app
 from forcebench.pool import init_private_dir, load_private_pool
 from forcebench.private_backup import BackupError, collect, push
+
 
 DATASET = "someone/" + "held-out" + "-traces"
 RUN = "20261005T000000Z_model-a@low"

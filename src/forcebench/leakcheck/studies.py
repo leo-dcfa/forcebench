@@ -17,6 +17,7 @@ from forcebench import SUITES_DIR
 from forcebench.contamination import PUBLISHED_ENTRY_FIELDS
 from forcebench.leakcheck import Finding, rule
 
+
 _TOP = {
     "study", "published", "benchmark_version", "generated_at", "method", "pool", "pooled_gap",
     "entries",

@@ -22,6 +22,7 @@ from forcebench.answers import prompt_sha
 from forcebench.fsutil import atomic_write_text
 from forcebench.tasks import Task
 
+
 MANIFEST = SUITES_DIR / "prompt-hashes.json"
 REGENERATE = "uv run forcebench tasks --write-manifest"
 
@@ -45,7 +46,8 @@ def load(path: Path = MANIFEST) -> dict[str, Entry]:
 def refusals(tasks: Iterable[Task], manifest: dict[str, Entry]) -> list[str]:
     """What the manifest must never record: a prompt that differs from the manifest's under the
     same version (what the model sees changed, so the version must be bumped; this includes a
-    removed task's id coming back with another prompt), and a version that went down."""
+    removed task's id coming back with another prompt), and a version that went down.
+    """
     out = []
     for t in tasks:
         entry = manifest.get(t.id)
@@ -99,7 +101,8 @@ def problems(tasks: Iterable[Task], manifest: dict[str, Entry]) -> list[str]:
 
 def write(tasks: Iterable[Task], path: Path = MANIFEST) -> dict[str, Entry]:
     """Write the manifest for these tasks, keeping removed tasks' entries marked ``removed``.
-    Raises ValueError, writing nothing, on any of ``refusals``."""
+    Raises ValueError, writing nothing, on any of ``refusals``.
+    """
     tasks = list(tasks)
     old = load(path)
     refused = refusals(tasks, old)
