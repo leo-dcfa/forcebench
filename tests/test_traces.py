@@ -5,7 +5,6 @@ dataset. Runs on a copy of the report fixture, with made-up raw replies.
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -202,7 +201,7 @@ def test_a_dataset_the_hub_will_not_describe_refuses_the_push(built, status):
 
 def test_without_the_traces_extra_the_push_says_how_to_get_it(built, monkeypatch):
     out, _ = built
-    monkeypatch.setitem(sys.modules, "forcebench.traces_push", None)
+    monkeypatch.setattr("forcebench.cli.traces_upload", None)  # as without huggingface_hub
     result = CliRunner().invoke(app, ["traces", "push", "--dir", str(out)])
     assert result.exit_code == 1
     assert "--extra traces" in result.output

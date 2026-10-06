@@ -119,9 +119,6 @@ ignore = [
   "B018",  # a useless expression, to check that it raises
   "S",  # security checks do not apply to tests
 ]
-# Not passing yet: imports inside functions, moved to the top in a PR of their own.
-"src/forcebench/cli.py" = ["PLC0415"]
-"src/forcebench/llm.py" = ["PLC0415"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["typer.Option", "typer.Argument"]
