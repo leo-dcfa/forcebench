@@ -624,7 +624,7 @@ def fake_model(monkeypatch, tmp_path):
         def __init__(self, *a, **k):
             pass
 
-        async def generate(self, system: str, user: str) -> Generation:
+        async def generate(self, system: str, user: str, seed: int | None = None) -> Generation:
             fake.on_send()
             fake.prompts.append(user)
             return Generation(text="Answer: forty-two", finish_reason="stop")
