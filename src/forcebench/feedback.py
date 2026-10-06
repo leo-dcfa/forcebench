@@ -25,8 +25,10 @@ from forcebench.runner import (
     GenerationStore,
     _git_sha,
     case_key,
+    check_run_dir,
     read_run,
     run_id_for,
+    run_lock,
     sample_seed,
     write_run,
 )
@@ -131,6 +133,17 @@ async def feedback_round(
     by_id = {t.id: t for t in tasks if t.id in set(first["task_ids"])}
     todo = pending_attempts(chain, by_id, m.max_tokens)
     run_dir = run_dir or RUNS_DIR / run_id_for(m, effort)
+    check_run_dir(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    with run_lock(run_dir):
+        return await _attempts(
+            m, effort, registry, first, chain, by_id, todo, run_dir, concurrency, on_answer
+        )
+
+
+async def _attempts(
+    m, effort, registry, first, chain, by_id, todo, run_dir, concurrency, on_answer
+):
     meta = read_run(run_dir) or {
         k: v for k, v in first.items() if k not in ("graded_at", "grader_orgs", "generated_at")
     }
