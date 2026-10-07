@@ -24,6 +24,7 @@ from forcebench.runner import (
     grade,
     invalidate,
     read_records,
+    record_failed,
     sample_seed,
 )
 
@@ -380,3 +381,25 @@ def test_a_run_from_before_endpoint_names_resumes_with_its_configs(model, make_t
         _generate(model, run_dir, [_task(make_task)], endpoint_model="x3")
     _generate(model, run_dir, [_task(make_task)])
     assert _meta(run_dir)["endpoint_model"] == model.registry.get(MODEL).endpoint_model
+
+
+def test_an_answer_the_endpoint_never_returned_can_be_recorded_as_failed(
+    model, make_task, tmp_path
+):
+    model.reply = Generation(error="ModelHTTPError: status_code: 503", attempts=4, latency_s=31)
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
+    assert record_failed(run_dir, ["test-task#0"], "the endpoint cuts responses at 30 s") == 1
+    (case,) = _grade(run_dir, [_task(make_task)])
+    assert (case["passed"], case["infra_error"], case["skipped"]) == (False, None, None)
+    assert case["finish_reason"] == "failed: the endpoint cuts responses at 30 s"
+    assert case["attempts"] == 4
+    assert case["prompt_sha"] == _sha(render_prompt(_task(make_task)))
+    _generate(model, run_dir, [_task(make_task)])
+    assert len(model.prompts) == 1, "a resume does not ask again"
+
+
+def test_record_failed_leaves_real_and_invalidated_answers_alone(model, make_task, tmp_path):
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
+    assert record_failed(run_dir, ["test-task#0"], "x") == 0, "a delivered answer stays"
+    invalidate(run_dir, ["test-task#0"], "regenerate it")
+    assert record_failed(run_dir, ["test-task#0"], "x") == 0, "an invalidated one is regenerated"
