@@ -35,6 +35,7 @@ from forcebench import (
     ATTEMPTS,
     BENCHMARK_VERSION,
     CANARY_GUID,
+    COMPATIBLE_VERSIONS,
     GENERATION_PROTOCOL,
     MODELS_DIR,
     RESULTS_DIR,
@@ -102,7 +103,7 @@ def load_runs(
     known: set[str] | None = None,
     track: str = "single",
 ) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
-    """Every graded run of this benchmark version.
+    """Every graded run of this benchmark version or a compatible one (COMPATIBLE_VERSIONS).
 
     Run ids are published (and printed in LEADERBOARD.md as part of a command to run), and runs can
     be contributed, so a run whose directory name is not a run id (RUN_ID_RE), or whose run.json
@@ -128,7 +129,7 @@ def load_runs(
         if why:
             foreign.append(f"{name} ({why})")
             continue
-        if not cases_path.exists() or meta.get("benchmark_version") != BENCHMARK_VERSION:
+        if not cases_path.exists() or meta.get("benchmark_version") not in COMPATIBLE_VERSIONS:
             continue
         if not RUN_ID_RE.fullmatch(name) or meta.get("run_id") != name:
             bad.append(repr(name[:120]))
