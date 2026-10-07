@@ -14,6 +14,7 @@ models:
   - id: qwen3.8-27b-awq-int4
     provider: direct-qwen27b
     endpoint_model: qwen3.8-27b
+    proxy_model: qwen3.8-27b
     display: Qwen3.8 27B
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -31,6 +32,7 @@ models:
   - id: qwen3.8-27b-mlx-4bit
     provider: mtplx
     endpoint_model: mtplx-qwen38-27b-optimized-speed
+    proxy_model: mtplx-qwen38-27b-optimized-speed
     display: Qwen3.8 27B
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -50,6 +52,7 @@ models:
   - id: qwen3.8-27b-mlx-8bit
     provider: mtplx
     endpoint_model: mtplx-qwen38-27b-optimized-quality
+    proxy_model: mtplx-qwen38-27b-optimized-quality
     display: Qwen3.8 27B
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -69,6 +72,7 @@ models:
   - id: qwen3.8-27b-splash-4bit
     provider: splash
     endpoint_model: incoai/Qwen3.8-27B-Splash
+    proxy_model: splash-qwen38-27b
     display: Qwen3.8 27B
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -104,6 +108,7 @@ models:
   - id: qwen3.8-flash-next-nvfp4
     provider: direct-flashnext
     endpoint_model: qwen3.8-flash-next
+    proxy_model: qwen3.8-flash-next
     display: Qwen3.8 Flash-Next
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
@@ -122,6 +127,7 @@ models:
   - id: qwen3.8-flash-next-mlx-4bit
     provider: mtplx
     endpoint_model: mtplx-flash-next-optimized-speed
+    proxy_model: mtplx-flash-next-optimized-speed
     display: Qwen3.8 Flash-Next
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
@@ -142,6 +148,7 @@ models:
   - id: glm-5.3-flash-exl3-4bpw
     provider: direct-glm
     endpoint_model: glm-5.3-flash-exl3
+    proxy_model: glm-5.3-flash-exl3
     display: GLM-5.3 Flash
     family: GLM-5.3
     base_model: GLM-5.3-Flash
@@ -184,6 +191,7 @@ models:
   - id: glm-5.3-flash-exl3-4bpw-tensorfold
     provider: direct-glm-tensorfold
     endpoint_model: GLM-5.3-Flash-EXL3
+    proxy_model: glm-5.3-flash-tensorfold
     display: GLM-5.3 Flash
     family: GLM-5.3
     base_model: GLM-5.3-Flash
@@ -207,6 +215,7 @@ models:
   - id: glm-5.3-exl3-2.75bpw-tensorfold
     provider: direct-glm-tensorfold
     endpoint_model: GLM-5.3-EXL3
+    proxy_model: glm-5.3-tensorfold-tp3
     display: GLM-5.3
     family: GLM-5.3
     base_model: GLM-5.3
@@ -227,6 +236,7 @@ models:
   - id: deepseek-v4.1-flash-exl3-2.9bpw
     provider: direct-ds41
     endpoint_model: deepseek-v4.1-flash-exl3
+    proxy_model: deepseek-v4.1-flash-exl3
     display: DeepSeek V4.1 Flash
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
@@ -247,6 +257,7 @@ models:
   - id: deepseek-v4.1-flash-native
     provider: direct-ds41x3
     endpoint_model: deepseek-v4.1-flash
+    proxy_model: deepseek-v4.1-flash-tp3
     display: DeepSeek V4.1 Flash
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
@@ -265,6 +276,7 @@ models:
   - id: deepseek-v4-flash-vision-nvfp4
     provider: direct-ds4v
     endpoint_model: deepseek-v4-flash-vision-exp
+    proxy_model: deepseek-v4-flash-vision-exp
     display: DeepSeek V4 Flash Vision (exp)
     family: DeepSeek-V4
     base_model: DeepSeek-V4-Flash-Vision-Exp
@@ -285,6 +297,7 @@ models:
   - id: mimo-v2.6-flash-fp8
     provider: direct-mimo
     endpoint_model: mimo-v2.6-flash
+    proxy_model: mimo-v2.6-flash
     display: MiMo V2.6 Flash
     family: MiMo-V2.6
     base_model: MiMo-V2.6-Flash

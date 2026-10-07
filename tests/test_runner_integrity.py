@@ -410,3 +410,23 @@ def test_without_sample_seeds_no_seed_is_sent(model, make_task, tmp_path):
     assert "sample_seeds" not in json.loads((run_dir / "run.json").read_text())
     with pytest.raises(ResumeError, match="sample seeds"):
         _generate(model, run_dir, [_task(make_task)], samples=2, sample_seeds=True)
+
+
+def test_a_run_through_a_proxy_records_it_and_calls_the_proxy_name(
+    model, make_task, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("FORCEBENCH_LOCAL_BASE_URL", "http://127.0.0.1:9/v1")
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], via="local")
+    meta = json.loads((run_dir / "run.json").read_text())
+    proxy_name = model.registry.get(MODEL).proxy_model
+    assert (meta["via"], meta["provider"], meta["endpoint_model"]) == ("local", "local", proxy_name)
+    _generate(model, run_dir, [_task(make_task)], model_id=None, effort=None)  # keeps the path
+    assert json.loads((run_dir / "run.json").read_text())["via"] == "local"
+
+
+def test_a_resume_cannot_switch_between_direct_and_proxy(model, make_task, tmp_path, monkeypatch):
+    monkeypatch.setenv("FORCEBENCH_LOCAL_BASE_URL", "http://127.0.0.1:9/v1")
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
+    assert "via" not in json.loads((run_dir / "run.json").read_text())
+    with pytest.raises(ResumeError, match="via"):
+        _generate(model, run_dir, [_task(make_task)], via="local")
