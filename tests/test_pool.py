@@ -10,6 +10,7 @@ import socket
 import subprocess
 import tempfile
 import textwrap
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
@@ -624,7 +625,13 @@ def fake_model(monkeypatch, tmp_path):
         def __init__(self, *a, **k):
             pass
 
-        async def generate(self, system: str, user: str) -> Generation:
+        async def generate(
+            self,
+            system: str,
+            user: str,
+            turns: Sequence[tuple[str, str]] = (),
+            seed: int | None = None,
+        ) -> Generation:
             fake.on_send()
             fake.prompts.append(user)
             return Generation(text="Answer: forty-two", finish_reason="stop")

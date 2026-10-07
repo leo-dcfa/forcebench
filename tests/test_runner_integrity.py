@@ -5,6 +5,7 @@ The generations store, resuming, task versions and per-case retry counts.
 
 import asyncio
 import json
+from collections.abc import Sequence
 
 import pytest
 from typer.testing import CliRunner
@@ -123,7 +124,13 @@ def model(monkeypatch):
     fake = _FakeModel(reg)
 
     class FakeClient(Client):
-        async def generate(self, system: str, user: str) -> Generation:
+        async def generate(
+            self,
+            system: str,
+            user: str,
+            turns: Sequence[tuple[str, str]] = (),
+            seed: int | None = None,
+        ) -> Generation:
             fake.prompts.append(user)
             return fake.reply.model_copy()
 
