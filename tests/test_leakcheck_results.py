@@ -98,3 +98,12 @@ def test_the_agent_tracks_files_are_results_too():
     assert _check("results/agent/runs/20260930T000000Z_m@low/run.json", leaky)
     assert _check("results/agent/leaderboard.json", json.dumps({**good, "visibility": None}))
     assert _check("results/agent/notes.txt", "x")
+
+
+def test_an_attempts_run_and_answers_pass_but_not_its_raw_replies():
+    run = "results/runs/20261001T000000Z_m@low/attempts/2/run.json"
+    cases = "results/runs/20261001T000000Z_m@low/attempts/2/cases.jsonl"
+    raw = "results/runs/20261001T000000Z_m@low/attempts/2/raw/generations.jsonl"
+    assert not _check(run, json.dumps({"canary": CANARY, "task_ids": [_public_id()]}))
+    assert not _check(cases, json.dumps({"task_id": _public_id()}) + "\n")
+    assert _check(raw, "{}\n")
