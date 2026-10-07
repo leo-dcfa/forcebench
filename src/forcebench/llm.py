@@ -1,8 +1,9 @@
-"""Calling models. One user turn, the fixed system prompt, no tools."""
+"""Calling models: the fixed system prompt, then one user turn or a conversation, no tools."""
 
 import asyncio
 import os
 import time
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import pydantic_ai.models.openai as oai
@@ -11,7 +12,18 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
+    SystemPromptPart,
+    TextPart,
+    ThinkingPart,
+    ThinkingPartDelta,
+    UserPromptPart,
+)
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -24,7 +36,6 @@ from forcebench.models import ModelConfig, Provider
 
 if TYPE_CHECKING:
     from pydantic_ai import AgentRunResult
-    from pydantic_ai.messages import ModelResponse
     from pydantic_ai.settings import ModelSettings
 
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
@@ -255,6 +266,20 @@ class _Streamed:
         return self._join(False)
 
 
+def conversation(system: str, turns: Sequence[tuple[str, str]]) -> list[ModelMessage]:
+    """Earlier turns of a conversation, (user message, model reply) each, as a message history.
+
+    The system prompt goes in the first request: pydantic-ai adds it only to an empty history.
+    Earlier replies are their text alone, without the reasoning that led to them.
+    """
+    messages: list[ModelMessage] = []
+    for i, (user, reply) in enumerate(turns):
+        system_part = [SystemPromptPart(system)] if i == 0 else []
+        messages.append(ModelRequest(parts=[*system_part, UserPromptPart(user)]))
+        messages.append(ModelResponse(parts=[TextPart(reply)]))
+    return messages
+
+
 class Client:
     """One model configuration.
 
@@ -274,15 +299,22 @@ class Client:
         self._model = _build_model(m, p, timeout)
         self._agent_cls = Agent
 
-    async def _run(self, agent: Agent[None, str], user: str, streamed: _Streamed) -> AgentRunResult:
+    async def _run(
+        self,
+        agent: Agent[None, str],
+        user: str,
+        streamed: _Streamed,
+        history: list[ModelMessage] | None = None,
+        settings: dict[str, Any] | None = None,
+    ) -> AgentRunResult:
         """One model call.
 
         Driving the run node by node streams every model request through `streamed` and keeps
         the last response, so a failure can be classified by how the reply ended (its finish
         reason). A reply the server did not finish raises _UnfinishedReplyError.
         """
-        settings = cast("ModelSettings", self.settings)  # plus provider fields (extra_body)
-        async with agent.iter(user, model_settings=settings) as run:
+        sent = cast("ModelSettings", settings or self.settings)  # plus provider fields (extra_body)
+        async with agent.iter(user, model_settings=sent, message_history=history) as run:
             async for node in run:
                 if agent.is_model_request_node(node):
                     async with node.stream(run.ctx) as events:
@@ -296,8 +328,19 @@ class Client:
             raise _UnfinishedReplyError("the answer was cut off")
         return result
 
-    async def generate(self, system: str, user: str) -> Generation:
+    async def generate(
+        self,
+        system: str,
+        user: str,
+        turns: Sequence[tuple[str, str]] = (),
+        seed: int | None = None,
+    ) -> Generation:
+        """The model's reply to `user`, after the earlier `turns` of the conversation, if any.
 
+        ``seed`` is sent with the request: a server that seeds every request the same way (one
+        that samples, but repeats itself for the same prompt) needs one per sample.
+        """
+        settings = self.settings if seed is None else {**self.settings, "seed": seed}
         # retries=0: pydantic-ai would otherwise re-prompt the model after an empty
         # answer, a hidden retry that would change the conversation being measured.
         agent = self._agent_cls(self._model, system_prompt=system, retries=0)
@@ -306,7 +349,9 @@ class Client:
             t0 = time.monotonic()
             streamed = _Streamed()
             try:
-                r = await self._run(agent, user, streamed)
+                r = await self._run(
+                    agent, user, streamed, conversation(system, turns) if turns else None, settings
+                )
             except Exception as e:  # noqa: BLE001 (any failure is retried or recorded)
                 last_err = e
                 elapsed = time.monotonic() - t0
