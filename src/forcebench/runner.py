@@ -465,6 +465,7 @@ def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any])
         "system prompt": started.get("system_prompt_sha"),
         "agent": started.get("agent"),
         "endpoint model": started.get("endpoint_model"),
+        "via": started.get("via"),
     }
     diffs = [f"{k} {was[k]!r} (resume asked for {v!r})" for k, v in asked.items() if was[k] != v]
     if diffs:
@@ -489,6 +490,7 @@ async def generate(
     progress: bool = True,
     private: PrivatePool | None = None,
     agent: Harness | None = None,
+    via: str | None = None,
 ) -> Path:
     """Phase 1: get every answer from the model (and nothing else), resumably.
 
@@ -501,6 +503,9 @@ async def generate(
 
     ``endpoint_model`` calls the model under another name than its config's: the same weights
     served another way (e.g. split across more machines). The run records the name it called.
+
+    ``via`` calls the model through another provider (a proxy such as LiteLLM), under the
+    config's ``proxy_model`` name (or ``endpoint_model``, if given). The run records it.
 
     With ``private``, the tasks are the private pool's and the run is one of its runs (in its
     results/runs): a private-tier task is refused for a model not served locally, and a
@@ -535,6 +540,8 @@ async def generate(
         model = model_id or started.get("model", {}).get("id")
         if model:
             m = registry.get(model)
+            through = via or started.get("via")
+            m = registry.via(m, through) if through else m
             name = endpoint_model or started.get("endpoint_model")
             called = m.model_copy(update={"endpoint_model": name}) if name else m
             check_tiers(tasks, called, registry.provider_for(m), configured=m)
@@ -544,6 +551,7 @@ async def generate(
             registry, model_id, effort, tasks,
             samples=samples, concurrency=concurrency, run_dir=run_dir, subset=subset,
             endpoint_model=endpoint_model, progress=progress, private=private, agent=agent,
+            via=via,
         )  # fmt: skip
 
 
@@ -561,6 +569,7 @@ async def _generate(
     progress: bool,
     private: PrivatePool | None = None,
     agent: Harness | None = None,
+    via: str | None = None,
 ) -> Path:
     started = read_run(run_dir)
     check_run_pool(run_dir, started, tasks, private)
@@ -575,9 +584,12 @@ async def _generate(
         effort = effort or started["effort"]
         samples = samples if samples is not None else started["samples"]
         subset = subset or started.get("subset", "full")
+        via = via or started.get("via")
     if model_id is None:
         raise ValueError("a new run needs a model id")
     m = registry.get(model_id)
+    if via:
+        m = registry.via(m, via)
     if started:
         # A run from before endpoint names were recorded called its config's.
         started = {"endpoint_model": m.endpoint_model, **started}
@@ -595,6 +607,7 @@ async def _generate(
         asked = {"model": m.id, "effort": effort, "subset": subset, "samples": samples}
         asked |= {"protocol": GENERATION_PROTOCOL, "endpoint model": m.endpoint_model}
         asked["agent"] = agent_info  # None for a single-turn run, which must stay one
+        asked["via"] = via
         if "system_prompt_sha" in started:
             asked["system prompt"] = _sha(SYSTEM_PROMPT)
         _check_resume(run_dir, started, asked)
@@ -651,6 +664,8 @@ async def _generate(
             "provider": m.provider,
             "provider_kind": registry.providers[m.provider].kind,
             "endpoint_model": m.endpoint_model,  # the name it was called under (see generate)
+            # The proxy it was called through, absent when called directly (see generate).
+            **({"via": via} if via else {}),
             # The agent track: which agent answered (generate), absent for single-turn runs.
             **({"track": "agent", "agent": agent_info} if agent_info else {}),
             "request": recorded_request(m, effort),

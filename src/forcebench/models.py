@@ -67,6 +67,8 @@ class ModelConfig(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9.\-]*$")
     provider: str
     endpoint_model: str  # the model name the endpoint expects
+    # The name a proxy serves it under (`forcebench run --via <provider>`), e.g. LiteLLM's.
+    proxy_model: str | None = None
     display: str  # e.g. "Qwen3.8 27B"
     family: str  # e.g. "Qwen3.8"
     base_model: str  # the unquantised model, groups quantisations together
@@ -115,7 +117,7 @@ class ModelConfig(BaseModel):
 
     def public_dict(self) -> dict[str, Any]:
         """Everything worth publishing about this configuration (no endpoints or keys)."""
-        return self.model_dump(exclude={"provider", "endpoint_model"})
+        return self.model_dump(exclude={"provider", "endpoint_model", "proxy_model"})
 
 
 class Registry(BaseModel):
@@ -130,6 +132,14 @@ class Registry(BaseModel):
 
     def provider_for(self, m: ModelConfig) -> Provider:
         return self.providers[m.provider]
+
+    def via(self, m: ModelConfig, provider: str) -> ModelConfig:
+        """``m`` called through another provider (a proxy), under its ``proxy_model`` name."""
+        if provider not in self.providers:
+            raise KeyError(f"unknown provider {provider!r}; have {sorted(self.providers)}")
+        if not m.proxy_model:
+            raise ValueError(f"{m.id} has no proxy_model: the name {provider!r} serves it under")
+        return m.model_copy(update={"provider": provider, "endpoint_model": m.proxy_model})
 
 
 # Safety switches come only from the environment the sandbox and the Makefile set, never from

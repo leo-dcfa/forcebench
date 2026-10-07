@@ -98,6 +98,11 @@ its runs.
   for that server.
 - **Concurrency matches what the server can serve.** A server that takes one request at a time
   needs `-c 1`.
+- **Through a proxy** (a LiteLLM you run in front of your servers): `--via local` calls the
+  model through the `local` provider (`FORCEBENCH_LOCAL_BASE_URL`), under the config's
+  `proxy_model` name; the run records `via`, and a resume keeps it. Prove the proxy transparent
+  first: the same seeded request sent directly and through it must return the same answer, and
+  one answer that streams for longer than the proxy's request timeout must arrive whole.
 - **URLs inside and outside containers:** `host.docker.internal` URLs in `.env` work from inside
   containers. A process on the host may need `127.0.0.1` instead.
 

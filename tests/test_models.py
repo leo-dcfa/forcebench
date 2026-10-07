@@ -42,3 +42,14 @@ def test_tier_on_is_only_for_a_thinking_switch():
         ModelConfig.model_validate(_config(["on", "off"], {"off": "on", "on": "on"}))
     m = ModelConfig.model_validate(_config(["on"], {"on": "on"}))
     assert m.effort_tiers == {"on": "on"}
+
+
+def test_via_calls_the_proxy_name_and_refuses_what_it_cannot():
+    reg = load_registry()
+    m = reg.via(reg.get("qwen3.8-27b-awq-int4"), "local")
+    assert (m.provider, m.endpoint_model) == ("local", "qwen3.8-27b")
+    assert "proxy_model" not in reg.get("qwen3.8-27b-awq-int4").public_dict()
+    with pytest.raises(ValueError, match="no proxy_model"):
+        reg.via(reg.get("gemma-4-31b-qat-w4a16"), "local")
+    with pytest.raises(KeyError, match="unknown provider"):
+        reg.via(reg.get("qwen3.8-27b-awq-int4"), "nowhere")
