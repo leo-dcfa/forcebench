@@ -153,6 +153,8 @@ async def generate_attempt(
         raise RunDirError(f"grade {ungraded[0]} before attempt {n}")
     first = read_run(run_dir)
     m = registry.get(first["model"]["id"])
+    if first.get("via"):  # through the proxy attempt 1 went through (run --via)
+        m = registry.via(m, first["via"])
     name = endpoint_model or first.get("endpoint_model") or m.endpoint_model
     m = m.model_copy(update={"endpoint_model": name})
     effort = first["effort"]
