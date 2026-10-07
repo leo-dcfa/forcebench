@@ -616,7 +616,7 @@ def fake_model(monkeypatch, tmp_path):
     """The real registry plus a hosted copy of MODEL; no request leaves the process."""
     reg = load_registry()
     hosted = reg.get(MODEL).model_copy(
-        update={"id": HOSTED, "provider": "anthropic", "local": False}
+        update={"id": HOSTED, "provider": "anthropic", "local": False, "hardware": None}
     )
     reg = Registry(providers=reg.providers, models={**reg.models, HOSTED: hosted})
     fake = _Fake(reg)
