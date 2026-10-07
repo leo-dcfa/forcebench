@@ -101,3 +101,12 @@ def test_only_answers_that_failed_every_round_get_another(make_task, tmp_path):
     after_r0 = pending_attempts([r0], {task.id: task}, 32768)
     assert sorted(after_r0) == ["test-task#1", "test-task#2", "test-task#3"]
     assert after_r0["test-task#2"][0][0][1] == NO_ANSWER
+
+
+def test_an_answer_recorded_as_failed_gets_no_more_turns(make_task, tmp_path):
+    task = make_task({"format": "text"})
+    r0 = _round(tmp_path / "r0", [(0, "a0", False, None), (1, "b0", False, None)])
+    rows = [json.loads(x) for x in (r0 / "cases.jsonl").read_text().splitlines()]
+    rows[1]["finish_reason"] = "failed: the gateway cuts responses at 30 s"
+    (r0 / "cases.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    assert sorted(pending_attempts([r0], {task.id: task}, 32768)) == ["test-task#0"]

@@ -1714,6 +1714,11 @@ def feedback_round(
     resume: Annotated[
         Path | None, typer.Option(help="Resume an interrupted round's run directory.")
     ] = None,
+    suite: SuiteOpt = None,
+    exclude_grader: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-grader", help="Leave out tasks graded this way (repeatable)."),
+    ] = None,
 ) -> None:
     """The feedback study: another attempt for every answer that failed each round so far.
 
@@ -1723,11 +1728,12 @@ def feedback_round(
     models.load_dotenv()  # through the module, so tests can keep a real .env out
     for run_dir in [*chain, *([resume] if resume else [])]:
         _check_run_dir(run_dir)
+    keep = TaskFilter.of(suite, exclude_graders=exclude_grader)
     out = asyncio.run(
         feedback.feedback_round(
             models.load_registry(),
             chain,
-            all_tasks(load_suites()),
+            [t for t in all_tasks(load_suites()) if keep.keeps(t)],
             concurrency=concurrency,
             run_dir=resume,
             on_answer=lambda key, gen: console.print(

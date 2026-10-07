@@ -89,7 +89,8 @@ def pending_attempts(
     """The conversation for each answer that failed every attempt in ``chain`` (graded runs).
 
     Per case key: the earlier turns (user message, model reply) and the next user message. An
-    answer that passed, was skipped, or was not graded (an endpoint failure) gets no more turns.
+    answer that passed, was skipped, was not graded (an endpoint failure) or was recorded as
+    failed (``forcebench record-failed``) gets no more turns.
     """
     rounds = [(GenerationStore(d / "raw" / "generations.jsonl").done, _cases(d)) for d in chain]
     todo: dict[str, tuple[list[tuple[str, str]], str]] = {}
@@ -103,6 +104,8 @@ def pending_attempts(
                 break
             if case["skipped"] or case["infra_error"]:
                 break
+            if (case.get("finish_reason") or "").startswith("failed:"):
+                break  # recorded as failed: the endpoint could never deliver it (record-failed)
             turns.append((user, strip_reasoning(gen.text).strip() or NO_ANSWER))
             user = feedback_message(case, max_tokens)
         else:
