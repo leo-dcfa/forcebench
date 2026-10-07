@@ -10,13 +10,13 @@ local:            # any OpenAI-compatible server or proxy you run yourself (vLLM
 mtplx:            # MTPLX (MLX) server, called directly
   kind: openai_compatible
   local: true
-  base_url: http://127.0.0.1:8000/v1
+  base_url: http://127.0.0.1:8001/v1
   base_url_env: FORCEBENCH_MTPLX_BASE_URL
   api_key_env: FORCEBENCH_MTPLX_API_KEY
 splash:           # Splash (MLX) server, called directly
   kind: openai_compatible
   local: true
-  base_url: http://127.0.0.1:8001/v1
+  base_url: http://127.0.0.1:8002/v1
   base_url_env: FORCEBENCH_SPLASH_BASE_URL
   api_key_env: FORCEBENCH_SPLASH_API_KEY
 lmstudio:
