@@ -787,8 +787,9 @@ def publishable_files(
 
     It may commit the public leaderboard and LEADERBOARD.md beside it, and run.json and cases.jsonl
     of each run it is built from and of each run kept in invalid/ (with its README.md), all checked
-    as load_runs checks them. Nothing else under results/ (raw replies, artifacts, anything copied
-    in) is ever on this list; a run that may not be published refuses it all (RunDataError).
+    as load_runs checks them, and of each graded attempt of those runs (load_attempts). Nothing
+    else under results/ (raw replies, artifacts, anything copied in) is ever on this list; a run
+    that may not be published refuses it all (RunDataError).
     """
     runs_dir = runs_dir or out.parent / "runs"
     invalid = out.parent / "invalid"
@@ -798,6 +799,11 @@ def publishable_files(
         for meta, _ in load_runs(directory, "public", known, track) if directory.is_dir() else []:
             run = directory / meta["run_id"]
             files += [run / "run.json", run / "cases.jsonl"]
+            for n in load_attempts(run):
+                files += [
+                    run / ATTEMPTS / str(n) / "run.json",
+                    run / ATTEMPTS / str(n) / "cases.jsonl",
+                ]
     if (invalid / "README.md").is_file():
         files.append(invalid / "README.md")
     return files
@@ -806,7 +812,8 @@ def publishable_files(
 # The shapes of what publishing may commit, relative to results/: a removal of one of these is
 # published too (a run retired from runs/ to invalid/, say); a removal of anything else is not.
 _PUBLISHABLE_RE = re.compile(
-    r"(?:runs|invalid)/[^/]+/(?:run\.json|cases\.jsonl)|leaderboard\.json|LEADERBOARD\.md"
+    r"(?:runs|invalid)/[^/]+/(?:attempts/[0-9]+/)?(?:run\.json|cases\.jsonl)"
+    r"|leaderboard\.json|LEADERBOARD\.md"
     r"|invalid/README\.md"
 )
 

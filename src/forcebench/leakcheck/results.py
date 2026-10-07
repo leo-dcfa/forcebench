@@ -18,7 +18,10 @@ from forcebench.tasks import EVERY_STATUS, load_suites
 
 
 # The single-turn track's files, and the agent track's under results/agent/ (docs/agent-track.md).
-_RUN_FILE_RE = re.compile(r"results/(?:agent/)?(?:runs|invalid)/[^/]+/(?:run\.json|cases\.jsonl)")
+# A run's run.json and cases.jsonl, and those of its later attempts (attempts/<n>/, c@k).
+_RUN_FILE_RE = re.compile(
+    r"results/(?:agent/)?(?:runs|invalid)/[^/]+/(?:attempts/[0-9]+/)?(?:run\.json|cases\.jsonl)"
+)
 _LEADERBOARDS = frozenset({"results/leaderboard.json", "results/agent/leaderboard.json"})
 _OTHER_FILES = _LEADERBOARDS | {
     "results/LEADERBOARD.md",
@@ -93,7 +96,8 @@ def only_public_results(path: str, text: str) -> Iterator[Finding]:
     if not _RUN_FILE_RE.fullmatch(path) and path not in _OTHER_FILES:
         yield Finding(
             path, 1, "results",
-            "results/ holds only the leaderboard, and run.json and cases.jsonl of each run",
+            "results/ holds only the leaderboard, and run.json and cases.jsonl of each run and "
+            "attempt",
         )  # fmt: skip
     elif path.endswith("/run.json"):
         yield from _run(path, text)

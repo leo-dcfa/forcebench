@@ -732,12 +732,26 @@ def test_stage_adds_exactly_what_may_be_published(fixture_copy, monkeypatch):
     ungraded.mkdir()
     (ungraded / "run.json").write_text(json.dumps({**_meta("r9"), "run_id": ungraded.name}))
     (results / "stray.txt").write_text("not a result\n")
+    # A graded attempt is published (its run.json and cases.jsonl); its raw replies and an
+    # ungraded attempt are not.
+    graded = runs[0] / "attempts" / "2"
+    (graded / "raw").mkdir(parents=True)
+    (graded / "raw" / "generations.jsonl").write_text("{}\n")
+    first = json.loads((runs[0] / "cases.jsonl").read_text().splitlines()[0])
+    (graded / "run.json").write_text(json.dumps({"attempt": 2, "generation_pending": 0}))
+    (graded / "cases.jsonl").write_text(json.dumps(first) + "\n")
+    (runs[0] / "attempts" / "3").mkdir()
+    (runs[0] / "attempts" / "3" / "run.json").write_text(json.dumps({"attempt": 3}))
+    # As make publish-results does: rebuild the leaderboard (the attempt adds c@2), then stage.
+    rebuilt = CliRunner().invoke(app, ["report", "--results-dir", str(results)])
+    assert rebuilt.exit_code == 0, rebuilt.output
     result = CliRunner().invoke(app, ["report", "--stage", "--results-dir", str(results)])
     assert result.exit_code == 0, result.output
     staged = set(_git(fixture_copy, "diff", "--cached", "--name-only").split())
     expected = {"results/leaderboard.json", "results/LEADERBOARD.md"} | {
         f"results/runs/{r.name}/{f}" for r in runs for f in ("run.json", "cases.jsonl")
     }
+    expected |= {f"results/runs/{runs[0].name}/attempts/2/{f}" for f in ("run.json", "cases.jsonl")}
     assert staged == expected
 
 
