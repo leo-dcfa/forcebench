@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from forcebench.models import THINKING_SWITCH, ModelConfig, load_registry
+from forcebench.models import THINKING_SWITCH, ModelConfig, Provider, load_registry
 
 
 def _config(efforts: list[str], tiers: dict[str, str]) -> dict[str, Any]:
@@ -53,3 +53,17 @@ def test_via_calls_the_proxy_name_and_refuses_what_it_cannot():
         reg.via(reg.get("gemma-4-31b-qat-w4a16"), "local")
     with pytest.raises(KeyError, match="unknown provider"):
         reg.via(reg.get("qwen3.8-27b-awq-int4"), "nowhere")
+
+
+def test_hardware_is_for_local_configurations_and_labels_for_hosted_services():
+    with pytest.raises(ValueError, match="a hosted model's hardware is its vendor's"):
+        ModelConfig.model_validate(
+            {**_config(["on"], {"on": "on"}), "local": False, "hardware": "X"}
+        )
+    with pytest.raises(ValueError, match="a local server has no public label"):
+        Provider.model_validate({"kind": "openai_compatible", "local": True, "label": "Home"})
+    reg = load_registry()
+    hosted = [m for m in reg.models.values() if not m.local]
+    assert hosted, "the registry has hosted models"
+    for m in hosted:
+        assert reg.provider_for(m).label, f"{m.provider} needs a label: its public name"
