@@ -121,6 +121,7 @@ async def feedback_round(
     concurrency: int,
     run_dir: Path | None = None,
     on_answer: Callable[[str, Generation], None] | None = None,
+    endpoint_model: str | None = None,
 ) -> Path:
     """Generate the next attempt for every answer that failed every round of ``chain``.
 
@@ -131,7 +132,8 @@ async def feedback_round(
     first = read_run(chain[0])
     m = registry.get(first["model"]["id"])
     # A run from before endpoint names were recorded called its config's (as runner.generate).
-    m = m.model_copy(update={"endpoint_model": first.get("endpoint_model") or m.endpoint_model})
+    name = endpoint_model or first.get("endpoint_model") or m.endpoint_model
+    m = m.model_copy(update={"endpoint_model": name})
     effort = first["effort"]
     by_id = {t.id: t for t in tasks if t.id in set(first["task_ids"])}
     todo = pending_attempts(chain, by_id, m.max_tokens)
