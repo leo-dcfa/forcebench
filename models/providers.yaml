@@ -2,6 +2,7 @@
 # from this repo. `local: true` marks a server you run yourself, on this machine or a private
 # network, with no routes to hosted models; it is off unless set. A vendor API, a hosted router,
 # or a proxy that can forward to one (LiteLLM with hosted models) must never have it.
+# A hosted service has a `label`, its public name on the leaderboard's API board.
 local:            # any OpenAI-compatible server or proxy you run yourself (vLLM, SGLang, LiteLLM, ...)
   kind: openai_compatible   # not `local: true`: a proxy may route some names to hosted models
   base_url_env: FORCEBENCH_LOCAL_BASE_URL
@@ -26,16 +27,20 @@ lmstudio:
   api_key_env: FORCEBENCH_LMSTUDIO_API_KEY
 openrouter:
   kind: openai_compatible
+  label: OpenRouter
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
 openai:
   kind: openai
+  label: OpenAI
   api_key_env: OPENAI_API_KEY
 anthropic:
   kind: anthropic
+  label: Anthropic
   api_key_env: ANTHROPIC_API_KEY
 google:
   kind: google
+  label: Google
   api_key_env: GEMINI_API_KEY
 
 # Direct connections to each inference server. Benchmark runs call the server itself, never a
@@ -95,5 +100,6 @@ gateway:          # a third-party OpenAI-compatible gateway; its address is priv
   kind: openai_compatible
   local: false
   sets_effort: true  # it chooses each model's effort; ours is inferred from its behaviour
+  label: Third-party gateway
   base_url_env: FORCEBENCH_GATEWAY_BASE_URL
   api_key_env: FORCEBENCH_GATEWAY_API_KEY
