@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import time
 import warnings
+import zlib
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -106,6 +107,11 @@ def _git_sha() -> str | None:
 
 def case_key(task_id: str, sample: int) -> str:
     return f"{task_id}#{sample}"
+
+
+def sample_seed(key: str, turn: int = 0) -> int:
+    """The request seed of an answer (a case key) and turn, with ``--sample-seeds``."""
+    return zlib.crc32(f"{key}@{turn}".encode()) & 0x7FFFFFFF
 
 
 @dataclass
@@ -465,6 +471,7 @@ def _check_resume(run_dir: Path, started: dict[str, Any], asked: dict[str, Any])
         "system prompt": started.get("system_prompt_sha"),
         "agent": started.get("agent"),
         "endpoint model": started.get("endpoint_model"),
+        "sample seeds": bool(started.get("sample_seeds")),
     }
     diffs = [f"{k} {was[k]!r} (resume asked for {v!r})" for k, v in asked.items() if was[k] != v]
     if diffs:
@@ -489,6 +496,7 @@ async def generate(
     progress: bool = True,
     private: PrivatePool | None = None,
     agent: Harness | None = None,
+    sample_seeds: bool | None = None,
 ) -> Path:
     """Phase 1: get every answer from the model (and nothing else), resumably.
 
@@ -510,6 +518,9 @@ async def generate(
     With ``agent``, each task is answered by a coding agent in an isolated container instead of
     one model call (forcebench.agent), and the run is one of the agent track's
     (results/agent/runs); it records the agent, and a resume must use the same one.
+
+    With ``sample_seeds``, every request carries a seed of its own (``sample_seed``), for a
+    server that otherwise seeds every request the same way and repeats an answer.
 
     The run is locked (``run_lock``) for the whole generation.
     """
@@ -544,6 +555,7 @@ async def generate(
             registry, model_id, effort, tasks,
             samples=samples, concurrency=concurrency, run_dir=run_dir, subset=subset,
             endpoint_model=endpoint_model, progress=progress, private=private, agent=agent,
+            sample_seeds=sample_seeds,
         )  # fmt: skip
 
 
@@ -561,6 +573,7 @@ async def _generate(
     progress: bool,
     private: PrivatePool | None = None,
     agent: Harness | None = None,
+    sample_seeds: bool | None = None,
 ) -> Path:
     started = read_run(run_dir)
     check_run_pool(run_dir, started, tasks, private)
@@ -575,6 +588,7 @@ async def _generate(
         effort = effort or started["effort"]
         samples = samples if samples is not None else started["samples"]
         subset = subset or started.get("subset", "full")
+        sample_seeds = sample_seeds or bool(started.get("sample_seeds"))
     if model_id is None:
         raise ValueError("a new run needs a model id")
     m = registry.get(model_id)
@@ -595,6 +609,7 @@ async def _generate(
         asked = {"model": m.id, "effort": effort, "subset": subset, "samples": samples}
         asked |= {"protocol": GENERATION_PROTOCOL, "endpoint model": m.endpoint_model}
         asked["agent"] = agent_info  # None for a single-turn run, which must stay one
+        asked["sample seeds"] = bool(sample_seeds)
         if "system_prompt_sha" in started:
             asked["system prompt"] = _sha(SYSTEM_PROMPT)
         _check_resume(run_dir, started, asked)
@@ -657,6 +672,7 @@ async def _generate(
             "protocol": GENERATION_PROTOCOL,
             "system_prompt_sha": _sha(SYSTEM_PROMPT),
             "samples": samples,
+            **({"sample_seeds": True} if sample_seeds else {}),
             "concurrency": concurrency,
             # A resume that selects fewer tasks keeps the others in the run.
             "task_ids": sorted({*meta.get("task_ids", []), *by_id}),
@@ -682,7 +698,8 @@ async def _generate(
             if agent_client is not None:
                 gen = await agent_client.generate_task(task, int(sample), SYSTEM_PROMPT, prompt)
             else:
-                gen = await client.generate(SYSTEM_PROMPT, prompt)
+                seed = sample_seed(key) if sample_seeds else None
+                gen = await client.generate(SYSTEM_PROMPT, prompt, seed=seed)
             await store.add(key, gen, task_version=task.version, prompt_sha=sha)
         return CaseOutput(
             task_id=task_id, sample=int(sample), generation=gen, task_version=task.version

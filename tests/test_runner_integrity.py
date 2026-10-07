@@ -26,6 +26,7 @@ from forcebench.runner import (
     invalidate,
     read_records,
     record_failed,
+    sample_seed,
 )
 
 
@@ -115,6 +116,7 @@ class _FakeModel:
     def __init__(self, registry):
         self.registry = registry
         self.prompts: list[str] = []
+        self.seeds: list[int | None] = []
         self.reply = Generation(text="Answer: x", finish_reason="stop")
 
 
@@ -132,6 +134,7 @@ def model(monkeypatch):
             seed: int | None = None,
         ) -> Generation:
             fake.prompts.append(user)
+            fake.seeds.append(seed)
             return fake.reply.model_copy()
 
     monkeypatch.setenv(reg.provider_for(reg.get(MODEL)).base_url_env, "http://127.0.0.1:9/v1")
@@ -392,3 +395,18 @@ def test_record_failed_leaves_real_and_invalidated_answers_alone(model, make_tas
     assert record_failed(run_dir, ["test-task#0"], "x") == 0, "a delivered answer stays"
     invalidate(run_dir, ["test-task#0"], "regenerate it")
     assert record_failed(run_dir, ["test-task#0"], "x") == 0, "an invalidated one is regenerated"
+
+
+def test_sample_seeds_give_every_answer_a_seed_of_its_own(model, make_task, tmp_path):
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], samples=3, sample_seeds=True)
+    assert sorted(model.seeds) == sorted(sample_seed(f"test-task#{s}") for s in range(3))
+    assert len(set(model.seeds)) == 3
+    assert json.loads((run_dir / "run.json").read_text())["sample_seeds"] is True
+
+
+def test_without_sample_seeds_no_seed_is_sent(model, make_task, tmp_path):
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], samples=2)
+    assert model.seeds == [None, None]
+    assert "sample_seeds" not in json.loads((run_dir / "run.json").read_text())
+    with pytest.raises(ResumeError, match="sample seeds"):
+        _generate(model, run_dir, [_task(make_task)], samples=2, sample_seeds=True)
