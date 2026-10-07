@@ -380,7 +380,10 @@ def test_an_answer_the_endpoint_never_returned_can_be_recorded_as_failed(
 ):
     model.reply = Generation(error="ModelHTTPError: status_code: 503", attempts=4, latency_s=31)
     run_dir = _generate(model, tmp_path / RUN, [_task(make_task)])
+    pending = lambda: json.loads((run_dir / "run.json").read_text())["generation_pending"]
+    assert pending() == 1
     assert record_failed(run_dir, ["test-task#0"], "the endpoint cuts responses at 30 s") == 1
+    assert pending() == 0, "nothing is left to generate: the report sees a finished run"
     (case,) = _grade(run_dir, [_task(make_task)])
     assert (case["passed"], case["infra_error"], case["skipped"]) == (False, None, None)
     assert case["finish_reason"] == "failed: the endpoint cuts responses at 30 s"

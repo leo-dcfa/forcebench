@@ -844,7 +844,25 @@ def record_failed(
             marks.append({"key": key, "generation": gen.model_dump(), **provenance})
         if marks:
             store.append(marks)
+        _recount_pending(run_dir, store)
         return len(marks)
+
+
+def _recount_pending(run_dir: Path, store: GenerationStore) -> None:
+    """Update run.json's generation_pending to the answers still missing from the store.
+
+    A run's answers are its tasks times its samples; an attempt's (forcebench.feedback) are those
+    it was asked for, i.e. every key it holds a record of.
+    """
+    meta = read_run(run_dir)
+    if "generation_pending" not in meta:
+        return
+    if meta.get("attempt"):
+        keys = {rec["key"] for rec in read_records(store.path)}
+    else:
+        keys = {case_key(t, s) for t in meta["task_ids"] for s in range(meta["samples"])}
+    meta["generation_pending"] = sum(k not in store.done for k in keys)
+    write_run(run_dir, meta)
 
 
 async def grade(

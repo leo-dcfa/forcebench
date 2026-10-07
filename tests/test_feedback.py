@@ -9,7 +9,7 @@ from forcebench.feedback import NO_ANSWER, feedback_message, pending_attempts, r
 from forcebench.graders import GradeEnv
 from forcebench.llm import Client, Generation
 from forcebench.models import load_registry
-from forcebench.runner import RunDirError, attempt_dir, generate, grade
+from forcebench.runner import RunDirError, attempt_dir, generate, grade, record_failed
 
 
 def _check(name, passed, detail=""):
@@ -129,12 +129,14 @@ def fake(monkeypatch):
     """Answers every call from a script; records the turns each call carried."""
     calls: list[tuple[str, list]] = []
     providers: list[str] = []
-    replies = ["not json"]
+    replies: list[str | None] = ["not json"]
 
     class FakeClient(Client):
         async def generate(self, system, user, turns=(), seed=None):
             calls.append((user, list(turns)))
             providers.append(self.m.provider)
+            if replies[0] is None:  # an endpoint failure
+                return Generation(error="ModelHTTPError: status_code: 503", attempts=4)
             return Generation(text=replies[0], finish_reason="stop")
 
     reg = load_registry()
@@ -197,6 +199,22 @@ def test_attempts_go_through_the_proxy_attempt_1_went_through(
     meta = json.loads((out / "run.json").read_text())
     assert (meta["via"], meta["endpoint_model"]) == ("local", reg.get(MODEL).proxy_model)
     assert providers == ["local", "local"]
+
+
+def test_recording_an_attempts_lost_answers_leaves_nothing_pending(fake, make_task, tmp_path):
+    reg, _, replies, _ = fake
+    rules = [{"path": "fixed", "equals": True}]
+    task = make_task({"format": "json"}, {"type": "json_rules", "rules": rules})
+    env = GradeEnv(work_dir=tmp_path / "work")
+    run_dir = asyncio.run(
+        generate(reg, MODEL, "low", [task], run_dir=tmp_path / RUN, progress=False)
+    )
+    asyncio.run(grade(run_dir, [task], env, progress=False))
+    replies[0] = None  # the endpoint never delivers attempt 2 (see the fixture)
+    out = asyncio.run(feedback.generate_attempt(reg, run_dir, 2, [task], concurrency=1))
+    assert json.loads((out / "run.json").read_text())["generation_pending"] == 1
+    assert record_failed(out, [f"{task.id}#0"], "the gateway cuts responses at 30 s") == 1
+    assert json.loads((out / "run.json").read_text())["generation_pending"] == 0
 
 
 TOOL_OUTPUT = [
