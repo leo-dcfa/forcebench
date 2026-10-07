@@ -101,7 +101,10 @@ against another.
   a request that times out is treated like an endpoint failure and re-run, not scored.
 - **No hidden retries.** Responses are streamed, and the SDK's and pydantic-ai's own retries are
   off: a proxy or SDK that silently restarts slow requests would keep only the answers that
-  happened to finish quickly, biasing slow configurations towards short answers. The harness
+  happened to finish quickly, biasing slow configurations towards short answers. A run may go
+  through a proxy in front of the servers (`via` in `run.json`, e.g. a LiteLLM the operator runs)
+  only once the proxy is shown to forward requests unchanged (a seeded request answers the same
+  directly and through it) and to stream long answers whole, with its own retries off. The harness
   itself retries only answers the endpoint failed to complete: any error from the server or
   the connection (5xx, overload, a connection dropped mid-stream), the client errors a later
   try can get past (408 request timeout, 409 conflict, 425 too early, 429 rate limited), and any
