@@ -17,12 +17,16 @@ POOL_ARGS = $(if $(filter public,$(POOL)),, --pool $(POOL))
 private_mounts = $(if $(filter public,$(POOL)),,$(call _pool_or_error,$(shell uv run --quiet python -m forcebench.pool docker-args $(1) 2>/dev/null || echo "ERROR: the private pool could not be checked")))
 _pool_or_error = $(if $(filter ERROR:%,$(firstword $(1))),$(error $(1)), $(1))
 
+# MTPLX listens on the host's loopback only: other machines reach it through a private network
+# (e.g. `tailscale serve`), never the LAN.
+MTPLX_PORT ?= 8001
+
 SANDBOX = docker run --rm $(TTY) \
 	-v "$(CURDIR)":/work \
 	-v forcebench-sf-home:/home/node \
 	-v forcebench-cache:/cache \
 	--add-host=host.docker.internal:host-gateway \
-	-e FORCEBENCH_MTPLX_BASE_URL=http://host.docker.internal:8000/v1 \
+	-e FORCEBENCH_MTPLX_BASE_URL=http://host.docker.internal:$(MTPLX_PORT)/v1 \
 	-e FORCEBENCH_LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1$(call private_mounts,sandbox)
 
 # The grader type that runs model-written JavaScript (src/forcebench/graders/lwc.py). grade,
