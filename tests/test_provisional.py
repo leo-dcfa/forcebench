@@ -48,3 +48,19 @@ def test_ties_share_a_rank():
     assert prov is not None
     ranks = {k: v["rank"] for k, v in prov["full"]["entries"].items()}
     assert ranks == {"a": 1, "b": 1, "c": 3}
+
+
+def test_each_board_is_provisional_only_on_its_own_entries():
+    hosted = {**_entry("api-partial", 0.9, incomplete=["s0"]), "serving": "api"}
+    done = {**_entry("api-done", 0.6), "serving": "api"}
+    local = [{**_entry(c, s), "serving": "local"} for c, s in (("loc-a", 0.5), ("loc-b", 0.4))]
+    prov = provisional(_data([hosted, done, *local]))
+    assert prov is not None
+    assert set(prov["full"]["entries"]) == {"api-partial", "api-done", "loc-a", "loc-b"}
+    assert set(prov["full:api"]["entries"]) == {"api-partial", "api-done"}
+    assert "full:local" not in prov, "every local entry is complete: nothing provisional there"
+    partial_local = {**_entry("loc-c", 0.7, incomplete=["s1"]), "serving": "local"}
+    prov = provisional(_data([*local, partial_local]))
+    assert prov is not None
+    assert prov["full:local"]["suites"] == prov["full"]["suites"]
+    assert prov["full:local"]["entries"]["loc-c"]["rank"] == 1
