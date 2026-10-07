@@ -80,11 +80,14 @@ class _FakeServer:
 
     def __init__(self, *replies: str | _Drop | _Status):
         self.requests = 0
+        self.bodies: list[dict[str, Any]] = []  # each request's JSON body, in order
         server = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
-                self.rfile.read(int(self.headers["Content-Length"]))
+                server.bodies.append(
+                    json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                )
                 reply = replies[min(server.requests, len(replies) - 1)]
                 server.requests += 1
                 if isinstance(reply, _Status):
@@ -324,3 +327,36 @@ async def test_a_total_that_adds_up_changes_nothing(monkeypatch):
         monkeypatch, _sse([{"role": "assistant", "content": "Answer: B"}], usage=usage)
     )
     assert (gen.output_tokens, gen.reasoning_tokens) == (64, 0)
+
+
+@pytest.mark.asyncio
+async def test_a_conversation_sends_the_earlier_turns_and_the_seed(monkeypatch):
+    server = _FakeServer(_sse([{"role": "assistant", "content": "fixed"}]))
+    try:
+        turns = [("the task", "first answer"), ("it failed: error X", "second answer")]
+        gen = await _client(monkeypatch, server.url).generate("system", "it failed: Y", turns, 7)
+    finally:
+        server.close()
+    assert gen.text == "fixed"
+    (body,) = server.bodies
+    assert [(m["role"], m["content"]) for m in body["messages"]] == [
+        ("system", "system"),
+        ("user", "the task"),
+        ("assistant", "first answer"),
+        ("user", "it failed: error X"),
+        ("assistant", "second answer"),
+        ("user", "it failed: Y"),
+    ]
+    assert body["seed"] == 7
+
+
+@pytest.mark.asyncio
+async def test_a_single_turn_sends_no_seed(monkeypatch):
+    server = _FakeServer(_sse([{"role": "assistant", "content": "ok"}]))
+    try:
+        await _client(monkeypatch, server.url).generate("system", "hi")
+    finally:
+        server.close()
+    (body,) = server.bodies
+    assert [m["role"] for m in body["messages"]] == ["system", "user"]
+    assert "seed" not in body
