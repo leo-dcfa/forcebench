@@ -68,6 +68,27 @@ models:
       max: {output_config: {effort: max}}
     effort_tiers: {low: low, medium: medium, high: high, max: max}
 
+  # Adaptive thinking, on by default (a thinking budget is refused); effort steers it, and the
+  # API default is medium, as on Opus 5.5.
+  - id: claude-haiku-5.5
+    provider: anthropic
+    endpoint_model: claude-haiku-5-5
+    display: Claude Haiku 5.5
+    family: Claude
+    base_model: Claude-Haiku-5.5
+    quant: Unknown
+    engine: Unknown
+    open_weights: false
+    local: false
+    context: 1000000
+    default_effort: medium
+    efforts:
+      low: {output_config: {effort: low}}
+      medium: {output_config: {effort: medium}}
+      high: {output_config: {effort: high}}
+      max: {output_config: {effort: max}}
+    effort_tiers: {low: low, medium: medium, high: high, max: max}
+
   # Extended thinking only (no adaptive thinking, no effort parameter): thinking is off unless
   # the request enables it with a budget. Run as a thinking switch, like the open models that
   # have one; "on" gives it half the output budget to think in.
