@@ -20,6 +20,7 @@ models:
     provider: openrouter
     endpoint_model: openai/gpt-6-astra
     display: GPT-6 Astra
+    developer: openai
     family: GPT
     base_model: GPT-6-Astra
     quant: Unknown
@@ -40,6 +41,7 @@ models:
     provider: openrouter
     endpoint_model: openai/gpt-5.6-sol
     display: GPT-5.6 Sol
+    developer: openai
     family: GPT
     base_model: GPT-5.6-Sol
     quant: Unknown
@@ -60,6 +62,7 @@ models:
     provider: openrouter
     endpoint_model: openai/gpt-6-luna
     display: GPT-6 Luna
+    developer: openai
     family: GPT
     base_model: GPT-6-Luna
     quant: Unknown
@@ -82,6 +85,7 @@ models:
     provider: openrouter
     endpoint_model: google/gemini-3.8-flash
     display: Gemini 3.8 Flash
+    developer: google
     family: Gemini
     base_model: Gemini-3.8-Flash
     quant: Unknown
@@ -105,6 +109,7 @@ models:
     provider: openrouter
     endpoint_model: x-ai/grok-4.7
     display: Grok 4.7
+    developer: xai
     family: Grok
     base_model: Grok-4.7
     quant: Unknown
@@ -125,6 +130,7 @@ models:
     provider: openrouter
     endpoint_model: x-ai/grok-4.6
     display: Grok 4.6
+    developer: xai
     family: Grok
     base_model: Grok-4.6
     quant: Unknown
@@ -151,6 +157,7 @@ models:
     provider: openrouter
     endpoint_model: z-ai/glm-5.3
     display: GLM-5.3
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3
     quant: FP8
@@ -169,6 +176,7 @@ models:
     provider: openrouter
     endpoint_model: z-ai/glm-5.3-flash
     display: GLM-5.3 Flash
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
     quant: FP8
@@ -189,6 +197,7 @@ models:
     provider: openrouter
     endpoint_model: z-ai/glm-5.2
     display: GLM-5.2
+    developer: zai
     family: GLM-5.2
     base_model: GLM-5.2
     quant: FP8
@@ -210,6 +219,7 @@ models:
     provider: openrouter
     endpoint_model: moonshotai/kimi-k3
     display: Kimi K3
+    developer: moonshotai
     family: Kimi-K3
     base_model: Kimi-K3
     quant: MXFP4
@@ -228,6 +238,7 @@ models:
     provider: openrouter
     endpoint_model: deepseek/deepseek-v4.1-flash
     display: DeepSeek V4.1 Flash
+    developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
     quant: FP8
@@ -249,6 +260,7 @@ models:
     provider: openrouter
     endpoint_model: xiaomi/mimo-v2.6-flash
     display: MiMo V2.6 Flash
+    developer: xiaomi
     family: MiMo-V2.6
     base_model: MiMo-V2.6-Flash
     quant: FP8
@@ -268,6 +280,7 @@ models:
     provider: openrouter
     endpoint_model: inclusionai/ling-3.0-flash
     display: Ling 3.0 Flash
+    developer: inclusionai
     family: Ling-3.0
     base_model: Ling-3.0-Flash
     quant: BF16
@@ -290,6 +303,7 @@ models:
     provider: openrouter
     endpoint_model: nvidia/nemotron-3-ultra-550b-a55b:free
     display: Nemotron 3 Ultra
+    developer: nvidia
     family: Nemotron-3
     base_model: Nemotron-3-Ultra-550B-A55B
     quant: Unknown
@@ -308,6 +322,7 @@ models:
     provider: openrouter
     endpoint_model: nvidia/nemotron-3-super-120b-a12b:free
     display: Nemotron 3 Super
+    developer: nvidia
     family: Nemotron-3
     base_model: Nemotron-3-Super-120B-A12B
     quant: Unknown
@@ -326,6 +341,7 @@ models:
     provider: openrouter
     endpoint_model: nvidia/nemotron-3.5-lightning:free
     display: Nemotron 3.5 Lightning
+    developer: nvidia
     family: Nemotron-3.5
     base_model: Nemotron-3.5-Lightning-30B-A3B
     quant: NVFP4
@@ -344,6 +360,7 @@ models:
     provider: openrouter
     endpoint_model: poolside/laguna-s-2.1:free
     display: Laguna S 2.1
+    developer: poolside
     family: Laguna
     base_model: Laguna-S-2.1
     quant: FP4
