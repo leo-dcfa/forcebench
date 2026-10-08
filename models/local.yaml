@@ -188,6 +188,50 @@ models:
       xhigh: {chat_template_kwargs: {reasoning_effort: xhigh}}
     effort_tiers: {low: low, medium: medium, xhigh: max}
 
+  # Two Sparks, TP=2, on TensorFold's Zig engine (MiaAI's dual-Spark recipe): one image serves either checkpoint.
+  - id: qwen3.8-flash-next-nvfp4-tensorfold
+    provider: direct-qwen38fn-tf2
+    endpoint_model: Qwen3.8-Flash-Next
+    display: Qwen3.8 Flash-Next
+    model_id: qwen3-8-flash-next
+    developer: qwen
+    family: Qwen3.8
+    base_model: Qwen3.8-Flash-Next
+    quant: NVFP4 (NVIDIA ModelOpt)
+    engine: TensorFold (Zig)
+    hardware: 2× NVIDIA DGX Spark (GB10, 128 GB each)
+    context: 1048576
+    notes: NVIDIA's NVFP4 checkpoint (routed experts NVFP4, n-gram table and MTP experts FP8, bf16 elsewhere); MTP and copy drafting, FP8 KV cache, 16 concurrent streams, 1M context with YaRN x4.
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    # The chat template's levels: xhigh (its default), medium and low.
+    efforts:
+      low: {chat_template_kwargs: {reasoning_effort: low}}
+      medium: {chat_template_kwargs: {reasoning_effort: medium}}
+      xhigh: {chat_template_kwargs: {reasoning_effort: xhigh}}
+    effort_tiers: {low: low, medium: medium, xhigh: max}
+
+  - id: qwen3.8-flash-next-int4ar-tensorfold
+    provider: direct-qwen38fn-tf2
+    endpoint_model: Qwen3.8-Flash-Next-INT4-AR
+    display: Qwen3.8 Flash-Next
+    model_id: qwen3-8-flash-next
+    developer: qwen
+    family: Qwen3.8
+    base_model: Qwen3.8-Flash-Next
+    quant: INT4-AutoRound, 5 of 10 experts
+    engine: TensorFold (Zig)
+    hardware: 2× NVIDIA DGX Spark (GB10, 128 GB each)
+    context: 1048576
+    notes: azampatti's INT4-AutoRound checkpoint, which also routes each token to 5 experts instead of 10 (with a healed shared expert), so it is a smaller model as well as a lower precision; MTP and copy drafting, FP8 KV cache, 16 concurrent streams, 1M context with YaRN x4.
+    sampling: {temperature: 1.0, top_p: 0.95, top_k: 20}
+    default_effort: medium
+    efforts:
+      low: {chat_template_kwargs: {reasoning_effort: low}}
+      medium: {chat_template_kwargs: {reasoning_effort: medium}}
+      xhigh: {chat_template_kwargs: {reasoning_effort: xhigh}}
+    effort_tiers: {low: low, medium: medium, xhigh: max}
+
   # ---------------------------------------------------------------- GLM-5.3 Flash
   - id: glm-5.3-flash-exl3-4bpw
     provider: direct-glm
