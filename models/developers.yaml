@@ -6,11 +6,14 @@ anthropic: {name: Anthropic}
 deepseek: {name: DeepSeek}
 google: {name: Google}
 inclusionai: {name: inclusionAI (Ant Group)}
+meta: {name: Meta}
+mistral: {name: Mistral AI}
 moonshotai: {name: Moonshot AI}
 nvidia: {name: NVIDIA}
 openai: {name: OpenAI}
 poolside: {name: Poolside}
 qwen: {name: Qwen (Alibaba Cloud)}
+thinkingmachines: {name: Thinking Machines Lab}
 xai: {name: xAI}
 xiaomi: {name: Xiaomi}
 zai: {name: Z.ai}
