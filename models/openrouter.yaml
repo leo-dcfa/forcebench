@@ -37,6 +37,27 @@ models:
     effort_tiers: {low: low, medium: medium, high: high}
     notes: "Through OpenRouter, on OpenAI's flex tier."
 
+  - id: gpt-6.1-sol
+    provider: openrouter
+    endpoint_model: openai/gpt-6.1-sol
+    display: GPT-6.1 Sol
+    developer: openai
+    family: GPT
+    base_model: GPT-6.1-Sol
+    quant: Unknown
+    engine: Unknown
+    open_weights: false
+    local: false
+    context: 1050000
+    sampling: {provider: {only: [openai/flex], allow_fallbacks: false}}
+    default_effort: medium
+    efforts:
+      low: {reasoning: {effort: low}}
+      medium: {reasoning: {effort: medium}}
+      high: {reasoning: {effort: high}}
+    effort_tiers: {low: low, medium: medium, high: high}
+    notes: "Through OpenRouter, on OpenAI's flex tier."
+
   - id: gpt-5.6-sol
     provider: openrouter
     endpoint_model: openai/gpt-5.6-sol
