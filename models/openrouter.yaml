@@ -141,6 +141,147 @@ models:
     effort_tiers: {low: low, medium: medium, high: high}
     notes: "Through OpenRouter, served by xAI."
 
+  # ---------------------------------------------------------------- open weights, vendor-served
+  # Served by the model's own vendor where OpenRouter has its endpoint, else by a provider that
+  # serves the precision it declares. Sampling as the vendor recommends (as in models/local.yaml),
+  # so these runs compare with the local quantisations of the same base model.
+
+  # Z.AI's endpoint requires reasoning (a request that turns it off is refused).
+  - id: glm-5.3-zai-fp8
+    provider: openrouter
+    endpoint_model: z-ai/glm-5.3
+    display: GLM-5.3
+    family: GLM-5.3
+    base_model: GLM-5.3
+    quant: FP8
+    engine: Unknown
+    local: false
+    context: 1048576
+    sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
+    default_effort: high
+    efforts:
+      low: {reasoning: {effort: low}}
+      high: {reasoning: {effort: high}}
+    effort_tiers: {low: low, high: high}
+    notes: "Through OpenRouter, served by Z.AI at FP8 (as it declares)."
+
+  - id: glm-5.3-flash-zai-fp8
+    provider: openrouter
+    endpoint_model: z-ai/glm-5.3-flash
+    display: GLM-5.3 Flash
+    family: GLM-5.3
+    base_model: GLM-5.3-Flash
+    quant: FP8
+    engine: Unknown
+    local: false
+    context: 1048576
+    sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
+    default_effort: high
+    efforts:
+      low: {reasoning: {effort: low}}
+      high: {reasoning: {effort: high}}
+    effort_tiers: {low: low, high: high}
+    notes: "Through OpenRouter, served by Z.AI at FP8 (as it declares)."
+
+  # Thinking off, high or max; OpenRouter's xhigh selects max. Z.AI's endpoint, sent no effort,
+  # reasons about as long as at high.
+  - id: glm-5.2-zai-fp8
+    provider: openrouter
+    endpoint_model: z-ai/glm-5.2
+    display: GLM-5.2
+    family: GLM-5.2
+    base_model: GLM-5.2
+    quant: FP8
+    engine: Unknown
+    local: false
+    context: 1048576
+    sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
+    default_effort: high
+    efforts:
+      "off": {reasoning: {enabled: false}}
+      high: {reasoning: {effort: high}}
+      max: {reasoning: {effort: xhigh}}
+    effort_tiers: {"off": "off", high: high, max: max}
+    notes: "Through OpenRouter, served by Z.AI at FP8 (as it declares)."
+
+  # Thinking is always on, and max is the only effort Moonshot accepts so far (its default), so
+  # nothing is sent. Sampling is fixed by Moonshot's API.
+  - id: kimi-k3-moonshot
+    provider: openrouter
+    endpoint_model: moonshotai/kimi-k3
+    display: Kimi K3
+    family: Kimi-K3
+    base_model: Kimi-K3
+    quant: MXFP4
+    engine: Unknown
+    local: false
+    context: 1048576
+    sampling: {provider: {only: [moonshotai/mxfp4], allow_fallbacks: false}}
+    default_effort: max
+    efforts:
+      max: {}
+    effort_tiers: {max: max}
+    notes: "Through OpenRouter, served by Moonshot AI at MXFP4 (as it declares)."
+
+  # DeepSeek's own endpoint trains on prompts, so DeepInfra's FP8 endpoint serves it.
+  - id: deepseek-v4.1-flash-deepinfra-fp8
+    provider: openrouter
+    endpoint_model: deepseek/deepseek-v4.1-flash
+    display: DeepSeek V4.1 Flash
+    family: DeepSeek-V4
+    base_model: DeepSeek-V4.1-Flash
+    quant: FP8
+    engine: Unknown
+    local: false
+    context: 1048576
+    sampling:
+      {temperature: 1.0, top_p: 0.95, provider: {only: [deepinfra/fp8], allow_fallbacks: false}}
+    default_effort: high
+    efforts:
+      "off": {reasoning: {enabled: false}}
+      low: {reasoning: {effort: low}}
+      high: {reasoning: {effort: high}}
+    effort_tiers: {"off": "off", low: low, high: high}
+    notes: "Through OpenRouter, served by DeepInfra at FP8 (as it declares)."
+
+  # A thinking switch, no effort levels.
+  - id: mimo-v2.6-flash-xiaomi-fp8
+    provider: openrouter
+    endpoint_model: xiaomi/mimo-v2.6-flash
+    display: MiMo V2.6 Flash
+    family: MiMo-V2.6
+    base_model: MiMo-V2.6-Flash
+    quant: FP8
+    engine: Unknown
+    local: false
+    context: 1050000
+    sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [xiaomi/fp8], allow_fallbacks: false}}
+    default_effort: "on"
+    efforts:
+      "off": {reasoning: {enabled: false}}
+      "on": {reasoning: {enabled: true}}
+    effort_tiers: {"off": "off", "on": "on"}
+    notes: "Through OpenRouter, served by Xiaomi at FP8 (as it declares)."
+
+  # A thinking switch, on unless turned off. inclusionAI has no endpoint on OpenRouter.
+  - id: ling-3.0-flash-deepinfra-bf16
+    provider: openrouter
+    endpoint_model: inclusionai/ling-3.0-flash
+    display: Ling 3.0 Flash
+    family: Ling-3.0
+    base_model: Ling-3.0-Flash
+    quant: BF16
+    engine: Unknown
+    local: false
+    context: 262144
+    sampling: {provider: {only: [deepinfra/bf16], allow_fallbacks: false}}
+    default_effort: "on"
+    efforts:
+      "off": {reasoning: {enabled: false}}
+      "on": {reasoning: {enabled: true}}
+    effort_tiers: {"off": "off", "on": "on"}
+    notes: "Through OpenRouter, served by DeepInfra at BF16 (as it declares)."
+
   # ---------------------------------------------------------------- open weights, free endpoints
   # OpenRouter's free endpoints, served by the vendor. They are rate-limited (requests per minute
   # and per day), so a run may need --resume to finish. Each is a thinking switch, on unless
