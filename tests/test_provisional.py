@@ -1,6 +1,7 @@
 """Provisional scores: every entry of a set on the same, common complete suites."""
 
 from forcebench.provisional import MIN_SUITES, provisional
+from forcebench.report import _provisional_lines
 
 
 def _data(entries, n_suites=MIN_SUITES + 2):
@@ -64,3 +65,21 @@ def test_each_board_is_provisional_only_on_its_own_entries():
     assert prov is not None
     assert prov["full:local"]["suites"] == prov["full"]["suites"]
     assert prov["full:local"]["entries"]["loc-c"]["rank"] == 1
+
+
+def test_the_markdown_ranks_each_set_and_leaves_the_boards_to_the_site():
+    hosted = {**_entry("api-partial", 0.9, incomplete=["s0"]), "serving": "api"}
+    local = {**_entry("loc-a", 0.5), "serving": "local"}
+    data = _data([hosted, local])
+    for e in data["entries"]:
+        e.update(model=e["config_id"], quant="Q", engine="E", effort="high")
+    for s in data["suites"]:
+        s["name"] = s["id"].upper()
+    prov = provisional(data)
+    assert prov is not None
+    assert set(prov) == {"full", "full:api"}
+    data["provisional"] = prov
+    lines = _provisional_lines(data)
+    assert sum(line.startswith("## Provisional ranking") for line in lines) == 1
+    assert any(line.startswith("## Provisional ranking, full set") for line in lines)
+    assert any(line.startswith("| 1 | api-partial |") for line in lines)
