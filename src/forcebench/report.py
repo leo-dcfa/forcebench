@@ -731,11 +731,16 @@ def _c_at_cell(e: dict[str, Any]) -> str:
 
 
 def _provisional_lines(data: dict[str, Any]) -> list[str]:
-    """The provisional ranking: every entry of a set on the same, common complete suites."""
+    """The provisional ranking: every entry of a set on the same, common complete suites.
+
+    Per set only, as this file ranks them; the per-board rankings ("full:api") are the site's.
+    """
     lines: list[str] = []
     names = {s["id"]: s["name"] for s in data["suites"]}
     by_id = {(e["config_id"], e["subset"]): e for e in data["entries"]}
     for subset, prov in (data.get("provisional") or {}).items():
+        if ":" in subset:
+            continue
         lines += [
             (
                 f"## Provisional ranking, {subset} set: {len(prov['suites'])} of"
