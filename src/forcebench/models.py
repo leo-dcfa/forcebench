@@ -12,6 +12,7 @@ reasoning effort are a different entry on the leaderboard.
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any, Literal
 
@@ -75,6 +76,17 @@ class Developer(BaseModel):
     name: str = Field(min_length=1)  # as it names itself, e.g. "Anthropic", "Z.ai"
 
 
+class Price(BaseModel):
+    """A hosted service's published list price for a model, in USD per million tokens."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    input: float = Field(ge=0)
+    output: float = Field(ge=0)  # reasoning included: it is billed as output
+    source: str = Field(pattern=r"^https://")  # where the service publishes it
+    as_of: date  # the day it was taken from there
+
+
 class ModelConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -101,6 +113,9 @@ class ModelConfig(BaseModel):
     # computer's model and memory, e.g. "Apple M5 Max (40-core GPU, 128 GB)". Published, so a
     # hardware model only, never a machine's name. None for a hosted model, or while unknown.
     hardware: str | None = None
+    # A hosted configuration's list price on the service it is reached through, for the site's
+    # cost estimates. None for a local configuration, or when the service publishes none.
+    price: Price | None = None
     context: int | None = None
     max_tokens: int = 32768
     # Vendor-recommended sampling. Keys other than temperature/top_p go in the request body.
@@ -118,6 +133,8 @@ class ModelConfig(BaseModel):
             raise ValueError(f"{self.id}: default_effort {self.default_effort!r} not in efforts")
         if self.hardware and not self.local:
             raise ValueError(f"{self.id}: a hosted model's hardware is its vendor's, not recorded")
+        if self.price and self.local:
+            raise ValueError(f"{self.id}: a local configuration has no list price")
         missing = set(self.efforts) - set(self.effort_tiers)
         if missing:
             raise ValueError(f"{self.id}: effort_tiers missing {sorted(missing)}")
@@ -144,7 +161,7 @@ class ModelConfig(BaseModel):
 
     def public_dict(self) -> dict[str, Any]:
         """Everything worth publishing about this configuration (no endpoints or keys)."""
-        return self.model_dump(exclude={"provider", "endpoint_model", "proxy_model"})
+        return self.model_dump(exclude={"provider", "endpoint_model", "proxy_model", "price"})
 
 
 class Registry(BaseModel):

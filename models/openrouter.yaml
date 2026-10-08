@@ -9,6 +9,11 @@
 # `allow_fallbacks: false` makes a request fail rather than go elsewhere. OpenAI's and Google's
 # models use their flex tier (the same model at a lower priority and price).
 #
+# `price` is the pinned endpoint's list price on OpenRouter, in USD per million tokens, before any
+# temporary discount it shows; the prompts here are far below any long-prompt surcharge. The site
+# estimates cost per task from it. The free endpoints (`:free`) have none: they are rate-limited
+# promotions, not capacity anyone can buy at that price.
+#
 # Effort levels are OpenRouter's `reasoning` field, which OpenRouter translates into each
 # vendor's own parameter; `effort_tiers` maps them onto the common scale. Each level was checked
 # to land: the same question at two levels gives different reasoning token counts.
@@ -28,6 +33,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 5, output: 25, source: "https://openrouter.ai/openai/gpt-6-astra/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {provider: {only: [openai/flex], allow_fallbacks: false}}
     default_effort: medium
@@ -50,6 +56,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 1, output: 5, source: "https://openrouter.ai/openai/gpt-6.1-sol/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {provider: {only: [openai/flex], allow_fallbacks: false}}
     default_effort: medium
@@ -72,6 +79,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 1, output: 5, source: "https://openrouter.ai/openai/gpt-5.6-sol/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {provider: {only: [openai/flex], allow_fallbacks: false}}
     default_effort: medium
@@ -94,6 +102,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 0.05, output: 0.25, source: "https://openrouter.ai/openai/gpt-6-luna/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {provider: {only: [openai/flex], allow_fallbacks: false}}
     default_effort: medium
@@ -118,6 +127,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 0.375, output: 1.875, source: "https://openrouter.ai/google/gemini-3.8-flash/providers", as_of: 2026-10-09}
     context: 1048576
     sampling:
       provider: {only: [google-ai-studio/flex, google-vertex/global/flex], allow_fallbacks: false}
@@ -143,6 +153,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 2, output: 6, source: "https://openrouter.ai/x-ai/grok-4.7/providers", as_of: 2026-10-09}
     context: 500000
     sampling: {provider: {only: [xai, xai/zdr], allow_fallbacks: false}}
     default_effort: high
@@ -165,6 +176,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 2, output: 6, source: "https://openrouter.ai/x-ai/grok-4.6/providers", as_of: 2026-10-09}
     context: 500000
     sampling: {provider: {only: [xai, xai/zdr], allow_fallbacks: false}}
     default_effort: high
@@ -189,6 +201,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 0.68, output: 2.09, source: "https://openrouter.ai/mistralai/mistral-large-4-0/providers", as_of: 2026-10-09}
     context: 524288
     sampling: {provider: {only: [mistral], allow_fallbacks: false}}
     default_effort: high
@@ -213,6 +226,7 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 0.1, output: 0.2, source: "https://openrouter.ai/meta/muse-spark-1.3-contributor/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {provider: {only: [meta], allow_fallbacks: false}}
     default_effort: high
@@ -240,6 +254,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 1.4, output: 4.4, source: "https://openrouter.ai/z-ai/glm-5.3/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
     default_effort: high
@@ -260,6 +275,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.15, output: 0.5, source: "https://openrouter.ai/z-ai/glm-5.3-flash/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
     default_effort: high
@@ -282,6 +298,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 1.4, output: 4.4, source: "https://openrouter.ai/z-ai/glm-5.2/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [z-ai/fp8], allow_fallbacks: false}}
     default_effort: high
@@ -305,6 +322,7 @@ models:
     quant: MXFP4
     engine: Unknown
     local: false
+    price: {input: 3, output: 15, source: "https://openrouter.ai/moonshotai/kimi-k3/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {provider: {only: [moonshotai/mxfp4], allow_fallbacks: false}}
     default_effort: max
@@ -325,6 +343,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.14, output: 0.42, source: "https://openrouter.ai/deepseek/deepseek-v4.1-flash/providers", as_of: 2026-10-09}
     context: 1048576
     sampling:
       {temperature: 1.0, top_p: 0.95, provider: {only: [deepinfra/fp8], allow_fallbacks: false}}
@@ -348,6 +367,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.14, output: 0.28, source: "https://openrouter.ai/xiaomi/mimo-v2.6-flash/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [xiaomi/fp8], allow_fallbacks: false}}
     default_effort: "on"
@@ -369,6 +389,7 @@ models:
     quant: BF16
     engine: Unknown
     local: false
+    price: {input: 0.06, output: 0.18, source: "https://openrouter.ai/inclusionai/ling-3.0-flash/providers", as_of: 2026-10-09}
     context: 262144
     sampling: {provider: {only: [deepinfra/bf16], allow_fallbacks: false}}
     default_effort: "on"
@@ -391,6 +412,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.99, output: 2.97, source: "https://openrouter.ai/deepseek/deepseek-v4-pro-0813/providers", as_of: 2026-10-09}
     context: 1048576
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [novita/fp8], allow_fallbacks: false}}
     default_effort: high
@@ -412,6 +434,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.435, output: 0.87, source: "https://openrouter.ai/xiaomi/mimo-v2.6-pro/providers", as_of: 2026-10-09}
     context: 1050000
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [xiaomi/fp8], allow_fallbacks: false}}
     default_effort: "on"
@@ -435,6 +458,7 @@ models:
     quant: FP8
     engine: Unknown
     local: false
+    price: {input: 0.45, output: 1.2, source: "https://openrouter.ai/thinkingmachines/inkling-small/providers", as_of: 2026-10-09}
     context: 524288
     sampling: {provider: {only: [deepinfra/fp8], allow_fallbacks: false}}
     default_effort: high
@@ -458,6 +482,7 @@ models:
     quant: Unknown
     engine: Unknown
     local: false
+    price: {input: 0.15, output: 0.47, source: "https://openrouter.ai/qwen/qwen3.8-flash/providers", as_of: 2026-10-09}
     context: 1000000
     sampling: {temperature: 1.0, top_p: 0.95, provider: {only: [alibaba], allow_fallbacks: false}}
     default_effort: "on"

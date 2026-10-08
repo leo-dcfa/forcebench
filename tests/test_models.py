@@ -125,3 +125,26 @@ def test_every_configuration_names_its_model_and_one_model_has_one_name(tmp_path
     )
     with pytest.raises(ValueError, match="model_id 'm' is m's, a different model"):
         load_registry(tmp_path)
+
+
+def test_a_list_price_is_for_hosted_configurations_with_its_source_and_date():
+    hosted = {**_config(["on"], {"on": "on"}), "local": False}
+    price = {
+        "input": 2,
+        "output": 10,
+        "source": "https://example.com/pricing",
+        "as_of": "2026-10-09",
+    }
+    assert ModelConfig.model_validate({**hosted, "price": price}).price is not None
+    with pytest.raises(ValueError, match="a local configuration has no list price"):
+        ModelConfig.model_validate({**hosted, "local": True, "price": price})
+    with pytest.raises(ValueError, match="as_of"):
+        ModelConfig.model_validate(
+            {**hosted, "price": {k: v for k, v in price.items() if k != "as_of"}}
+        )
+    reg = load_registry()
+    priced = [m for m in reg.models.values() if m.price]
+    assert priced, "the registry has list prices"
+    assert all(not m.local for m in priced)
+    # Never published with a run: a price is today's, not the run's.
+    assert "price" not in priced[0].public_dict()
