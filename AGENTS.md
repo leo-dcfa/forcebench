@@ -79,6 +79,8 @@ A configuration is an entry in `models/local.yaml` or `models/hosted.yaml`. Copy
 entry and fill in:
 
 - `id`, `display`, `family` and `base_model`.
+- `developer`: the lab that made the model, an id in `models/developers.yaml` (add the lab there
+  first if it's new). Never the service that serves it.
 - `provider` and `endpoint_model`, the id the server serves.
 - `quant` and `engine`, as served. For hosted APIs that don't disclose them, use `Unknown`.
 - `context`, and `sampling` as the vendor recommends.

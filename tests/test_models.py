@@ -3,14 +3,16 @@
 from typing import Any
 
 import pytest
+import yaml
 
+from forcebench import MODELS_DIR
 from forcebench.models import THINKING_SWITCH, ModelConfig, Provider, load_registry
 
 
 def _config(efforts: list[str], tiers: dict[str, str]) -> dict[str, Any]:
     return {
-        "id": "m", "provider": "p", "endpoint_model": "m", "display": "M", "family": "F",
-        "base_model": "B", "quant": "Q", "engine": "E", "default_effort": efforts[0],
+        "id": "m", "provider": "p", "endpoint_model": "m", "display": "M", "developer": "acme",
+        "family": "F", "base_model": "B", "quant": "Q", "engine": "E", "default_effort": efforts[0],
         "efforts": {e: {} for e in efforts}, "effort_tiers": tiers,
     }  # fmt: skip
 
@@ -67,3 +69,30 @@ def test_hardware_is_for_local_configurations_and_labels_for_hosted_services():
     assert hosted, "the registry has hosted models"
     for m in hosted:
         assert reg.provider_for(m).label, f"{m.provider} needs a label: its public name"
+
+
+def test_every_configuration_names_its_developer_a_lab_in_developers_yaml(tmp_path):
+    reg = load_registry()
+    for m in reg.models.values():
+        assert m.developer in reg.developers, f"{m.id}: {m.developer}"
+    families = {(m.family, m.developer) for m in reg.models.values()}
+    assert ("Gemma-4", "google") in families
+    assert ("Claude", "anthropic") in families
+    with pytest.raises(ValueError, match="developer"):
+        ModelConfig.model_validate(
+            {k: v for k, v in _config(["on"], {"on": "on"}).items() if k != "developer"}
+        )
+    # A lab models/developers.yaml doesn't name is refused when the registry loads.
+    for f in ("providers.yaml", "developers.yaml"):
+        (tmp_path / f).write_text((MODELS_DIR / f).read_text())
+    (tmp_path / "x.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "models": [
+                    {**_config(["on"], {"on": "on"}), "provider": "local", "developer": "nobody"}
+                ]
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="unknown developer 'nobody'"):
+        load_registry(tmp_path)

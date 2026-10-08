@@ -255,6 +255,24 @@ def serving(metas: list[dict[str, Any]], registry: Registry) -> dict[str, Any]:
     return served
 
 
+def developer(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]:
+    """Who develops the configuration of runs ``metas``, whatever served it.
+
+    ``developer`` (an id in models/developers.yaml) and ``developer_name``, from its config. A
+    config since removed from models/ is taken as its runs recorded it. None at all, or one
+    models/developers.yaml doesn't name, is a ValueError: the site shows whose model every entry is.
+    """
+    m = metas[-1]["model"]
+    config = registry.models.get(m.get("id", ""))
+    dev = config.developer if config is not None else m.get("developer")
+    who = metas[-1]["config_id"]
+    if not dev:
+        raise ValueError(f"{who}: no developer (models/*.yaml)")
+    if dev not in registry.developers:
+        raise ValueError(f"{who}: unknown developer {dev!r} (models/developers.yaml)")
+    return {"developer": dev, "developer_name": registry.developers[dev].name}
+
+
 def _usage_reported(c: dict[str, Any]) -> bool:
     """Whether the server reported token usage for this answer.
 
@@ -369,7 +387,8 @@ def build_entry(
 ) -> dict[str, Any]:
     """One configuration's entry, from all its runs (oldest first) and their ``attempts``.
 
-    ``served`` is how it was served (``serving``), for the leaderboard.
+    ``served`` is how it was served (``serving``) and who develops it (``developer``), for the
+    leaderboard.
 
     Only a complete entry has an overall score; a partial one has ``overall`` null and, if some
     suites are complete, their average as ``overall_complete_suites``.
@@ -567,7 +586,8 @@ def _rank(entries: list[dict[str, Any]]) -> None:
 
 # What the leaderboard lists about a configuration it cannot score yet.
 _UNSCORED_FIELDS = (
-    "config_id", "subset", "model", "quant", "engine", "effort", "effort_tier", "serving",
+    "config_id", "subset", "model", "developer", "developer_name", "quant", "engine", "effort",
+    "effort_tier", "serving",
     "progress", "pending", "legacy", "stale", "runs",
 )  # fmt: skip
 
@@ -613,7 +633,15 @@ def build_leaderboard(
         for meta, _ in runs
     }
     built = [
-        build_entry(runs, suites, attempts, serving([m for m, _ in runs], registry))
+        build_entry(
+            runs,
+            suites,
+            attempts,
+            {
+                **developer([m for m, _ in runs], registry),
+                **serving([m for m, _ in runs], registry),
+            },
+        )
         for runs in grouped.values()
     ]
     # Entries have at least one complete suite; only the complete ones are scored and ranked.

@@ -1,0 +1,11 @@
+# The companies and labs that develop the models: every configuration's `developer` (local.yaml,
+# hosted.yaml) is one of these ids. It is the lab that made the model, never the service that
+# serves it (a vendor's API, a gateway, our own hardware). The leaderboard publishes the id and
+# the name, and the site shows the developer's logo beside the model's name.
+anthropic: {name: Anthropic}
+deepseek: {name: DeepSeek}
+google: {name: Google}
+openai: {name: OpenAI}
+qwen: {name: Qwen (Alibaba Cloud)}
+xiaomi: {name: Xiaomi}
+zai: {name: Z.ai}

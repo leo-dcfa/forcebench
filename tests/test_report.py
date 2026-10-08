@@ -104,6 +104,7 @@ def _meta(tag: str = "r2", **kw) -> dict:
         "effort_tier": "low",
         "model": {
             "display": "M",
+            "developer": "anthropic",
             "family": "F",
             "base_model": "B",
             "quant": "Q",
@@ -1007,13 +1008,21 @@ def test_an_ambiguous_config_fails_the_report(suites, tmp_path):
     reg = load_registry()
     # A local config reached through a proxy that may forward to hosted models.
     proxied = reg.get("qwen3.8-27b-awq-int4").model_copy(update={"provider": "local"})
-    bad = Registry(providers=reg.providers, models={**reg.models, proxied.id: proxied})
+    bad = Registry(
+        providers=reg.providers,
+        models={**reg.models, proxied.id: proxied},
+        developers=reg.developers,
+    )
     with pytest.raises(ValueError, match="served locally or through an API"):
         build_leaderboard(suites, tmp_path, registry=bad)
     # A hosted service with no public name.
     gw = {**reg.providers, "gateway": reg.providers["gateway"].model_copy(update={"label": None})}
     with pytest.raises(ValueError, match="no label"):
-        build_leaderboard(suites, tmp_path, registry=Registry(providers=gw, models=reg.models))
+        build_leaderboard(
+            suites,
+            tmp_path,
+            registry=Registry(providers=gw, models=reg.models, developers=reg.developers),
+        )
     # A run that recorded the opposite of its config.
     with pytest.raises(ValueError, match="disagree on whether it is local"):
         serving(_runs_of("gpt-5.5", local=True), reg)
@@ -1025,3 +1034,20 @@ def test_the_leaderboard_says_how_each_entry_was_served(suites, tmp_path):
     data = build_leaderboard(suites, tmp_path)
     assert [e["serving"] for e in data["entries"]] == ["local"]
     assert [u["serving"] for u in data["unscored"]] == ["local"]
+    # And who develops each model, from its config (here, as its runs recorded it).
+    assert [(e["developer"], e["developer_name"]) for e in data["entries"]] == [
+        ("anthropic", "Anthropic")
+    ]
+    assert [u["developer"] for u in data["unscored"]] == ["anthropic"]
+
+
+def test_an_entry_without_a_known_developer_fails_the_report(suites, tmp_path):
+    meta = _meta("r1")
+    meta["model"] = {k: v for k, v in meta["model"].items() if k != "developer"}
+    _write_run(tmp_path, meta, _all())
+    with pytest.raises(ValueError, match="no developer"):
+        build_leaderboard(suites, tmp_path)
+    meta["model"]["developer"] = "nobody"
+    _write_run(tmp_path / "b", meta, _all())
+    with pytest.raises(ValueError, match="unknown developer 'nobody'"):
+        build_leaderboard(suites, tmp_path / "b")
