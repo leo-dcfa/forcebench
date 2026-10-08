@@ -18,6 +18,7 @@ models:
     endpoint_model: qwen3.8-27b
     proxy_model: qwen3.8-27b
     display: Qwen3.8 27B
+    model_id: qwen3-8-27b
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -38,6 +39,7 @@ models:
     endpoint_model: mtplx-qwen38-27b-optimized-speed
     proxy_model: mtplx-qwen38-27b-optimized-speed
     display: Qwen3.8 27B
+    model_id: qwen3-8-27b
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -60,6 +62,7 @@ models:
     endpoint_model: mtplx-qwen38-27b-optimized-quality
     proxy_model: mtplx-qwen38-27b-optimized-quality
     display: Qwen3.8 27B
+    model_id: qwen3-8-27b
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -82,6 +85,7 @@ models:
     endpoint_model: incoai/Qwen3.8-27B-Splash
     proxy_model: splash-qwen38-27b
     display: Qwen3.8 27B
+    model_id: qwen3-8-27b
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -102,6 +106,7 @@ models:
     provider: lmstudio
     endpoint_model: qwen/qwen3.8-27b
     display: Qwen3.8 27B
+    model_id: qwen3-8-27b
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
@@ -121,6 +126,7 @@ models:
     endpoint_model: qwen3.8-flash-next
     proxy_model: qwen3.8-flash-next
     display: Qwen3.8 Flash-Next
+    model_id: qwen3-8-flash-next
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
@@ -142,6 +148,7 @@ models:
     endpoint_model: mtplx-flash-next-optimized-speed
     proxy_model: mtplx-flash-next-optimized-speed
     display: Qwen3.8 Flash-Next
+    model_id: qwen3-8-flash-next
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
@@ -163,6 +170,7 @@ models:
     provider: direct-qwen38fn-tf
     endpoint_model: Qwen3.8-Flash-Next
     display: Qwen3.8 Flash-Next
+    model_id: qwen3-8-flash-next
     developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
@@ -186,6 +194,7 @@ models:
     endpoint_model: glm-5.3-flash-exl3
     proxy_model: glm-5.3-flash-exl3
     display: GLM-5.3 Flash
+    model_id: glm-5-3-flash
     developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
@@ -208,6 +217,7 @@ models:
     provider: direct-glm-jspark3
     endpoint_model: glm-5.3-flash
     display: GLM-5.3 Flash
+    model_id: glm-5-3-flash
     developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
@@ -232,6 +242,7 @@ models:
     endpoint_model: GLM-5.3-Flash-EXL3
     proxy_model: glm-5.3-flash-tensorfold
     display: GLM-5.3 Flash
+    model_id: glm-5-3-flash
     developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
@@ -258,6 +269,7 @@ models:
     endpoint_model: GLM-5.3-EXL3
     proxy_model: glm-5.3-tensorfold-tp3
     display: GLM-5.3
+    model_id: glm-5-3
     developer: zai
     family: GLM-5.3
     base_model: GLM-5.3
@@ -281,6 +293,7 @@ models:
     endpoint_model: deepseek-v4.1-flash-exl3
     proxy_model: deepseek-v4.1-flash-exl3
     display: DeepSeek V4.1 Flash
+    model_id: deepseek-v4-1-flash
     developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
@@ -304,6 +317,7 @@ models:
     endpoint_model: deepseek-v4.1-flash
     proxy_model: deepseek-v4.1-flash-tp3
     display: DeepSeek V4.1 Flash
+    model_id: deepseek-v4-1-flash
     developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
@@ -325,6 +339,7 @@ models:
     endpoint_model: deepseek-v4-flash-vision-exp
     proxy_model: deepseek-v4-flash-vision-exp
     display: DeepSeek V4 Flash Vision (exp)
+    model_id: deepseek-v4-flash-vision
     developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4-Flash-Vision-Exp
@@ -348,6 +363,7 @@ models:
     endpoint_model: mimo-v2.6-flash
     proxy_model: mimo-v2.6-flash
     display: MiMo V2.6 Flash
+    model_id: mimo-v2-6-flash
     developer: xiaomi
     family: MiMo-V2.6
     base_model: MiMo-V2.6-Flash
@@ -368,6 +384,7 @@ models:
     provider: direct-gpu
     endpoint_model: qwen3.6-35b-a3b
     display: Qwen3.6 35B-A3B
+    model_id: qwen3-6-35b-a3b
     developer: qwen
     family: Qwen3.6
     base_model: Qwen3.6-35B-A3B
@@ -388,6 +405,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-26b-a4b
     display: Gemma 4 26B-A4B
+    model_id: gemma-4-26b-a4b
     developer: google
     family: Gemma-4
     base_model: Gemma-4-26B-A4B
@@ -407,6 +425,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-31b
     display: Gemma 4 31B
+    model_id: gemma-4-31b
     developer: google
     family: Gemma-4
     base_model: Gemma-4-31B
@@ -425,6 +444,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-31b-qat
     display: Gemma 4 31B
+    model_id: gemma-4-31b
     developer: google
     family: Gemma-4
     base_model: Gemma-4-31B

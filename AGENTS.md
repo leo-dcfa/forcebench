@@ -79,6 +79,8 @@ A configuration is an entry in `models/local.yaml` or `models/hosted.yaml`. Copy
 entry and fill in:
 
 - `id`, `display`, `family` and `base_model`.
+- `model_id`: the model, the same for every configuration of it (any effort, quantisation,
+  engine or service), e.g. `qwen3-8-27b`. The site groups a model's configurations by it.
 - `developer`: the lab that made the model, an id in `models/developers.yaml` (add the lab there
   first if it's new). Never the service that serves it.
 - `provider` and `endpoint_model`, the id the server serves.

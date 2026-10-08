@@ -84,6 +84,10 @@ class ModelConfig(BaseModel):
     # The name a proxy serves it under (`forcebench run --via <provider>`), e.g. LiteLLM's.
     proxy_model: str | None = None
     display: str  # e.g. "Qwen3.8 27B"
+    # The model, whatever its effort, quantisation, engine or service: every configuration of the
+    # same model has the same id (e.g. "qwen3-8-27b"), so the leaderboard can group them without
+    # matching names. Configurations with one model_id have one display name and developer.
+    model_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
     # Who develops the model, an id in models/developers.yaml: the lab, never the service that
     # serves it (a gateway, a cloud). The leaderboard publishes it; the site shows its logo.
     developer: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
@@ -226,6 +230,12 @@ def load_registry(models_dir: Path = MODELS_DIR) -> Registry:
             if m.developer not in developers:
                 raise ValueError(
                     f"{m.id}: unknown developer {m.developer!r} (models/developers.yaml)"
+                )
+            same = next((x for x in models.values() if x.model_id == m.model_id), None)
+            if same and (same.display, same.developer) != (m.display, m.developer):
+                raise ValueError(
+                    f"{m.id}: model_id {m.model_id!r} is {same.id}'s, a different model "
+                    f"({same.display!r} by {same.developer}, not {m.display!r} by {m.developer})"
                 )
             models[m.id] = m
     return Registry(providers=providers, models=models, developers=developers)

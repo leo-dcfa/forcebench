@@ -273,6 +273,7 @@ def _google_config(**overrides: Any):
             "provider": "google",
             "endpoint_model": "gemini-test",
             "display": "Gemini test",
+            "model_id": "gemini-test",
             "developer": "google",
             "family": "Gemini",
             "base_model": "Gemini",

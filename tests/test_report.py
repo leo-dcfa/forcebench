@@ -30,6 +30,7 @@ from forcebench.report import (
     check_leaderboard,
     config_serving,
     load_runs,
+    model_identity,
     render_markdown,
     serving,
     tasks_sha,
@@ -104,6 +105,7 @@ def _meta(tag: str = "r2", **kw) -> dict:
         "effort_tier": "low",
         "model": {
             "display": "M",
+            "model_id": "m",
             "developer": "anthropic",
             "family": "F",
             "base_model": "B",
@@ -1039,6 +1041,27 @@ def test_the_leaderboard_says_how_each_entry_was_served(suites, tmp_path):
         ("anthropic", "Anthropic")
     ]
     assert [u["developer"] for u in data["unscored"]] == ["anthropic"]
+    # And which model it is, to group its configurations.
+    assert [e["model_id"] for e in data["entries"]] == ["m"]
+    assert [u["model_id"] for u in data["unscored"]] == ["m"]
+
+
+def test_an_entry_without_a_model_id_fails_the_report(suites, tmp_path):
+    meta = _meta("r1")
+    meta["model"] = {k: v for k, v in meta["model"].items() if k != "model_id"}
+    _write_run(tmp_path, meta, _all())
+    with pytest.raises(ValueError, match="no model_id"):
+        build_leaderboard(suites, tmp_path)
+
+
+def test_every_configuration_of_a_model_shares_its_model_id():
+    # From the config, not the name: each run of a configured model gets its config's id.
+    reg = load_registry()
+    by_model = {
+        cid: model_identity(_runs_of(cid), reg)["model_id"]
+        for cid in ("deepseek-v4.1-flash-native", "deepseek-v4.1-flash-deepinfra-fp8")
+    }
+    assert set(by_model.values()) == {"deepseek-v4-1-flash"}
 
 
 def test_an_entry_without_a_known_developer_fails_the_report(suites, tmp_path):

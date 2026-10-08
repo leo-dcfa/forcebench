@@ -7,6 +7,7 @@
   "model": {
     "id": "model-e",
     "display": "Model E",
+    "model_id": "model-e",
     "developer": "qwen",
     "family": "Fixture",
     "base_model": "Model E",

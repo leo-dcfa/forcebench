@@ -408,6 +408,7 @@ def _model(local: bool = True, provider: str = "local") -> ModelConfig:
             "provider": provider,
             "endpoint_model": "m",
             "display": "M",
+            "model_id": "m",
             "developer": "acme",
             "family": "M",
             "base_model": "m",

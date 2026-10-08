@@ -11,8 +11,9 @@ from forcebench.models import THINKING_SWITCH, ModelConfig, Provider, load_regis
 
 def _config(efforts: list[str], tiers: dict[str, str]) -> dict[str, Any]:
     return {
-        "id": "m", "provider": "p", "endpoint_model": "m", "display": "M", "developer": "acme",
-        "family": "F", "base_model": "B", "quant": "Q", "engine": "E", "default_effort": efforts[0],
+        "id": "m", "provider": "p", "endpoint_model": "m", "display": "M", "model_id": "m",
+        "developer": "acme", "family": "F", "base_model": "B", "quant": "Q", "engine": "E",
+        "default_effort": efforts[0],
         "efforts": {e: {} for e in efforts}, "effort_tiers": tiers,
     }  # fmt: skip
 
@@ -95,4 +96,32 @@ def test_every_configuration_names_its_developer_a_lab_in_developers_yaml(tmp_pa
         )
     )
     with pytest.raises(ValueError, match="unknown developer 'nobody'"):
+        load_registry(tmp_path)
+
+
+def test_every_configuration_names_its_model_and_one_model_has_one_name(tmp_path):
+    reg = load_registry()
+    by_model: dict[str, set[tuple[str, str]]] = {}
+    for m in reg.models.values():
+        by_model.setdefault(m.model_id, set()).add((m.display, m.developer))
+    assert all(len(v) == 1 for v in by_model.values()), by_model
+    # Grouped by the config, never by the name: the same model served locally and through an API,
+    # and two models whose names share a prefix.
+    assert reg.get("deepseek-v4.1-flash-native").model_id == "deepseek-v4-1-flash"
+    assert reg.get("deepseek-v4.1-flash-deepinfra-fp8").model_id == "deepseek-v4-1-flash"
+    assert reg.get("claude-sonnet-5").model_id != reg.get("claude-sonnet-5.5").model_id
+    with pytest.raises(ValueError, match="model_id"):
+        ModelConfig.model_validate(
+            {k: v for k, v in _config(["on"], {"on": "on"}).items() if k != "model_id"}
+        )
+    with pytest.raises(ValueError, match="model_id"):
+        ModelConfig.model_validate({**_config(["on"], {"on": "on"}), "model_id": "Qwen3.8 27B"})
+    # Two configurations with one model_id but different names are refused when the registry loads.
+    for f in ("providers.yaml", "developers.yaml"):
+        (tmp_path / f).write_text((MODELS_DIR / f).read_text())
+    base = {**_config(["on"], {"on": "on"}), "provider": "local", "developer": "qwen"}
+    (tmp_path / "x.yaml").write_text(
+        yaml.safe_dump({"models": [base, {**base, "id": "m2", "display": "Other"}]})
+    )
+    with pytest.raises(ValueError, match="model_id 'm' is m's, a different model"):
         load_registry(tmp_path)

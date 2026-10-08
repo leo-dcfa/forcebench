@@ -30,6 +30,7 @@ One per configuration (`config_id` = `<model id>@<effort>`) and task set (`subse
 |---|---|---|
 | `config_id`, `subset` | string | |
 | `model`, `model_family`, `base_model`, `quant`, `engine` | string | |
+| `model_id` | string | the model, whatever its effort, quantisation, engine or service (added within v2): every configuration of one model has the same id (`claude-opus-5-5`, `deepseek-v4-1-flash`), lower case, digits and `-`. From the model config's `model_id`, never matched from names; configurations with one `model_id` have one `model` and `developer`, and the report fails on an entry with none. The website groups a model's configurations by it (best per model, a page per model) |
 | `developer`, `developer_name` | string | who develops the model, whatever served it (added within v2): an id from `models/developers.yaml` (`anthropic`, `google`, `qwen`, ...) and its name. From the model config's `developer`; the report fails on an entry with none. The website shows the developer's logo beside the model's name |
 | `effort` | string | the model's own effort label |
 | `effort_tier` | string | common tier for comparing models: `off`, then the graded `low` < `medium` < `high` < `max`; or `on`, a plain thinking switch switched on, which is not a level on the graded scale ([methodology](methodology.md), section 4) |
@@ -63,9 +64,9 @@ partial entries by `progress.suites_complete` (most first); ties by `config_id`.
 ## Unscored
 
 Configurations that have no complete suite (for example, every answer is legacy) have nothing to
-publish yet. Each is listed with `config_id`, `subset`, `model`, `developer`, `developer_name`,
-`quant`, `engine`, `effort`, `effort_tier`, `serving`, `progress`, `pending`, `legacy`, `stale` and
-`runs`, most tasks graded first.
+publish yet. Each is listed with `config_id`, `subset`, `model`, `model_id`, `developer`,
+`developer_name`, `quant`, `engine`, `effort`, `effort_tier`, `serving`, `progress`, `pending`,
+`legacy`, `stale` and `runs`, most tasks graded first.
 
 ## Changes from v1
 
