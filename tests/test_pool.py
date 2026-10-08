@@ -408,6 +408,7 @@ def _model(local: bool = True, provider: str = "local") -> ModelConfig:
             "provider": provider,
             "endpoint_model": "m",
             "display": "M",
+            "developer": "acme",
             "family": "M",
             "base_model": "m",
             "quant": "BF16",
@@ -618,7 +619,9 @@ def fake_model(monkeypatch, tmp_path):
     hosted = reg.get(MODEL).model_copy(
         update={"id": HOSTED, "provider": "anthropic", "local": False, "hardware": None}
     )
-    reg = Registry(providers=reg.providers, models={**reg.models, HOSTED: hosted})
+    reg = Registry(
+        providers=reg.providers, models={**reg.models, HOSTED: hosted}, developers=reg.developers
+    )
     fake = _Fake(reg)
 
     class FakeClient(Client):

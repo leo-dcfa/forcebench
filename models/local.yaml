@@ -18,6 +18,7 @@ models:
     endpoint_model: qwen3.8-27b
     proxy_model: qwen3.8-27b
     display: Qwen3.8 27B
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
     quant: AWQ-INT4
@@ -37,6 +38,7 @@ models:
     endpoint_model: mtplx-qwen38-27b-optimized-speed
     proxy_model: mtplx-qwen38-27b-optimized-speed
     display: Qwen3.8 27B
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
     quant: MLX 4-bit
@@ -58,6 +60,7 @@ models:
     endpoint_model: mtplx-qwen38-27b-optimized-quality
     proxy_model: mtplx-qwen38-27b-optimized-quality
     display: Qwen3.8 27B
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
     quant: MLX 8-bit
@@ -79,6 +82,7 @@ models:
     endpoint_model: incoai/Qwen3.8-27B-Splash
     proxy_model: splash-qwen38-27b
     display: Qwen3.8 27B
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
     quant: Splash 4-bit
@@ -98,6 +102,7 @@ models:
     provider: lmstudio
     endpoint_model: qwen/qwen3.8-27b
     display: Qwen3.8 27B
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-27B
     quant: MLX 8-bit
@@ -116,6 +121,7 @@ models:
     endpoint_model: qwen3.8-flash-next
     proxy_model: qwen3.8-flash-next
     display: Qwen3.8 Flash-Next
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
     quant: NVFP4
@@ -136,6 +142,7 @@ models:
     endpoint_model: mtplx-flash-next-optimized-speed
     proxy_model: mtplx-flash-next-optimized-speed
     display: Qwen3.8 Flash-Next
+    developer: qwen
     family: Qwen3.8
     base_model: Qwen3.8-Flash-Next
     quant: MLX 4-bit
@@ -158,6 +165,7 @@ models:
     endpoint_model: glm-5.3-flash-exl3
     proxy_model: glm-5.3-flash-exl3
     display: GLM-5.3 Flash
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
     quant: EXL3 4.0bpw experts, FP8 dense
@@ -179,6 +187,7 @@ models:
     provider: direct-glm-jspark3
     endpoint_model: glm-5.3-flash
     display: GLM-5.3 Flash
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
     quant: EXL3 4.0bpw experts, INT8 dense
@@ -202,6 +211,7 @@ models:
     endpoint_model: GLM-5.3-Flash-EXL3
     proxy_model: glm-5.3-flash-tensorfold
     display: GLM-5.3 Flash
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3-Flash
     quant: EXL3 4.0bpw experts, 4-bit dense
@@ -227,6 +237,7 @@ models:
     endpoint_model: GLM-5.3-EXL3
     proxy_model: glm-5.3-tensorfold-tp3
     display: GLM-5.3
+    developer: zai
     family: GLM-5.3
     base_model: GLM-5.3
     quant: EXL3 2.75bpw experts, 4-bit dense
@@ -249,6 +260,7 @@ models:
     endpoint_model: deepseek-v4.1-flash-exl3
     proxy_model: deepseek-v4.1-flash-exl3
     display: DeepSeek V4.1 Flash
+    developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
     quant: EXL3 2.9bpw
@@ -271,6 +283,7 @@ models:
     endpoint_model: deepseek-v4.1-flash
     proxy_model: deepseek-v4.1-flash-tp3
     display: DeepSeek V4.1 Flash
+    developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4.1-Flash
     quant: Native FP8, FP4 experts
@@ -291,6 +304,7 @@ models:
     endpoint_model: deepseek-v4-flash-vision-exp
     proxy_model: deepseek-v4-flash-vision-exp
     display: DeepSeek V4 Flash Vision (exp)
+    developer: deepseek
     family: DeepSeek-V4
     base_model: DeepSeek-V4-Flash-Vision-Exp
     quant: FP8 + FP4 experts
@@ -313,6 +327,7 @@ models:
     endpoint_model: mimo-v2.6-flash
     proxy_model: mimo-v2.6-flash
     display: MiMo V2.6 Flash
+    developer: xiaomi
     family: MiMo-V2.6
     base_model: MiMo-V2.6-Flash
     quant: FP8 + MXFP4 experts
@@ -332,6 +347,7 @@ models:
     provider: direct-gpu
     endpoint_model: qwen3.6-35b-a3b
     display: Qwen3.6 35B-A3B
+    developer: qwen
     family: Qwen3.6
     base_model: Qwen3.6-35B-A3B
     quant: NVFP4
@@ -351,6 +367,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-26b-a4b
     display: Gemma 4 26B-A4B
+    developer: google
     family: Gemma-4
     base_model: Gemma-4-26B-A4B
     quant: NVFP4
@@ -369,6 +386,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-31b
     display: Gemma 4 31B
+    developer: google
     family: Gemma-4
     base_model: Gemma-4-31B
     quant: NVFP4
@@ -386,6 +404,7 @@ models:
     provider: direct-gpu
     endpoint_model: gemma-4-31b-qat
     display: Gemma 4 31B
+    developer: google
     family: Gemma-4
     base_model: Gemma-4-31B
     quant: QAT W4A16

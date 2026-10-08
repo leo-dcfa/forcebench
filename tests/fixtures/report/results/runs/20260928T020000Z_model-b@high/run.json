@@ -7,6 +7,7 @@
   "model": {
     "id": "model-b",
     "display": "Model B",
+    "developer": "openai",
     "family": "Fixture",
     "base_model": "Model B",
     "quant": "Q4",
