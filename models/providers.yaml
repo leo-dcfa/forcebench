@@ -56,6 +56,11 @@ direct-flashnext:
   local: true
   base_url_env: FORCEBENCH_FLASHNEXT_BASE_URL
   api_key_env: FORCEBENCH_FLASHNEXT_API_KEY
+direct-qwen38fn-tf:  # Qwen3.8 Flash-Next on TensorFold, one GB10 (MiaAI's single-Spark recipe)
+  kind: openai_compatible
+  local: true
+  base_url_env: FORCEBENCH_QWEN38FN_TF_BASE_URL
+  api_key_env: FORCEBENCH_QWEN38FN_TF_API_KEY
 direct-glm:
   kind: openai_compatible
   local: true
