@@ -29,6 +29,7 @@ from forcebench.report import (
     build_leaderboard,
     check_leaderboard,
     config_serving,
+    list_price,
     load_runs,
     model_identity,
     render_markdown,
@@ -53,6 +54,7 @@ V2_ENTRY = {
     "effort_tier", "open_weights", "local", "overall", "suites", "per_task", "tokens", "outcomes",
     "no_answer_rate", "latency_s_mean", "samples", "pending", "date", "complete", "runs",
     "progress", "legacy", "rank", "stale", "serving", "provider", "hardware", "latency_s_median",
+    "price",
 }  # fmt: skip
 V2_UNSCORED = {
     "config_id", "subset", "model", "quant", "engine", "effort", "effort_tier", "progress",
@@ -1067,6 +1069,20 @@ def test_the_leaderboard_says_how_each_entry_was_served(suites, tmp_path):
     # And which model it is, to group its configurations.
     assert [e["model_id"] for e in data["entries"]] == ["m"]
     assert [u["model_id"] for u in data["unscored"]] == ["m"]
+
+
+def test_the_list_price_comes_from_the_config_for_hosted_configurations_only():
+    reg = load_registry()
+    assert list_price(_runs_of("claude-opus-5.5"), reg) == {
+        "price": {
+            "input": 4.0,
+            "output": 20.0,
+            "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+            "as_of": "2026-10-09",
+        }
+    }
+    assert list_price(_runs_of("gpt-5.5"), reg) == {"price": None}, "the gateway publishes none"
+    assert list_price(_runs_of("gemma-4-31b-qat-w4a16"), reg) == {"price": None}, "local"
 
 
 def test_an_entry_without_a_model_id_fails_the_report(suites, tmp_path):

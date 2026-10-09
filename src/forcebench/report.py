@@ -294,6 +294,20 @@ def developer(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]
     return {"developer": dev, "developer_name": registry.developers[dev].name}
 
 
+def list_price(metas: list[dict[str, Any]], registry: Registry) -> dict[str, Any]:
+    """The list price of the hosted service the configuration of runs ``metas`` is reached through.
+
+    ``price``: USD per million input and output tokens, where the service publishes it and the
+    day it was taken, from its config (a price is today's, not the run's); None when its config
+    records none, and always for a local configuration (ModelConfig refuses one).
+    """
+    config = registry.models.get(metas[-1]["model"].get("id", ""))
+    p = config.price if config is not None else None
+    if p is None:
+        return {"price": None}
+    return {"price": {**p.model_dump(), "as_of": p.as_of.isoformat()}}
+
+
 def model_identity(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]:
     """Which model the configuration of runs ``metas`` is: ``model_id``, from its config.
 
@@ -677,6 +691,7 @@ def build_leaderboard(
                 **model_identity([m for m, _ in runs], registry),
                 **developer([m for m, _ in runs], registry),
                 **serving([m for m, _ in runs], registry),
+                **list_price([m for m, _ in runs], registry),
             },
         )
         for runs in grouped.values()
