@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from pydantic_ai.usage import RequestUsage
 
-from forcebench.llm import Client
+from forcebench.llm import Client, _usage
 from forcebench.models import ModelConfig, Provider, load_registry
 
 
@@ -362,3 +363,38 @@ async def test_a_single_turn_sends_no_seed(monkeypatch):
     (body,) = server.bodies
     assert [m["role"] for m in body["messages"]] == ["system", "user"]
     assert "seed" not in body
+
+
+@pytest.mark.asyncio
+async def test_cached_input_and_the_upstream_a_router_names_are_recorded(monkeypatch):
+    # OpenRouter names the upstream provider on every chunk, beside the service tier.
+    usage = {
+        "prompt_tokens": 10,
+        "completion_tokens": 64,
+        "prompt_tokens_details": {"cached_tokens": 6},
+    }
+    body = _sse([{"role": "assistant", "content": "Answer: B"}], usage=usage)
+    body = body.replace(
+        '"model": "m"', '"model": "m", "provider": "OpenAI", "service_tier": "flex"'
+    )
+    gen, _ = await _generate(monkeypatch, body)
+    assert (gen.input_tokens, gen.cached_input_tokens) == (10, 6)
+    assert gen.served_by == "OpenAI (flex)"
+
+
+@pytest.mark.asyncio
+async def test_a_server_that_names_no_upstream_records_none(monkeypatch):
+    gen, _ = await _generate(monkeypatch, _sse([{"role": "assistant", "content": "Answer: B"}]))
+    assert (gen.cached_input_tokens, gen.served_by) == (0, None)
+
+
+def test_thinking_anthropic_reports_on_its_own_is_reasoning():
+    # Anthropic reports thinking as output_tokens_details.thinking_tokens; pydantic-ai keeps it in
+    # the usage details under that name.
+    used = RequestUsage(input_tokens=100, output_tokens=900, details={"thinking_tokens": 700})
+    assert _usage(used) == {
+        "input_tokens": 100,
+        "cached_input_tokens": 0,
+        "output_tokens": 900,
+        "reasoning_tokens": 700,
+    }

@@ -4,7 +4,7 @@ import asyncio
 import os
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import pydantic_ai.models.openai as oai
 from anthropic import AsyncAnthropic
@@ -45,11 +45,17 @@ class Generation(BaseModel):
     text: str = ""
     reasoning: str = ""
     input_tokens: int = 0
+    # The part of input_tokens the server read from its prompt cache, as it reported it (0 when it
+    # reported none).
+    cached_input_tokens: int = 0
     output_tokens: int = 0
     reasoning_tokens: int = 0
     finish_reason: str | None = None
     latency_s: float = 0.0
     attempts: int = 1
+    # Who served the answer behind the service, as the service reported it: a router's upstream
+    # provider and its service tier ("OpenAI (flex)"). None when the service does not say.
+    served_by: str | None = None
     # Set when the endpoint failed (connection, 5xx, ...) after retries, or with a client error
     # that no retry fixes (400, 401, 404, ...). Such cases are not scored; they are re-run with
     # `forcebench run --resume`.
@@ -87,6 +93,64 @@ def _hidden(used: Any) -> int:
     return int((getattr(used, "details", None) or {}).get("hidden_output_tokens", 0))
 
 
+class _Counts(TypedDict):
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    reasoning_tokens: int
+
+
+def _usage(used: Any) -> _Counts:
+    """An answer's token counts from the server's usage.
+
+    Output includes everything the model generated, the thinking a server left out of its
+    completion tokens included (_count_hidden_output). Reasoning is what the server reported
+    separately: OpenAI-compatible servers as reasoning_tokens, Anthropic as thinking_tokens.
+    """
+    details = getattr(used, "details", None) or {}
+    return {
+        "input_tokens": used.input_tokens or 0,
+        "cached_input_tokens": getattr(used, "cache_read_tokens", 0) or 0,
+        "output_tokens": (used.output_tokens or 0) + _hidden(used),
+        "reasoning_tokens": max(
+            int(details.get("reasoning_tokens", 0)),
+            int(details.get("thinking_tokens", 0)),
+            _hidden(used),
+        ),
+    }
+
+
+def _record_upstream() -> None:
+    """Keep the upstream provider a router names on each streamed chunk (OpenRouter's ``provider``).
+
+    pydantic-ai drops fields the OpenAI SDK doesn't know; this keeps that one in the response's
+    provider details, beside the service tier it already keeps.
+    """
+    cls = oai.OpenAIStreamedResponse
+    if getattr(cls._map_provider_details, "forcebench_upstream", False):
+        return
+    original = cls._map_provider_details
+
+    def mapped(self: Any, chunk: Any) -> dict[str, Any] | None:
+        details = original(self, chunk)
+        upstream = (getattr(chunk, "model_extra", None) or {}).get("provider")
+        if isinstance(upstream, str) and upstream:
+            details = {**(details or {}), "upstream": upstream}
+        return details
+
+    mapped.forcebench_upstream = True  # type: ignore[attr-defined]
+    cls._map_provider_details = mapped  # type: ignore[method-assign]
+
+
+def served_by(resp: ModelResponse | None) -> str | None:
+    """Who served a response behind the service, as it reported it: "OpenAI (flex)", or None."""
+    details = (resp.provider_details if resp is not None else None) or {}
+    upstream, tier = details.get("upstream"), details.get("service_tier")
+    if not upstream:
+        return None
+    return f"{upstream} ({tier})" if tier and tier != "default" else str(upstream)
+
+
 def _build_model(m: ModelConfig, p: Provider, timeout: float):
     """Build the pydantic-ai model with SDK retries OFF.
 
@@ -96,6 +160,7 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
     match p.kind:
         case "openai_compatible" | "openai":
             _count_hidden_output()
+            _record_upstream()
             base_url = p.resolved_base_url()
             if p.kind == "openai_compatible" and not base_url:
                 raise RuntimeError(f"no base URL: set {p.base_url_env}")
@@ -373,17 +438,17 @@ class Client:
                 ):
                     # The server stops at exactly max_tokens when the budget runs out.
                     budget = "token limit" in str(e)
-                    used = streamed.response.usage
+                    counts = _usage(streamed.response.usage)
+                    if budget:
+                        counts["output_tokens"] = self.settings["max_tokens"] or 0
                     return Generation(
                         text=streamed.text(),
                         reasoning=streamed.thinking(),
-                        input_tokens=used.input_tokens or 0,
-                        output_tokens=(self.settings["max_tokens"] or 0)
-                        if budget
-                        else (used.output_tokens or 0) + _hidden(used),
+                        **counts,
                         finish_reason=f"error: {type(e).__name__}: {e}"[:500],
                         latency_s=elapsed,
                         attempts=attempt,
+                        served_by=served_by(streamed.response),
                     )
                 # Anything else came from the endpoint (5xx, overload, out of memory, rate
                 # limiting, a dropped or unfinished stream...): start the answer again from
@@ -396,21 +461,15 @@ class Client:
                     error=_endpoint_error(e, streamed.response), latency_s=elapsed, attempts=attempt
                 )
             resp = r.response
-            usage = r.usage
             reasoning = "\n".join(p.content for p in resp.parts if isinstance(p, ThinkingPart))
             return Generation(
                 text=r.output if isinstance(r.output, str) else str(r.output),
                 reasoning=reasoning,
-                input_tokens=usage.input_tokens or 0,
-                # Everything the model generated, the thinking a server left out of its
-                # completion tokens included (_count_hidden_output).
-                output_tokens=(usage.output_tokens or 0) + _hidden(usage),
-                reasoning_tokens=max(
-                    int((usage.details or {}).get("reasoning_tokens", 0)), _hidden(usage)
-                ),
+                **_usage(r.usage),
                 # The server's own reason where pydantic-ai has no name for it.
                 finish_reason=resp.finish_reason or _raw_finish_reason(resp),
                 latency_s=time.monotonic() - t0,
                 attempts=attempt,
+                served_by=served_by(resp),
             )
         return Generation(error=_endpoint_error(last_err), attempts=self.retries)
