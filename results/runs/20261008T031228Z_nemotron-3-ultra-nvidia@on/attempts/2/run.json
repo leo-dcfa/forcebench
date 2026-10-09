@@ -489,9 +489,9 @@
   "attempt": 2,
   "base_run": "20261008T031228Z_nemotron-3-ultra-nvidia@on",
   "started_at": "2026-10-08T09:22:00.970915+00:00",
-  "generated_at": "2026-10-09T07:48:11.709045+00:00",
-  "generation_pending": 43,
-  "graded_at": "2026-10-09T01:38:43.680423+00:00",
+  "generated_at": "2026-10-09T09:28:02.653209+00:00",
+  "generation_pending": 0,
+  "graded_at": "2026-10-09T09:31:26.971801+00:00",
   "grader_orgs": {
     "base": 1,
     "npsp": 1,
