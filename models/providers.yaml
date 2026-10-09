@@ -42,6 +42,9 @@ google:
   kind: google
   label: Google
   api_key_env: GEMINI_API_KEY
+omp:              # an omp agent session: answers come from the session's model, not an endpoint
+  kind: openai_compatible
+  label: omp
 
 # Direct connections to each inference server. Benchmark runs call the server itself, never a
 # general-purpose proxy (whose timeouts, retries and defaults would become part of the
