@@ -188,8 +188,8 @@ models:
     effort_tiers: {"off": "off"}
     notes: "Through a third-party gateway, which sets the effort; inferred from its behaviour: no reasoning tokens on a reasoning question."
   - id: claude-opus-4.8
-    provider: gateway
-    endpoint_model: "Claude Opus 4.8 (1M Context)"
+    provider: anthropic
+    endpoint_model: claude-opus-4-8
     display: Claude Opus 4.8
     model_id: claude-opus-4-8
     developer: anthropic
@@ -199,15 +199,22 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 5, output: 25, source: "https://platform.claude.com/docs/en/about-claude/pricing", as_of: 2026-10-09}
     context: 1000000
-    default_effort: "off"
+    default_effort: high
+    # Thinking is set explicitly at every level: without it Opus 4.8 does not think and Sonnet 5 thinks
+    # adaptively (checked 2026-10-09), so "off" disables it and the others ask for adaptive thinking.
+    # The API default effort is high.
     efforts:
-      "off": {}
-    effort_tiers: {"off": "off"}
-    notes: "Through a third-party gateway, which sets the effort; inferred from its behaviour: no extended thinking."
+      "off": {thinking: {type: disabled}}
+      low: {thinking: {type: adaptive}, output_config: {effort: low}}
+      medium: {thinking: {type: adaptive}, output_config: {effort: medium}}
+      high: {thinking: {type: adaptive}, output_config: {effort: high}}
+      max: {thinking: {type: adaptive}, output_config: {effort: max}}
+    effort_tiers: {"off": "off", low: low, medium: medium, high: high, max: max}
   - id: claude-sonnet-5
-    provider: gateway
-    endpoint_model: "Claude Sonnet 5 (1M Context)"
+    provider: anthropic
+    endpoint_model: claude-sonnet-5
     display: Claude Sonnet 5
     model_id: claude-sonnet-5
     developer: anthropic
@@ -217,9 +224,16 @@ models:
     engine: Unknown
     open_weights: false
     local: false
+    price: {input: 2, output: 10, source: "https://platform.claude.com/docs/en/about-claude/pricing", as_of: 2026-10-09}
     context: 1000000
-    default_effort: "off"
+    default_effort: high
+    # Thinking is set explicitly at every level: without it Opus 4.8 does not think and Sonnet 5 thinks
+    # adaptively (checked 2026-10-09), so "off" disables it and the others ask for adaptive thinking.
+    # The API default effort is high.
     efforts:
-      "off": {}
-    effort_tiers: {"off": "off"}
-    notes: "Through a third-party gateway, which sets the effort; inferred from its behaviour: no extended thinking."
+      "off": {thinking: {type: disabled}}
+      low: {thinking: {type: adaptive}, output_config: {effort: low}}
+      medium: {thinking: {type: adaptive}, output_config: {effort: medium}}
+      high: {thinking: {type: adaptive}, output_config: {effort: high}}
+      max: {thinking: {type: adaptive}, output_config: {effort: max}}
+    effort_tiers: {"off": "off", low: low, medium: medium, high: high, max: max}
