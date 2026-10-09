@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
@@ -70,6 +71,8 @@ from forcebench.report import (
     known_task_ids,
     publishable_files,
     removed_publishable,
+    snapshot_publishable,
+    stage_snapshot,
     write_leaderboard,
 )
 from forcebench.rotation import RotationError, plan
@@ -432,6 +435,20 @@ def _results_errors() -> Iterator[None]:
     except (RunDirError, ResultsDirError, RunDataError, PrivatePoolError) as e:
         console.print(str(e), style="red", markup=False, soft_wrap=True)
         raise typer.Exit(1) from None
+
+
+def _out_of_date(problems: list[str], shown: str) -> None:
+    """Print why the leaderboard is out of date and exit with status 1; nothing when it isn't."""
+    for p in problems:
+        console.print(f"  {p}", markup=False, soft_wrap=True)
+    if problems:
+        console.print(
+            f"{shown} is out of date: run `forcebench report` and commit the result",
+            style="red",
+            markup=False,
+            soft_wrap=True,
+        )
+        raise typer.Exit(1)
 
 
 @contextlib.contextmanager
@@ -1875,17 +1892,18 @@ def report(
         bool,
         typer.Option(
             "--stage",
-            help="Write nothing; once the leaderboard is up to date, stage with git add exactly "
-            "what may be published: it, LEADERBOARD.md, and run.json and cases.jsonl of each "
-            "run it is built from. Nothing else under results/ is staged (make publish-results).",
+            help="Write nothing; once the leaderboard is up to date, stage exactly what may be "
+            "published, as it was checked: it, LEADERBOARD.md, and run.json and cases.jsonl of "
+            "each run it is built from, from one snapshot, so a run still writing never gets "
+            "into it half-way. Nothing else under results/ is staged (make publish-results).",
         ),
     ] = False,
     commit: Annotated[
         bool,
         typer.Option(
             "--commit",
-            help="With --stage: then commit exactly those paths (git commit -- <paths>), leaving "
-            "anything else that is staged as it is; nothing when they are unchanged.",
+            help="With --stage: then commit exactly those paths as staged, leaving anything "
+            "else that is staged as it is; nothing when they are unchanged.",
         ),
     ] = False,
     track: Annotated[
@@ -1933,45 +1951,32 @@ def report(
     shown = str(out) if pool == "public" else "the private leaderboard"  # never the private path
     with _results_errors():
         check_results_dir(results_dir)
-    if check or stage:
+    if stage:
+        # Checked and staged from one snapshot of the results, so a run still writing can't change
+        # what is committed after the check.
+        with tempfile.TemporaryDirectory() as tmp, _results_errors():
+            snapshot = Path(tmp) / results_dir.name
+            snapshot_publishable(results_dir, snapshot)
+            problems = check_leaderboard(
+                suites, snapshot / out.name, visibility=pool, known=known, track=track
+            )
+            _out_of_date(problems, shown)
+            files = publishable_files(suites, snapshot / out.name, known=known, track=track)
+            removed = removed_publishable(results_dir)
+            committed = stage_snapshot(results_dir, snapshot, files, removed, commit=commit)
+        console.print(
+            f"staged {len(files)} files and {len(removed)} removals for publishing", markup=False
+        )
+        if commit:
+            console.print(
+                "committed the published results" if committed else "nothing to commit",
+                markup=False,
+            )
+        return
+    if check:
         with _results_errors():
             problems = check_leaderboard(suites, out, visibility=pool, known=known, track=track)
-        for p in problems:
-            console.print(f"  {p}", markup=False, soft_wrap=True)
-        if problems:
-            console.print(
-                f"{shown} is out of date: run `forcebench report` and commit the result",
-                style="red",
-                markup=False,
-                soft_wrap=True,
-            )
-            raise typer.Exit(1)
-        if stage:
-            with _results_errors():
-                files = publishable_files(suites, out, known=known, track=track)
-            removed = removed_publishable(results_dir)
-            paths = [str(p) for p in (*files, *removed)]
-            git = ["git", "-C", str(results_dir)]
-            env = {**os.environ, "GIT_LITERAL_PATHSPECS": "1"}
-            subprocess.run([*git, "add", "--", *paths], check=True, env=env)
-            console.print(
-                f"staged {len(files)} files and {len(removed)} removals for publishing",
-                markup=False,
-            )
-            if commit:
-                unchanged = (
-                    subprocess.run(
-                        [*git, "diff", "--cached", "--quiet", "--", *paths], check=False, env=env
-                    ).returncode
-                    == 0
-                )
-                if unchanged:
-                    console.print("nothing to commit", markup=False)
-                else:
-                    msg = ["-m", "Update results"]
-                    subprocess.run([*git, "commit", "-q", *msg, "--", *paths], check=True, env=env)
-                    console.print("committed the published results", markup=False)
-            return
+        _out_of_date(problems, shown)
         console.print(f"{shown} is up to date", markup=False, soft_wrap=True)
         return
     with _results_errors():

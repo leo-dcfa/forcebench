@@ -847,6 +847,33 @@ def test_commit_commits_exactly_what_may_be_published(published):
     assert "nothing to commit" in again.output
 
 
+def test_commit_publishes_the_runs_as_checked_while_a_run_goes_on_writing(published, monkeypatch):
+    # A run still writing appends answers between the check and the commit: what is committed is
+    # what was checked, so the published leaderboard always matches the published runs.
+    results = published / "results"
+    run = sorted(p for p in (results / "runs").iterdir() if (p / "cases.jsonl").exists())[0]
+    cases = run / "cases.jsonl"
+    first = json.loads(cases.read_text().splitlines()[0])
+    cases.write_text(cases.read_text() + json.dumps({**first, "sample": 1}) + "\n")
+    assert CliRunner().invoke(app, ["report", "--results-dir", str(results)]).exit_code == 0
+    checked = cases.read_text()
+    real_check = report.check_leaderboard
+
+    def check_then_write(*a, **k):
+        problems = real_check(*a, **k)
+        cases.write_text(cases.read_text() + json.dumps({**first, "sample": 2}) + "\n")
+        return problems
+
+    monkeypatch.setattr("forcebench.cli.check_leaderboard", check_then_write)
+    result = _publish(published, "--commit")
+    assert result.exit_code == 0, result.output
+    assert "committed the published results" in result.output
+    rel = cases.relative_to(published).as_posix()
+    assert _git(published, "show", f"HEAD:{rel}") == checked, "the bytes that were checked"
+    assert _git(published, "status", "--porcelain", "--", rel).startswith(" M"), "the rest waits"
+    assert _git(published, "diff", "--cached", "--name-only") == "", "the index matches the commit"
+
+
 def test_commit_needs_stage():
     assert CliRunner().invoke(app, ["report", "--commit"]).exit_code == 2
 
