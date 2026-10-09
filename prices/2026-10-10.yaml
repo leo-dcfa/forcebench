@@ -1,0 +1,107 @@
+# List prices of the hosted services the API configurations were reached through, in US dollars per
+# million tokens, as each service published them on the day in this file's name. The leaderboard
+# uses the newest file in prices/ and records its version (docs/leaderboard-schema.md, `prices`).
+# A new price list is a new file: an older one is never edited, so a published cost can always
+# be traced to the prices it was computed from.
+#
+# Per provider (an id in models/providers.yaml), then per configuration (an id in models/*.yaml):
+#   input, cached_input, output  list price per million tokens; cached_input is a cache read (hit)
+#   reasoning                    how reasoning (thinking) tokens are billed: `output`, as output
+#   source                       the page that publishes the price; the provider's, unless a model
+#                                names its own
+#   reasoning_source             the page that says how reasoning tokens are billed
+#   as_of                        the day the price was taken from `source`
+#   route                        a router's configuration only: the upstream endpoints it is pinned
+#                                to (OpenRouter's tags, `sampling.provider.only` in its config);
+#                                the price is that route's, not the vendor's direct price
+#   prompt_tokens_max            the price holds for prompts up to this many tokens (the service
+#                                charges more above it); the report refuses an answer above it
+#
+# The price is the list price before promotions, so OpenRouter's temporary discounts are left out.
+# Configurations without a published list price (the third-party gateway, free endpoints) are not
+# listed; the leaderboard shows no cost for them.
+currency: USD
+
+providers:
+  anthropic:
+    source: "https://platform.claude.com/docs/en/about-claude/pricing"
+    reasoning: output
+    reasoning_source: "https://platform.claude.com/docs/en/build-with-claude/extended-thinking"
+    as_of: 2026-10-10
+    models:
+      claude-fable-5.1: {input: 10, cached_input: 0.25, output: 50}
+      claude-opus-5.5: {input: 4, cached_input: 0.2, output: 20}
+      claude-opus-4.8: {input: 5, cached_input: 0.5, output: 25}
+      claude-sonnet-5.5: {input: 2, cached_input: 0.1, output: 10}
+      claude-sonnet-5: {input: 2, cached_input: 0.2, output: 10}
+      # The price for prompts up to 100,000 tokens; above that it is higher.
+      claude-haiku-5.5: {input: 0.1, cached_input: 0.01, output: 0.5, prompt_tokens_max: 100000}
+      claude-haiku-4.5: {input: 1, cached_input: 0.1, output: 5}
+
+  openrouter:
+    reasoning: output
+    reasoning_source: "https://openrouter.ai/docs/use-cases/reasoning-tokens"
+    as_of: 2026-10-10
+    models:
+      # OpenAI and Google through their flex tier (the same model at a lower priority and price).
+      gpt-6-astra:
+        {route: [openai/flex], input: 5, cached_input: 0.5, output: 25, prompt_tokens_max: 272000,
+         source: "https://openrouter.ai/openai/gpt-6-astra/providers"}
+      gpt-6.1-sol:
+        {route: [openai/flex], input: 1, cached_input: 0.05, output: 5, prompt_tokens_max: 272000,
+         source: "https://openrouter.ai/openai/gpt-6.1-sol/providers"}
+      gpt-5.6-sol:
+        {route: [openai/flex], input: 1, cached_input: 0.1, output: 5, prompt_tokens_max: 272000,
+         source: "https://openrouter.ai/openai/gpt-5.6-sol/providers"}
+      gpt-6-luna:
+        {route: [openai/flex], input: 0.05, cached_input: 0.005, output: 0.25,
+         prompt_tokens_max: 272000, source: "https://openrouter.ai/openai/gpt-6-luna/providers"}
+      gemini-3.8-flash:
+        {route: [google-ai-studio/flex, google-vertex/global/flex], input: 0.375,
+         cached_input: 0.0375, output: 1.875,
+         source: "https://openrouter.ai/google/gemini-3.8-flash/providers"}
+      grok-4.7:
+        {route: [xai, xai/zdr], input: 2, cached_input: 0.5, output: 6, prompt_tokens_max: 200000,
+         source: "https://openrouter.ai/x-ai/grok-4.7/providers"}
+      grok-4.6:
+        {route: [xai, xai/zdr], input: 2, cached_input: 0.5, output: 6, prompt_tokens_max: 200000,
+         source: "https://openrouter.ai/x-ai/grok-4.6/providers"}
+      mistral-large-4:
+        {route: [mistral], input: 0.68, cached_input: 0.07, output: 2.09,
+         source: "https://openrouter.ai/mistralai/mistral-large-4-0/providers"}
+      muse-spark-1.3-contributor:
+        {route: [meta], input: 0.1, cached_input: 0.002, output: 0.2,
+         source: "https://openrouter.ai/meta/muse-spark-1.3-contributor/providers"}
+      glm-5.3-zai-fp8:
+        {route: [z-ai/fp8], input: 1.4, cached_input: 0.26, output: 4.4,
+         source: "https://openrouter.ai/z-ai/glm-5.3/providers"}
+      glm-5.3-flash-zai-fp8:
+        {route: [z-ai/fp8], input: 0.15, cached_input: 0.03, output: 0.5,
+         source: "https://openrouter.ai/z-ai/glm-5.3-flash/providers"}
+      glm-5.2-zai-fp8:
+        {route: [z-ai/fp8], input: 1.4, cached_input: 0.26, output: 4.4,
+         source: "https://openrouter.ai/z-ai/glm-5.2/providers"}
+      kimi-k3-moonshot:
+        {route: [moonshotai/mxfp4], input: 3, cached_input: 0.3, output: 15,
+         source: "https://openrouter.ai/moonshotai/kimi-k3/providers"}
+      deepseek-v4.1-flash-deepinfra-fp8:
+        {route: [deepinfra/fp8], input: 0.14, cached_input: 0.0042, output: 0.42,
+         source: "https://openrouter.ai/deepseek/deepseek-v4.1-flash/providers"}
+      mimo-v2.6-flash-xiaomi-fp8:
+        {route: [xiaomi/fp8], input: 0.14, cached_input: 0.0028, output: 0.28,
+         source: "https://openrouter.ai/xiaomi/mimo-v2.6-flash/providers"}
+      ling-3.0-flash-deepinfra-bf16:
+        {route: [deepinfra/bf16], input: 0.06, cached_input: 0.012, output: 0.18,
+         source: "https://openrouter.ai/inclusionai/ling-3.0-flash/providers"}
+      deepseek-v4-pro-novita-fp8:
+        {route: [novita/fp8], input: 0.99, cached_input: 0.033, output: 2.97,
+         source: "https://openrouter.ai/deepseek/deepseek-v4-pro-0813/providers"}
+      mimo-v2.6-pro-xiaomi-fp8:
+        {route: [xiaomi/fp8], input: 0.435, cached_input: 0.0036, output: 0.87,
+         source: "https://openrouter.ai/xiaomi/mimo-v2.6-pro/providers"}
+      inkling-small-deepinfra-fp8:
+        {route: [deepinfra/fp8], input: 0.45, cached_input: 0.1, output: 1.2,
+         source: "https://openrouter.ai/thinkingmachines/inkling-small/providers"}
+      qwen3.8-flash-next-alibaba:
+        {route: [alibaba], input: 0.15, cached_input: 0.016, output: 0.47,
+         source: "https://openrouter.ai/qwen/qwen3.8-flash/providers"}
