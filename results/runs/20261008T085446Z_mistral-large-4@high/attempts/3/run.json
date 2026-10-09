@@ -434,9 +434,9 @@
   "attempt": 3,
   "base_run": "20261008T085446Z_mistral-large-4@high",
   "started_at": "2026-10-09T01:40:30.495171+00:00",
-  "generated_at": "2026-10-09T01:46:37.093860+00:00",
-  "generation_pending": 36,
-  "graded_at": "2026-10-09T01:48:47.044302+00:00",
+  "generated_at": "2026-10-09T10:58:15.272590+00:00",
+  "generation_pending": 0,
+  "graded_at": "2026-10-09T11:01:23.006772+00:00",
   "grader_orgs": {
     "base": 1,
     "npsp": 1,
