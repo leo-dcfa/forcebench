@@ -623,9 +623,9 @@
     "taf-shared-query-singleton": 3
   },
   "started_at": "2026-10-08T03:12:28.744617+00:00",
-  "generated_at": "2026-10-09T12:14:05.812389+00:00",
-  "generation_pending": 1,
-  "graded_at": "2026-10-09T12:17:14.131984+00:00",
+  "generated_at": "2026-10-09T12:34:58.720823+00:00",
+  "generation_pending": 0,
+  "graded_at": "2026-10-09T12:38:26.875849+00:00",
   "grader_orgs": {
     "base": 1,
     "npsp": 1,
