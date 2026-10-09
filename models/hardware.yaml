@@ -1,0 +1,69 @@
+# Starting assumptions for the site's estimated local cost (the Local board's "Show estimated local
+# cost"): what the hardware a local configuration ran on costs to buy and to power. They are not
+# measurements. The page shows every one as an input the reader can change, labels every result an
+# estimate, and never puts it on an API cost chart unless the reader asks for the combined view.
+#
+#   estimate per task = (hardware price ÷ (lifetime years × 8,760 h × utilisation)
+#                        + power draw × electricity price) × hours per task
+#
+# `parts` are the machines, each with its price (USD) and power draw (W), where each comes from
+# and the day it was taken; `hardware` maps each `hardware` string in models/local.yaml to the parts
+# it is made of. The power draw is the part's rated maximum (its power supply or graphics power
+# rating), so the estimate is high for runs that drew less.
+defaults:
+  lifetime_years: 3
+  utilisation: 0.5  # the share of its lifetime the hardware is busy
+  electricity_per_kwh: 0.182
+  electricity_source: "https://www.eia.gov/outlooks/steo/report/elec_coal_renew.php"
+  electricity_note: "US average residential price, EIA's 2026 forecast (18.2 cents per kWh)"
+  electricity_as_of: 2026-10-10
+  currency: USD
+
+parts:
+  dgx-spark:
+    name: NVIDIA DGX Spark (GB10, 128 GB)
+    price: 4699
+    price_source: "https://marketplace.nvidia.com/en-us/enterprise/personal-ai-supercomputers/dgx-spark/"
+    price_note: "NVIDIA's list price after its 2026 rise from $3,999, as reported; not confirmed on the page, which did not load"
+    price_as_of: 2026-10-10
+    power_w: 240
+    power_source: "https://www.nvidia.com/en-us/products/workstations/dgx-spark/"
+    power_note: "power supply rating (GB10 TDP 140 W)"
+    power_as_of: 2026-10-10
+  ai-top-atom:
+    name: Gigabyte AI TOP ATOM (NVIDIA GB10, 128 GB)
+    price: 4700
+    price_source: "https://www.cdwg.com/product/gigabyte-ai-top-atom-compact-pc-ai-pc-gb10-grace-blackwell-superchip/9096513"
+    price_note: "a US reseller's advertised price; Gigabyte publishes none. Not confirmed on the page, which did not load"
+    price_as_of: 2026-10-10
+    power_w: 240
+    power_source: "https://www.nvidia.com/en-us/products/workstations/dgx-spark/"
+    power_note: "the GB10 reference design's power supply rating, which it shares"
+    power_as_of: 2026-10-10
+  rtx-5090:
+    name: NVIDIA GeForce RTX 5090 (32 GB), the card only
+    price: 1999
+    price_source: "https://nvidianews.nvidia.com/news/nvidia-blackwell-geforce-rtx-50-series-opens-new-world-of-ai-computer-graphics"
+    price_note: "launch price; street prices in 2026 are higher, and the computer around it is not included"
+    price_as_of: 2026-10-10
+    power_w: 575
+    power_source: "https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/"
+    power_note: "total graphics power, the card only"
+    power_as_of: 2026-10-10
+  m5-max-macbook-pro:
+    name: Apple MacBook Pro 14-inch (M5 Max, 40-core GPU, 128 GB)
+    price: 5849
+    price_source: "https://www.tomshardware.com/laptops/macbooks/apple-macbook-pro-14-inch-m5-max-2026-review"
+    price_note: "price of the reviewed configuration; not confirmed on the page, which did not load"
+    price_as_of: 2026-10-10
+    power_w: 96
+    power_source: "https://www.apple.com/macbook-pro/specs/"
+    power_note: "the 14-inch M5 Max's power adapter rating"
+    power_as_of: 2026-10-10
+
+hardware:
+  "1× NVIDIA GeForce RTX 5090 (32 GB)": {rtx-5090: 1}
+  "Apple M5 Max (40-core GPU, 128 GB)": {m5-max-macbook-pro: 1}
+  "2× NVIDIA DGX Spark (GB10, 128 GB each)": {dgx-spark: 2}
+  "1× Gigabyte AI TOP ATOM (NVIDIA GB10, 128 GB)": {ai-top-atom: 1}
+  "3× NVIDIA GB10, 128 GB each (2× DGX Spark, 1× Gigabyte AI TOP ATOM)": {dgx-spark: 2, ai-top-atom: 1}
