@@ -48,10 +48,11 @@ from forcebench.agent.harness import label as agent_label
 from forcebench.difficulty import propose
 from forcebench.fsutil import atomic_write_text, check_results_dir
 from forcebench.models import THINKING_SWITCH, ModelConfig, Registry, load_registry
-from forcebench.prices import PriceList, load_prices
+from forcebench.prices import Price, PriceList, load_prices
 from forcebench.provisional import provisional
 from forcebench.stats import mean, stratified_bootstrap_ci, wilson_ci
 from forcebench.tasks import Suite, _manifest_ids, load_subset
+from forcebench.usage import Chain, follow, output_tokens, usage, usage_reported
 
 
 # The shape of leaderboard.json (docs/leaderboard-schema.md). Fields may be added within a
@@ -183,19 +184,6 @@ def _retried(cases: list[dict[str, Any]]) -> int | None:
     return sum(c["attempts"] > 1 for c in cases)
 
 
-def _output_tokens(c: dict[str, Any]) -> int:
-    """Output tokens of a case.
-
-    Older runs stored 0 for answers that ran out of budget; the budget is in the error message, and
-    the server stops at exactly that many tokens.
-    """
-    if not c["output_tokens"] and (
-        m := re.search(r"token limit \((\d+)\)", c.get("finish_reason") or "")
-    ):
-        return int(m.group(1))
-    return c["output_tokens"]
-
-
 def _quantile(xs: list[int], q: float) -> float:
     """The q-quantile of xs by linear interpolation between the closest ranks."""
     ys = sorted(xs)
@@ -210,7 +198,7 @@ def _tokens(counted: list[dict[str, Any]]) -> dict[str, float | None]:
 
     Input is the prompt; output includes reasoning. All None when no answer's usage was reported.
     """
-    outs = [_output_tokens(c) for c in counted]
+    outs = [output_tokens(c) for c in counted]
     return {
         "output_mean": _r(mean(outs), 1) if counted else None,
         "output_median": _r(_quantile(outs, 0.5), 1) if counted else None,
@@ -297,19 +285,26 @@ def developer(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]
     return {"developer": dev, "developer_name": registry.developers[dev].name}
 
 
-def list_price(metas: list[dict[str, Any]], prices: PriceList) -> dict[str, Any]:
+def route_price(metas: list[dict[str, Any]], prices: PriceList) -> Price | None:
     """The list price of the hosted service the configuration of runs ``metas`` was reached through.
 
-    ``price``: per million tokens, from the price list (prices/*.yaml) for the provider the runs
-    recorded, so for a router the router's price for the route it was pinned to, never the
-    vendor's direct price. None without a published price (the third-party gateway, free
-    endpoints), always for a local configuration, and when the runs were pinned to another route
-    than the one priced.
+    From the price list (prices/*.yaml) for the provider the runs recorded, so for a router the
+    router's price for the route it was pinned to, never the vendor's direct price. None without a
+    published price (the third-party gateway, free endpoints), always for a local configuration,
+    and when the runs were pinned to another route than the one priced.
     """
     meta = metas[-1]
     p = prices.price(meta.get("provider") or "", meta["model"].get("id", ""))
     pinned = ((meta["model"].get("sampling") or {}).get("provider") or {}).get("only")
     if p is None or sorted(p.route or []) != sorted(pinned or []):
+        return None
+    return p
+
+
+def list_price(metas: list[dict[str, Any]], prices: PriceList) -> dict[str, Any]:
+    """``price``: the configuration's list price (route_price) as the leaderboard publishes it."""
+    p = route_price(metas, prices)
+    if p is None:
         return {"price": None}
     out = p.model_dump(exclude={"reasoning_source"}, exclude_none=True)
     return {"price": {**out, "as_of": p.as_of.isoformat()}}
@@ -328,15 +323,6 @@ def model_identity(metas: list[dict[str, Any]], registry: Registry) -> dict[str,
     if not model_id:
         raise ValueError(f"{metas[-1]['config_id']}: no model_id (models/*.yaml)")
     return {"model_id": model_id}
-
-
-def _usage_reported(c: dict[str, Any]) -> bool:
-    """Whether the server reported token usage for this answer.
-
-    Every prompt has tokens, so an answer with none at all came from a server that reports no usage:
-    its count is unknown, not zero, and it is left out of the means.
-    """
-    return bool(c.get("input_tokens", 1) or _output_tokens(c))
 
 
 Run = tuple[dict[str, Any], list[dict[str, Any]]]  # run.json, cases.jsonl
@@ -370,17 +356,13 @@ def _ready(attempt: Run | None) -> bool:
     )
 
 
-def c_at(
-    answers: list[tuple[str, dict[str, Any]]],
-    suite_of: dict[str, str],
-    attempts: dict[str, Attempts],
-) -> dict[str, Any]:
-    """c@k: each task's share of answers that passed within k attempts, averaged like overall.
+def attempt_chains(
+    answers: list[tuple[str, dict[str, Any]]], attempts: dict[str, Attempts]
+) -> tuple[int, list[Chain]]:
+    """How many attempts every run has complete, and each graded attempt-1 answer's chain.
 
-    ``answers`` are the graded attempt-1 answers (run id, case). An answer that failed is followed
-    into its run's later attempts; one an attempt does not hold was not retried (the environment
-    reported nothing to fix) and stays failed. c@k is reported only when attempts 2 to k of every
-    run are complete; ``fixed`` counts the answers that failed attempt 1 and passed a later one.
+    ``answers`` are the graded attempt-1 answers (run id, case). Attempts 2 to k count only when
+    every run has them complete; each answer that failed is followed into them (usage.follow).
     """
     runs = {run_id for run_id, _ in answers}
     ready = 1
@@ -388,28 +370,28 @@ def c_at(
         if not all(_ready(attempts.get(r, {}).get(k)) for r in runs):
             break
         ready = k
-    if ready == 1:
-        return {}
     later = {
         (r, k): {(c["task_id"], c["sample"]): c for c in attempts[r][k][1]}
         for r in runs
         for k in range(2, ready + 1)
     }
-    first: list[tuple[str, int | None]] = []  # (task, the attempt that passed)
-    for run_id, c in answers:
-        passed = 1 if c["passed"] else None
-        for k in range(2, ready + 1):
-            if passed:
-                break
-            retry = later[(run_id, k)].get((c["task_id"], c["sample"]))
-            if retry is None:
-                break
-            passed = k if retry["passed"] else None
-        first.append((c["task_id"], passed))
+    return ready, follow(answers, later, ready)
+
+
+def c_at(ready: int, chains: list[Chain], suite_of: dict[str, str]) -> dict[str, Any]:
+    """c@k: each task's share of answers that passed within k attempts, averaged like overall.
+
+    ``chains`` (attempt_chains) follow each attempt-1 answer into its run's later attempts; one an
+    attempt does not hold was not retried (the environment reported nothing to fix) and stays
+    failed. c@k is reported only when attempts 2 to k of every run are complete (``ready``);
+    ``fixed`` counts the answers that failed attempt 1 and passed a later one.
+    """
+    if ready == 1:
+        return {}
     out: dict[str, Any] = {}
     for k in range(2, ready + 1):
         per_task: dict[str, list[float]] = defaultdict(list)
-        for tid, n in first:
+        for tid, _, n in chains:
             per_task[tid].append(1.0 if n is not None and n <= k else 0.0)
         by_suite: dict[str, list[float]] = defaultdict(list)
         for tid, xs in per_task.items():
@@ -421,8 +403,8 @@ def c_at(
             "suites": {sid: _suite_score(by_suite[sid]) for sid in sorted(by_suite)},
         }
     out["fixed"] = {
-        "fixed": sum(n is not None and n > 1 for _, n in first),
-        "failed": sum(n != 1 for _, n in first),
+        "fixed": sum(n is not None and n > 1 for _, _, n in chains),
+        "failed": sum(n != 1 for _, _, n in chains),
         "within": ready,
     }
     return out
@@ -446,11 +428,15 @@ def build_entry(
     suites: list[Suite],
     attempts: dict[str, Attempts] | None = None,
     served: dict[str, Any] | None = None,
+    chains_out: list[Chain] | None = None,
+    price: Price | None = None,
 ) -> dict[str, Any]:
     """One configuration's entry, from all its runs (oldest first) and their ``attempts``.
 
-    ``served`` is how it was served (``serving``), who develops it (``developer``) and which model
-    it is (``model_id``), for the leaderboard.
+    ``served`` is how it was served (``serving``), who develops it (``developer``), which model
+    it is (``model_id``) and its published list price, for the leaderboard; ``price`` is that list
+    price, for its cost per task (forcebench.usage). A complete entry's answer chains
+    (attempt_chains) are added to ``chains_out``, when given.
 
     Only a complete entry has an overall score; a partial one has ``overall`` null and, if some
     suites are complete, their average as ``overall_complete_suites``.
@@ -516,11 +502,21 @@ def build_entry(
         if s.id not in done:
             suite_scores[s.id]["complete"] = False
     complete = set(per_task) >= set(current) and pending == 0
-    counted = [c for c in valid if _usage_reported(c)]
+    counted = [c for c in valid if usage_reported(c)]
+    suite_of = {t: current[t].suite for t in current}
+    # A partial entry's chains are its first answers only: no c@k yet, but a provisional ranking
+    # may score its complete suites.
+    ready, chains = (
+        attempt_chains(graded, attempts or {}) if complete else (1, follow(graded, {}, 1))
+    )
+    # Reasoning is split from the answer only where the server reported it for some answer.
+    splits = any(c.get("reasoning_tokens") for _, cs, _ in chains for c in cs)
+    if chains_out is not None:
+        chains_out.extend(chains)
     # Each suite's token use and time, so a reader can compare models on one suite.
     for sid, score in suite_scores.items():
         in_suite = [c for c in valid if current[c["task_id"]].suite == sid]
-        score["tokens"] = _tokens([c for c in in_suite if _usage_reported(c)])
+        score["tokens"] = _tokens([c for c in in_suite if usage_reported(c)])
         score["latency_s_median"] = _latency_median(in_suite)
     m = metas[-1]["model"]
     dates = [x.get("finished_at") or x.get("started_at") or "" for x in metas]
@@ -542,7 +538,10 @@ def build_entry(
         "overall": _overall(by_suite) if complete else dict(NO_SCORE),
         # c@2, c@3 (attempts with the environment's feedback, forcebench.feedback) and the answers
         # they fixed; empty until a complete entry's attempts are complete.
-        "c_at": c_at(graded, {t: current[t].suite for t in current}, attempts or {})
+        "c_at": c_at(ready, chains, suite_of) if complete else {},
+        # Tokens, time and list-price cost per task, by the attempts counted (forcebench.usage);
+        # empty until the entry is complete.
+        "usage": usage(chains, suite_of, list(range(1, ready + 1)), price, splits)
         if complete
         else {},
         "suites": suite_scores,
@@ -567,6 +566,17 @@ def build_entry(
         "no_answer_tasks": sorted({c["task_id"] for c in valid if outcome(c) == "no_answer"}),
         "latency_s_mean": _r(mean([c["latency_s"] for c in valid]), 2),
         "latency_s_median": _latency_median(valid),
+        # Answers requested at once by the runs and their counted attempts, each value once:
+        # time per answer depends on it.
+        "concurrency": sorted(
+            {m["concurrency"] for m in metas if m.get("concurrency")}
+            | {
+                a[0]["concurrency"]
+                for m in metas
+                for k in range(2, ready + 1)
+                if (a := (attempts or {}).get(m["run_id"], {}).get(k)) and a[0].get("concurrency")
+            }
+        ),
         "samples": sum(len(v) for v in samples.values()),
         "pending": pending,
         "date": max(dates)[:10] if dates else None,
@@ -701,20 +711,29 @@ def build_leaderboard(
         for runs in grouped.values()
         for meta, _ in runs
     }
-    built = [
-        build_entry(
+    built = []
+    # Each complete entry's answer chains and list price, by (config, subset), for its usage on the
+    # suites a provisional ranking covers.
+    chained: dict[tuple[str, str], tuple[list[Chain], Price | None]] = {}
+    for runs in grouped.values():
+        metas = [m for m, _ in runs]
+        chains: list[Chain] = []
+        price = route_price(metas, prices)
+        entry = build_entry(
             runs,
             suites,
             attempts,
             {
-                **model_identity([m for m, _ in runs], registry),
-                **developer([m for m, _ in runs], registry),
-                **serving([m for m, _ in runs], registry),
-                **list_price([m for m, _ in runs], prices),
+                **model_identity(metas, registry),
+                **developer(metas, registry),
+                **serving(metas, registry),
+                **list_price(metas, prices),
             },
+            chains,
+            price,
         )
-        for runs in grouped.values()
-    ]
+        built.append(entry)
+        chained[(entry["config_id"], entry["subset"])] = (chains, price)
     # Entries have at least one complete suite; only the complete ones are scored and ranked.
     entries = sorted((e for e in built if e["progress"]["suites_complete"]), key=_order)
     _rank(entries)
@@ -765,9 +784,19 @@ def build_leaderboard(
             "sources": prices.sources(),
         },
     }
-    # While entries are incomplete, every entry scored on the same (common) suites.
+    # While entries are incomplete, every entry scored on the same (common) suites, with its
+    # pass@1 usage on exactly those suites, so a cost or time sits beside the score it goes with.
     prov = provisional(data)
     if prov:
+        suite_of = {t.id: s.id for s in suites for t in s.tasks}
+        for key, blk in prov.items():
+            common = set(blk["suites"])
+            for config_id, scored in blk["entries"].items():
+                chains, price = chained.get((config_id, key.split(":")[0]), ([], None))
+                mine = [ch for ch in chains if suite_of[ch[0]] in common]
+                if mine:
+                    splits = any(c.get("reasoning_tokens") for _, cs, _ in chains for c in cs)
+                    scored["usage"] = usage(mine, suite_of, [1], price, splits, frozenset())
         data["provisional"] = prov
     return data
 
