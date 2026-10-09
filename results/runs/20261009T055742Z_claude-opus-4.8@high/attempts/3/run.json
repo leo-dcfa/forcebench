@@ -392,9 +392,9 @@
   "attempt": 3,
   "base_run": "20261009T055742Z_claude-opus-4.8@high",
   "started_at": "2026-10-09T06:58:26.115690+00:00",
-  "generated_at": "2026-10-09T07:07:34.157904+00:00",
+  "generated_at": "2026-10-09T20:54:15.843943+00:00",
   "generation_pending": 0,
-  "graded_at": "2026-10-09T07:08:27.658545+00:00",
+  "graded_at": "2026-10-09T20:55:22.574727+00:00",
   "grader_orgs": {
     "base": 1,
     "npsp": 1,
