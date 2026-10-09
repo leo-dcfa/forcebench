@@ -147,17 +147,27 @@ def test_suite_with_an_ungraded_task_is_incomplete(suites):
     e = build_entry([(_meta(), cases)], suites)
     assert not e["complete"]
     b = e["suites"]["b"]
-    assert {k: b[k] for k in ("score", "ci_low", "ci_high", "n", "complete")} == {
+    assert {k: b[k] for k in ("score", "ci_low", "n", "complete")} == {
         "score": 0.0,
         "ci_low": 0.0,
-        "ci_high": 0.0,
         "n": 1,
         "complete": False,
     }
+    assert b["ci_high"] > 0.5, "one task tells little: Wilson's interval for 0 of 1 is wide"
     assert "complete" not in e["suites"]["a"]
     assert e["progress"] == {
         "tasks_graded": 3, "tasks_total": 4, "suites_complete": 1, "suites_total": 2,
     }  # fmt: skip
+
+
+def test_no_suite_interval_has_zero_width(suites):
+    # Every task passed in a, none in b: a bootstrap would give 100-100 and 0-0.
+    cases = [_case("a-0"), _case("a-1"), _case("b-0", False), _case("b-1", False)]
+    e = build_entry([(_meta(), cases)], suites)
+    for s in e["suites"].values():
+        assert s["ci_low"] < s["ci_high"]
+        assert s["ci_low"] <= s["score"] <= s["ci_high"]
+    assert (e["suites"]["a"]["ci_high"], e["suites"]["b"]["ci_low"]) == (1.0, 0.0)
 
 
 def test_a_partial_entry_has_no_overall_score(suites):
