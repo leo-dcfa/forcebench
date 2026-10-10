@@ -160,7 +160,8 @@ def _build_model(m: ModelConfig, p: Provider, timeout: float):
     match p.kind:
         case "openai_compatible" | "openai":
             _count_hidden_output()
-            _record_upstream()
+            if p.reports_upstream:
+                _record_upstream()
             base_url = p.resolved_base_url()
             if p.kind == "openai_compatible" and not base_url:
                 raise RuntimeError(f"no base URL: set {p.base_url_env}")
@@ -359,6 +360,8 @@ class Client:
         if effort not in m.efforts:
             raise KeyError(f"{m.id} has no effort {effort!r}; have {sorted(m.efforts)}")
         self.m, self.effort, self.retries = m, effort, retries
+        # served_by only from a router that names its upstream (Provider.reports_upstream).
+        self._upstream = p.reports_upstream
         self.settings = _settings(m, effort)
         _check_settings(m, p, effort, self.settings)
         self._model = _build_model(m, p, timeout)
@@ -448,7 +451,7 @@ class Client:
                         finish_reason=f"error: {type(e).__name__}: {e}"[:500],
                         latency_s=elapsed,
                         attempts=attempt,
-                        served_by=served_by(streamed.response),
+                        served_by=served_by(streamed.response) if self._upstream else None,
                     )
                 # Anything else came from the endpoint (5xx, overload, out of memory, rate
                 # limiting, a dropped or unfinished stream...): start the answer again from
@@ -470,6 +473,6 @@ class Client:
                 finish_reason=resp.finish_reason or _raw_finish_reason(resp),
                 latency_s=time.monotonic() - t0,
                 attempts=attempt,
-                served_by=served_by(resp),
+                served_by=served_by(resp) if self._upstream else None,
             )
         return Generation(error=_endpoint_error(last_err), attempts=self.retries)

@@ -30,6 +30,7 @@ openrouter:
   label: OpenRouter
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
+  reports_upstream: true
 openai:
   kind: openai
   label: OpenAI
