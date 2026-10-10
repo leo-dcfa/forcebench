@@ -48,6 +48,7 @@ from forcebench.agent.harness import label as agent_label
 from forcebench.difficulty import propose
 from forcebench.fsutil import atomic_write_text, check_results_dir
 from forcebench.models import THINKING_SWITCH, ModelConfig, Registry, load_registry
+from forcebench.prices import PriceList, load_prices
 from forcebench.provisional import provisional
 from forcebench.stats import mean, stratified_bootstrap_ci, wilson_ci
 from forcebench.tasks import Suite, _manifest_ids, load_subset
@@ -296,18 +297,22 @@ def developer(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]
     return {"developer": dev, "developer_name": registry.developers[dev].name}
 
 
-def list_price(metas: list[dict[str, Any]], registry: Registry) -> dict[str, Any]:
-    """The list price of the hosted service the configuration of runs ``metas`` is reached through.
+def list_price(metas: list[dict[str, Any]], prices: PriceList) -> dict[str, Any]:
+    """The list price of the hosted service the configuration of runs ``metas`` was reached through.
 
-    ``price``: USD per million input and output tokens, where the service publishes it and the
-    day it was taken, from its config (a price is today's, not the run's); None when its config
-    records none, and always for a local configuration (ModelConfig refuses one).
+    ``price``: per million tokens, from the price list (prices/*.yaml) for the provider the runs
+    recorded, so for a router the router's price for the route it was pinned to, never the
+    vendor's direct price. None without a published price (the third-party gateway, free
+    endpoints), always for a local configuration, and when the runs were pinned to another route
+    than the one priced.
     """
-    config = registry.models.get(metas[-1]["model"].get("id", ""))
-    p = config.price if config is not None else None
-    if p is None:
+    meta = metas[-1]
+    p = prices.price(meta.get("provider") or "", meta["model"].get("id", ""))
+    pinned = ((meta["model"].get("sampling") or {}).get("provider") or {}).get("only")
+    if p is None or sorted(p.route or []) != sorted(pinned or []):
         return {"price": None}
-    return {"price": {**p.model_dump(), "as_of": p.as_of.isoformat()}}
+    out = p.model_dump(exclude={"reasoning_source"}, exclude_none=True)
+    return {"price": {**out, "as_of": p.as_of.isoformat()}}
 
 
 def model_identity(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]:
@@ -671,14 +676,17 @@ def build_leaderboard(
     known: set[str] | None = None,
     track: str = "single",
     registry: Registry | None = None,
+    prices: PriceList | None = None,
 ) -> dict[str, Any]:
     """The leaderboard of the ``visibility`` pool from its runs in ``runs_dir``.
 
     Runs may name only ``known`` task ids (default: known_task_ids of ``suites``), and must be of
     ``track`` (single-turn, or agent runs: forcebench.agent). Each entry says how it was served,
-    from its config in ``registry`` (default: models/).
+    from its config in ``registry`` (default: models/), and its list price from ``prices``
+    (default: the newest price list).
     """
     registry = registry or load_registry()
+    prices = prices or load_prices()
     for config in registry.models.values():
         config_serving(config, registry)  # every config is clearly local or hosted
     known = known_task_ids(suites, visibility) if known is None else known
@@ -702,7 +710,7 @@ def build_leaderboard(
                 **model_identity([m for m, _ in runs], registry),
                 **developer([m for m, _ in runs], registry),
                 **serving([m for m, _ in runs], registry),
-                **list_price([m for m, _ in runs], registry),
+                **list_price([m for m, _ in runs], prices),
             },
         )
         for runs in grouped.values()
@@ -749,6 +757,13 @@ def build_leaderboard(
         ],
         "entries": entries,
         "unscored": unscored,
+        # The price list every entry's `price` is from, and the pages its prices come from.
+        "prices": {
+            "version": prices.version,
+            "file": f"prices/{prices.version}.yaml",
+            "currency": prices.currency,
+            "sources": prices.sources(),
+        },
     }
     # While entries are incomplete, every entry scored on the same (common) suites.
     prov = provisional(data)

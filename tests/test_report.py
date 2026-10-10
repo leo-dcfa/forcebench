@@ -23,6 +23,7 @@ from typer.testing import CliRunner
 from forcebench import BENCHMARK_VERSION, REPO_ROOT, report
 from forcebench.cli import app
 from forcebench.models import Registry, load_registry
+from forcebench.prices import load_prices
 from forcebench.report import (
     SCHEMA_VERSION,
     RunDataError,
@@ -1071,10 +1072,12 @@ def test_c_at_k_waits_for_complete_attempts():
 
 def _runs_of(config_id: str, local: bool | None = None) -> list[dict]:
     """The metas of a run of models/ config ``config_id``, as its run recorded it."""
-    m = load_registry().get(config_id).public_dict()
+    config = load_registry().get(config_id)
+    m = config.public_dict()
     return [
         {
             "config_id": f"{config_id}@x",
+            "provider": config.provider,
             "model": {**m, "local": m["local"] if local is None else local},
         }
     ]
@@ -1142,18 +1145,38 @@ def test_the_leaderboard_says_how_each_entry_was_served(suites, tmp_path):
     assert [u["model_id"] for u in data["unscored"]] == ["m"]
 
 
-def test_the_list_price_comes_from_the_config_for_hosted_configurations_only():
-    reg = load_registry()
-    assert list_price(_runs_of("claude-opus-5.5"), reg) == {
+def test_the_list_price_comes_from_the_price_list_for_the_route_the_runs_took():
+    prices = load_prices()
+    assert list_price(_runs_of("claude-opus-5.5"), prices) == {
         "price": {
             "input": 4.0,
+            "cached_input": 0.2,
             "output": 20.0,
+            "reasoning": "output",
+            "currency": "USD",
             "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-            "as_of": "2026-10-09",
+            "as_of": "2026-10-10",
         }
     }
-    assert list_price(_runs_of("gpt-5.5"), reg) == {"price": None}, "the gateway publishes none"
-    assert list_price(_runs_of("gemma-4-31b-qat-w4a16"), reg) == {"price": None}, "local"
+    routed = list_price(_runs_of("gpt-6-astra"), prices)["price"]
+    assert (routed["route"], routed["input"]) == (["openai/flex"], 5.0), "the router's flex price"
+    assert list_price(_runs_of("gpt-5.5"), prices) == {"price": None}, "the gateway publishes none"
+    assert list_price(_runs_of("gemma-4-31b-qat-w4a16"), prices) == {"price": None}, "local"
+
+
+def test_runs_pinned_to_another_route_than_the_one_priced_have_no_price():
+    runs = _runs_of("gpt-6-astra")
+    runs[-1]["model"]["sampling"] = {"provider": {"only": ["openai"], "allow_fallbacks": False}}
+    assert list_price(runs, load_prices()) == {"price": None}
+
+
+def test_the_leaderboard_names_its_price_list_and_every_source(suites, tmp_path):
+    _write_run(tmp_path, _meta("r1"), _all())
+    block = build_leaderboard(suites, tmp_path)["prices"]
+    assert block["version"] == load_prices().version
+    assert block["file"] == f"prices/{block['version']}.yaml"
+    urls = {s["url"] for s in block["sources"]}
+    assert "https://platform.claude.com/docs/en/about-claude/pricing" in urls
 
 
 def test_an_entry_without_a_model_id_fails_the_report(suites, tmp_path):
