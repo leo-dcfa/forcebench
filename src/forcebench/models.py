@@ -223,7 +223,7 @@ def load_registry(models_dir: Path = MODELS_DIR) -> Registry:
     }
     models: dict[str, ModelConfig] = {}
     for path in sorted(models_dir.glob("*.yaml")):
-        if path.name in ("providers.yaml", "developers.yaml"):
+        if path.name in ("providers.yaml", "developers.yaml", "hardware.yaml"):
             continue
         for entry in yaml.safe_load(path.read_text()).get("models", []):
             m = ModelConfig.model_validate(entry)

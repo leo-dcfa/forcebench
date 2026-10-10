@@ -21,6 +21,7 @@ such change bumps the version, and a reader should refuse a version it does not 
 | `entries` | list | configurations with at least one complete suite, in display order |
 | `unscored` | list | configurations with no complete suite yet (a short form, below) |
 | `prices` | object | the price list every entry's `price` comes from (added within v2): `{version, file, currency, sources}`. `version` is the day the prices were taken and names the file (`prices/<version>.yaml` in this repository; a published list is never edited, a new one is a new file); `sources` lists each page a price or its billing rule comes from, once, as `{provider, url, as_of}` |
+| `local_cost` | object | starting assumptions for the website's estimated local cost (added within v2; `models/hardware.yaml`): `{defaults, hardware}`. `defaults`: `{lifetime_years, utilisation, electricity_per_kwh, electricity_source, electricity_note, electricity_as_of, currency}`; `hardware`: per `hardware` string of a local configuration, `{price, power_w, parts}`, the parts it is made of each with its `count`, `name`, `price` and `power_w` and where each comes from (`price_source`, `price_note`, `price_as_of`, `power_source`, `power_note`, `power_as_of`). Assumptions, not measurements: a reader changes them, and every result is labelled an estimate. Estimate per task = (price ÷ (lifetime_years × 8,760 h × utilisation) + power_w × electricity_per_kwh ÷ 1000) × hours per task |
 
 ## Entries
 

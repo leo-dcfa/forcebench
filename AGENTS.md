@@ -87,7 +87,9 @@ entry and fill in:
 - `quant` and `engine`, as served. For hosted APIs that don't disclose them, use `Unknown`.
 - `context`, and `sampling` as the vendor recommends.
 - `hardware`, for a local configuration: what it is served on (GPU model and count, or Mac
-  model and memory). A hardware model only, never a machine's name.
+  model and memory). A hardware model only, never a machine's name. New hardware also needs its
+  starting assumptions for the estimated local cost in `models/hardware.yaml` (price and power
+  draw, each with its source and date; `uv run pytest tests/test_local_cost.py`).
 - The list price of a hosted configuration goes in the price list, not the config: a new
   `prices/<today>.yaml` copied from the newest one, never an edit to a published list. Give the
   service's input, cached input and output price per million tokens, how reasoning is billed,
