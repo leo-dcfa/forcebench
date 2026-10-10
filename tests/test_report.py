@@ -1007,6 +1007,10 @@ def _answer(task, passed, sample=0, **kw):
     return {"task_id": task, "sample": sample, "passed": passed, **kw}
 
 
+def _c_at(answers, suite_of, attempts):
+    return report.c_at(*report.attempt_chains(answers, attempts), suite_of)
+
+
 def test_c_at_k_follows_failed_answers_into_later_attempts():
     answers = [("r", _answer("a", True)), ("r", _answer("b", False)), ("r", _answer("c", False))]
     suite_of = {"a": "s1", "b": "s1", "c": "s2"}
@@ -1017,7 +1021,7 @@ def test_c_at_k_follows_failed_answers_into_later_attempts():
             3: (done, [_answer("b", True)]),
         }
     }
-    out = report.c_at(answers, suite_of, attempts)
+    out = _c_at(answers, suite_of, attempts)
     assert out["2"]["score"] == 0.25  # s1: a passed, b not yet; s2: c never retried
     assert out["3"]["score"] == 0.5
     assert out["fixed"] == {"fixed": 1, "failed": 2, "within": 3}
@@ -1059,12 +1063,12 @@ def test_c_at_k_per_suite(suites):
 def test_c_at_k_waits_for_complete_attempts():
     answers = [("r", _answer("a", False))]
     pending = {"generation_pending": 1}
-    assert report.c_at(answers, {"a": "s"}, {}) == {}
-    assert report.c_at(answers, {"a": "s"}, {"r": {2: (pending, [_answer("a", True)])}}) == {}
+    assert _c_at(answers, {"a": "s"}, {}) == {}
+    assert _c_at(answers, {"a": "s"}, {"r": {2: (pending, [_answer("a", True)])}}) == {}
     graded_badly = {"r": {2: ({}, [_answer("a", False, infra_error="org down")])}}
-    assert report.c_at(answers, {"a": "s"}, graded_badly) == {}
+    assert _c_at(answers, {"a": "s"}, graded_badly) == {}
     only_2 = {"r": {2: ({}, [_answer("a", True)])}}
-    assert sorted(report.c_at(answers, {"a": "s"}, only_2)) == ["2", "fixed"]
+    assert sorted(_c_at(answers, {"a": "s"}, only_2)) == ["2", "fixed"]
 
 
 # --------------------------------------------------------------------------- serving
@@ -1207,3 +1211,67 @@ def test_an_entry_without_a_known_developer_fails_the_report(suites, tmp_path):
     _write_run(tmp_path / "b", meta, _all())
     with pytest.raises(ValueError, match="unknown developer 'nobody'"):
         build_leaderboard(suites, tmp_path / "b")
+
+
+# --------------------------------------------------------------------------- usage
+
+
+def test_a_complete_entry_has_usage_by_attempts_counted_and_its_concurrency(suites):
+    cases = [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0")] + [
+        _case("b-1", False, input_tokens=50)
+    ]
+    meta = {**_meta(), "concurrency": 4}
+    done = {"generation_pending": 0, "concurrency": 2}
+    attempts = {
+        meta["run_id"]: {
+            2: (done, [_case("b-1", False, input_tokens=80)]),
+            3: (done, [_case("b-1", input_tokens=90)]),
+        }
+    }
+    e = build_entry([(meta, cases)], suites, attempts)
+    assert sorted(e["usage"]) == ["1", "2", "3"]
+    assert (e["usage"]["1"]["overall"]["answers"], e["usage"]["3"]["overall"]["answers"]) == (4, 6)
+    assert e["usage"]["3"]["overall"]["solved"] == 4
+    assert e["usage"]["1"]["overall"]["no_cost"] == "no_price"
+    assert e["concurrency"] == [2, 4]
+    partial = build_entry([(_meta(), cases[:3])], suites)
+    assert partial["usage"] == {}
+
+
+def test_concurrency_lists_every_number_a_run_and_its_attempts_ran_at(suites):
+    cases = [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0", "b-1")]
+    # Resumed at another -c: run.json keeps the first number and lists both (runner).
+    meta = {**_meta(), "concurrency": 8, "concurrencies": [8, 4]}
+    e = build_entry([(meta, cases)], suites)
+    assert e["concurrency"] == [4, 8]
+
+
+def test_older_answers_keep_their_split_when_a_later_attempt_records_reasoning(suites):
+    # Attempt 1 recorded before 2026-10-10 (thinking not counted, no cached_input_tokens field);
+    # attempt 2 after, with its thinking counted. pass@1's tokens don't change when it joins.
+    cases = [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0")] + [
+        _case("b-1", False, input_tokens=50)
+    ]
+    meta = _meta()
+    done = {"generation_pending": 0}
+    retry = _case("b-1", True, input_tokens=80, reasoning_tokens=60, cached_input_tokens=0)
+    before = build_entry([(meta, [dict(c) for c in cases])], suites)
+    after = build_entry([(meta, cases)], suites, {meta["run_id"]: {2: (done, [retry])}})
+    assert after["usage"]["1"]["overall"]["tokens"] == before["usage"]["1"]["overall"]["tokens"]
+    assert before["usage"]["1"]["overall"]["tokens"]["unsplit"] == 100
+    two = after["usage"]["2"]["overall"]["tokens"]
+    assert (two["reasoning"], two["answer"]) == (15, 10), "the retry splits: 60 and 40 over 4 tasks"
+
+
+def test_a_provisional_ranking_carries_usage_on_its_own_suites(suites, tmp_path, monkeypatch):
+    monkeypatch.setattr("forcebench.provisional.MIN_SUITES", 1)
+    _write_run(
+        tmp_path, _meta("r1"), [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0", "b-1")]
+    )
+    other = _meta("r2", config_id="n@low")
+    _write_run(tmp_path, other, [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0")])
+    data = build_leaderboard(suites, tmp_path)
+    block = data["provisional"]["full"]
+    assert block["suites"] == ["a"]
+    for scored in block["entries"].values():
+        assert scored["usage"]["1"]["overall"]["tasks"] == 2, "suite a's tasks only"
