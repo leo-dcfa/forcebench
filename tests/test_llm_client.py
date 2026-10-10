@@ -125,18 +125,22 @@ class _FakeServer:
         self.httpd.shutdown()
 
 
-def _client(monkeypatch, url, retries: int = 1):
+def _client(monkeypatch, url, retries: int = 1, upstream: bool = False):
     reg = load_registry()
     m = reg.get("qwen3.8-27b-awq-int4")
     p = reg.provider_for(m)
     monkeypatch.setenv(p.base_url_env, url)
+    if upstream:  # as a router that names its upstream provider (OpenRouter) is configured
+        p = p.model_copy(update={"reports_upstream": True})
     return Client(m, p, "low", retries=retries)
 
 
-async def _generate(monkeypatch, *replies: str | _Drop | _Status, retries: int = 1):
+async def _generate(
+    monkeypatch, *replies: str | _Drop | _Status, retries: int = 1, upstream: bool = False
+):
     server = _FakeServer(*replies)
     try:
-        gen = await _client(monkeypatch, server.url, retries).generate("system", "hi")
+        gen = await _client(monkeypatch, server.url, retries, upstream).generate("system", "hi")
     finally:
         server.close()
     return gen, server.requests
@@ -377,9 +381,19 @@ async def test_cached_input_and_the_upstream_a_router_names_are_recorded(monkeyp
     body = body.replace(
         '"model": "m"', '"model": "m", "provider": "OpenAI", "service_tier": "flex"'
     )
-    gen, _ = await _generate(monkeypatch, body)
+    gen, _ = await _generate(monkeypatch, body, upstream=True)
     assert (gen.input_tokens, gen.cached_input_tokens) == (10, 6)
     assert gen.served_by == "OpenAI (flex)"
+
+
+@pytest.mark.asyncio
+async def test_a_provider_name_from_any_other_server_is_not_recorded(monkeypatch):
+    # A gateway, a proxy or a local engine may send a `provider` field too: only a router configured
+    # to report its upstream (OpenRouter) records it, so no server's name reaches cases.jsonl.
+    body = _sse([{"role": "assistant", "content": "Answer: B"}])
+    body = body.replace('"model": "m"', '"model": "m", "provider": "some-internal-box"')
+    gen, _ = await _generate(monkeypatch, body)
+    assert gen.served_by is None
 
 
 @pytest.mark.asyncio
