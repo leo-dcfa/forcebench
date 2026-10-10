@@ -66,15 +66,17 @@ from forcebench.fsutil import (
 from forcebench.graders import Grade, GradeEnv
 from forcebench.graders import grade as grade_answer
 from forcebench.llm import Client, Generation, recorded_request
-from forcebench.models import ModelConfig, Registry
+from forcebench.models import ModelConfig, Provider, Registry
 from forcebench.org import SF_CALLS
 from forcebench.pool import (
     Exposure,
     PrivatePool,
+    PrivatePoolError,
     check_no_proxy,
     check_no_telemetry,
     check_ready,
     check_tiers,
+    load_private_pool,
     record_exposure,
     served_locally,
 )
@@ -352,6 +354,32 @@ def check_results(private: PrivatePool | None = None) -> None:
         check_results_dir(RUNS_DIR.parent, RUNS_DIR)
 
 
+def private_runs_dir() -> Path:
+    """The private pool's results/runs, where every run of a private configuration is kept."""
+    try:
+        return load_private_pool().runs_dir
+    except PrivatePoolError:
+        raise RunDirError(
+            "a private configuration's runs are kept only in the private pool's results/runs: "
+            "set FORCEBENCH_PRIVATE_DIR to the private pool"
+        ) from None
+
+
+def check_private_config(m: ModelConfig, provider: Provider, run_dir: Path) -> None:
+    """Refuse a private configuration's run outside the private pool's results/runs.
+
+    Whatever its tasks: a configuration from the private pool (models.load_registry) is never run
+    into this repository's results.
+    """
+    if not (m.private or provider.private):
+        return
+    if not run_dir.resolve().is_relative_to(private_runs_dir().resolve()):
+        raise RunDirError(
+            f"refusing {run_dir.name}: runs of a private configuration are kept only in the "
+            "private pool's results/runs, never in this repository's results/"
+        )
+
+
 def run_visibility(meta: dict[str, Any]) -> str:
     """The pool a run belongs to, from its run.json.
 
@@ -569,9 +597,16 @@ async def generate(
         m = registry.get(model_id)
         runs_dir = private.runs_dir if private is not None else RUNS_DIR
         runs_dir = AGENT_RUNS_DIR if agent is not None else runs_dir
+        if m.private or registry.provider_for(m).private:
+            runs_dir = private.runs_dir if private is not None else private_runs_dir()
         run_dir = runs_dir / run_id_for(m, effort or m.default_effort)
     check_run_dir(run_dir)
     check_run_pool(run_dir, {}, tasks, private)
+    # Refused before the run directory exists; _generate checks again, under the lock.
+    asked_model = model_id or read_run(run_dir).get("model", {}).get("id")
+    if asked_model:
+        configured = registry.get(asked_model)
+        check_private_config(configured, registry.provider_for(configured), run_dir)
     if private is not None:
         check_ready(tasks, private)
         # Refused before the run directory exists; _generate checks again, under the lock.
@@ -658,6 +693,7 @@ async def _generate(
         request = json.loads(json.dumps(recorded_request(m, effort)))  # as stored in run.json
         _check_resume(run_dir, started, {"request": request})
     provider = registry.provider_for(m)
+    check_private_config(m, registry.provider_for(registry.get(model_id)), run_dir)
     if private is not None:
         # Before anything is sent: who may see these tasks, and a record of who now has.
         check_tiers(tasks, m, provider, configured=registry.get(model_id))

@@ -55,14 +55,19 @@ class Backup:
 def collect(pool: PrivatePool) -> Backup:
     """The files to upload, after checking every run in the pool's results.
 
-    Each must be a private run with the pool's canary, with no symbolic links among its files.
+    Each must be a private run with the pool's canary, or a run of a private configuration (of
+    public or private tasks, kept only here: runner.check_private_config), with no symbolic links
+    among its files.
     """
     runs: list[str] = []
     files: dict[str, Path] = {}
     for meta_path in sorted(pool.runs_dir.glob("*/run.json")):
         run_dir = meta_path.parent
         meta = json.loads(meta_path.read_text())
-        if meta.get("visibility") != "private" or meta.get("canary") != pool.canary:
+        private_config = bool((meta.get("model") or {}).get("private"))
+        if not private_config and (
+            meta.get("visibility") != "private" or meta.get("canary") != pool.canary
+        ):
             raise BackupError(f"refusing: {run_dir.name} is not a private run of this pool")
         runs.append(run_dir.name)
         for name in RUN_FILES:
