@@ -238,17 +238,28 @@ def block(chains: list[Chain], within: int, price: Prices, splits: Splits) -> di
     ):
         out["no_cost"] = "price_tier"
         return out
-    # Dollars (per million tokens' price) over the scope, by part: input at the input price,
+    # Tokens by the price they were billed at (one group unless runs took different routes), then
+    # dollars (per million tokens' price) over the scope, by part: input at the input price,
     # cached or not.
-    per = {"input": 0.0, "cached_input": 0.0, "reasoning": 0.0, "answer": 0.0, "unsplit": 0.0}
+    groups: list[tuple[Price, dict[str, float]]] = []
     for c, w, p in billed:
-        cached = c.get("cached_input_tokens") or 0
+        g = next((t for q, t in groups if q is p), None)
+        if g is None:
+            g = {"input": 0.0, "cached_input": 0.0, "reasoning": 0.0, "answer": 0.0, "unsplit": 0.0}
+            groups.append((p, g))
         r, a, u = _split(c, split(c))
-        per["input"] += ((c.get("input_tokens") or 0) - cached) * w * p.input
-        per["cached_input"] += cached * w * p.input
-        per["reasoning"] += r * w * p.output
-        per["answer"] += a * w * p.output
-        per["unsplit"] += u * w * p.output
+        g["input"] += (c.get("input_tokens") or 0) * w
+        g["cached_input"] += (c.get("cached_input_tokens") or 0) * w
+        g["reasoning"] += r * w
+        g["answer"] += a * w
+        g["unsplit"] += u * w
+    per = {"input": 0.0, "cached_input": 0.0, "reasoning": 0.0, "answer": 0.0, "unsplit": 0.0}
+    for p, g in groups:
+        per["input"] += (g["input"] - g["cached_input"]) * p.input
+        per["cached_input"] += g["cached_input"] * p.input
+        per["reasoning"] += g["reasoning"] * p.output
+        per["answer"] += g["answer"] * p.output
+        per["unsplit"] += g["unsplit"] * p.output
     total = sum(per.values()) / 1e6
     out["cost"] = {
         "per_task": _usd(total / n),
