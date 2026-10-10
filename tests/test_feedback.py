@@ -162,6 +162,8 @@ def test_attempts_live_in_the_run_and_only_failures_are_retried(fake, make_task,
     assert out == attempt_dir(run_dir, 2)
     meta = json.loads((out / "run.json").read_text())
     assert (meta["attempt"], meta["base_run"], meta["task_ids"]) == (2, RUN, [task.id])
+    # Attempt 1 ran at -c's default (4); this attempt records its own number, not attempt 1's.
+    assert (meta["concurrency"], meta["concurrencies"]) == (1, [1])
     user, turns = calls[-1]
     assert turns == [(render_prompt(task), "not json")]
     assert "format" in user
