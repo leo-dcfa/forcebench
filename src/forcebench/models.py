@@ -40,9 +40,6 @@ class Provider(BaseModel):
     # Off unless the provider says so. Private-pool tasks of tier `private` go only to such a
     # server, and only while its base URL resolves to a private address (pool.served_locally).
     local: bool = False
-    # A service that chooses the reasoning effort itself (a gateway): runs through it record the
-    # effort Forcebench inferred from their behaviour, and the leaderboard marks it inferred.
-    sets_effort: bool = False
     # The hosted service's public name, shown on the leaderboard's API board (e.g. "Anthropic").
     # Never an address, and never the name of a service whose address is private.
     label: str | None = None
