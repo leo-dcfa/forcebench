@@ -46,6 +46,10 @@ class Provider(BaseModel):
     # The hosted service's public name, shown on the leaderboard's API board (e.g. "Anthropic").
     # Never an address, and never the name of a service whose address is private.
     label: str | None = None
+    # A router that names the upstream provider that served each answer (OpenRouter). Only such a
+    # service's answers record `served_by`: any other server's `provider` field (a gateway, a
+    # proxy, a local engine) is not recorded, so no server's name reaches the published cases.
+    reports_upstream: bool = False
 
     @model_validator(mode="after")
     def _local_is_a_server(self) -> Provider:
