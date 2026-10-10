@@ -985,12 +985,6 @@ def test_token_quantiles_interpolate_between_ranks():
     assert report._quantile(list(range(1, 11)), 0.9) == pytest.approx(9.1)
 
 
-def test_only_runs_through_an_effort_setting_service_are_marked_inferred():
-    providers = report._effort_setting_providers()
-    assert "gateway" in providers
-    assert "anthropic" not in providers
-
-
 def test_entries_list_the_tasks_whose_answer_never_arrived(suites):
     cases = [_case(t) for t in ("a-0", "a-1", "b-0", "b-1")]
     cases[1] = {**cases[1], "finish_reason": "error: token limit (32768) reached before answering"}
@@ -1100,8 +1094,8 @@ def test_every_config_in_models_is_served_locally_or_through_an_api():
 
 def test_serving_names_the_hosted_service_or_the_hardware():
     reg = load_registry()
-    assert serving(_runs_of("gpt-5.5"), reg) == {
-        "serving": "api", "provider": "Third-party gateway", "hardware": None,
+    assert serving(_runs_of("gpt-6-astra"), reg) == {
+        "serving": "api", "provider": "OpenRouter", "hardware": None,
     }  # fmt: skip
     assert serving(_runs_of("claude-haiku-4.5"), reg)["provider"] == "Anthropic"
     local = serving(_runs_of("gemma-4-31b-qat-w4a16"), reg)
@@ -1121,16 +1115,19 @@ def test_an_ambiguous_config_fails_the_report(suites, tmp_path):
     with pytest.raises(ValueError, match="served locally or through an API"):
         build_leaderboard(suites, tmp_path, registry=bad)
     # A hosted service with no public name.
-    gw = {**reg.providers, "gateway": reg.providers["gateway"].model_copy(update={"label": None})}
+    nameless = {
+        **reg.providers,
+        "openrouter": reg.providers["openrouter"].model_copy(update={"label": None}),
+    }
     with pytest.raises(ValueError, match="no label"):
         build_leaderboard(
             suites,
             tmp_path,
-            registry=Registry(providers=gw, models=reg.models, developers=reg.developers),
+            registry=Registry(providers=nameless, models=reg.models, developers=reg.developers),
         )
     # A run that recorded the opposite of its config.
     with pytest.raises(ValueError, match="disagree on whether it is local"):
-        serving(_runs_of("gpt-5.5", local=True), reg)
+        serving(_runs_of("gpt-6-astra", local=True), reg)
 
 
 def test_the_leaderboard_says_how_each_entry_was_served(suites, tmp_path):
@@ -1164,7 +1161,9 @@ def test_the_list_price_comes_from_the_price_list_for_the_route_the_runs_took():
     }
     routed = list_price(_runs_of("gpt-6-astra"), prices)["price"]
     assert (routed["route"], routed["input"]) == (["openai/flex"], 5.0), "the router's flex price"
-    assert list_price(_runs_of("gpt-5.5"), prices) == {"price": None}, "the gateway publishes none"
+    assert list_price(_runs_of("nemotron-3-ultra-nvidia"), prices) == {"price": None}, (
+        "a free endpoint"
+    )
     assert list_price(_runs_of("gemma-4-31b-qat-w4a16"), prices) == {"price": None}, "local"
 
 

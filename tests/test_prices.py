@@ -69,7 +69,6 @@ def test_a_router_price_must_be_for_the_route_its_config_is_pinned_to():
 
 def test_a_configuration_without_a_list_price_has_none():
     prices = load_prices()
-    assert prices.price("gateway", "gpt-5.5") is None
     assert prices.price("openrouter", "nemotron-3-ultra-nvidia") is None  # a free endpoint
     p = prices.price("anthropic", "claude-haiku-5.5")
     assert p is not None

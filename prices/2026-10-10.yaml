@@ -18,7 +18,7 @@
 #                                charges more above it); the report refuses an answer above it
 #
 # The price is the list price before promotions, so OpenRouter's temporary discounts are left out.
-# Configurations without a published list price (the third-party gateway, free endpoints) are not
+# Configurations without a published list price (free endpoints) are not
 # listed; the leaderboard shows no cost for them.
 currency: USD
 
