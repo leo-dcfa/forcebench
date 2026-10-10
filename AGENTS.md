@@ -88,9 +88,12 @@ entry and fill in:
 - `context`, and `sampling` as the vendor recommends.
 - `hardware`, for a local configuration: what it is served on (GPU model and count, or Mac
   model and memory). A hardware model only, never a machine's name.
-- `price`, for a hosted configuration: the service's published list price in USD per million
-  input and output tokens, with the page it comes from and the date you took it
-  (`{input, output, source, as_of}`). Leave it out when the service publishes none.
+- The list price of a hosted configuration goes in the price list, not the config: a new
+  `prices/<today>.yaml` copied from the newest one, never an edit to a published list. Give the
+  service's input, cached input and output price per million tokens, how reasoning is billed,
+  the page it comes from and the date you took it; a router's price is the pinned route's
+  (`route`), not the vendor's. Leave it out when the service publishes none
+  (`uv run pytest tests/test_prices.py`).
 - `efforts`: the request fields for each level, from the vendor's model card. Also
   `default_effort` and `effort_tiers`, which map each level to the common tiers off, low,
   medium, high and max.
