@@ -85,7 +85,8 @@ def _foreign(
 ) -> str | None:
     """Why a run may not be part of the ``visibility`` leaderboard, or None when it may.
 
-    The reasons: it is of the other pool, carries the other pool's canary, or names a task that is
+    The reasons: it is of the other pool, is a run of a private configuration (public results
+    never hold one, whatever its tasks), carries the other pool's canary, or names a task that is
     not one of the ``known`` tasks of this pool. Unknown task ids are counted, never named: they may
     be private.
     """
@@ -96,6 +97,8 @@ def _foreign(
         return f"it is a {run_track}-track run, not a {track}-track one"
     if meta.get("visibility", legacy) != visibility:
         return f"it is not a {visibility} run"
+    if visibility == "public" and (meta.get("model") or {}).get("private"):
+        return "it is a run of a private configuration"
     if any(c.get("visibility", legacy) != visibility for c in cases):
         return f"it holds answers that are not {visibility}"
     canary = str(meta.get("canary") or "")
@@ -134,6 +137,15 @@ def load_runs(
             if cases_path.exists()
             else []
         )
+        # A private configuration's run of public tasks is kept in the private pool's results
+        # (runner.check_private_config) but is not one of its runs: no leaderboard holds it.
+        private_config = bool((meta.get("model") or {}).get("private"))
+        if (
+            visibility == "private"
+            and private_config
+            and meta.get("visibility", "public") == "public"
+        ):
+            continue
         # Every run is checked before any is left out: an ungraded run, or one of another
         # benchmark version, is not on the leaderboard but is still in the results tree.
         why = _foreign(meta, cases, visibility, known, track)

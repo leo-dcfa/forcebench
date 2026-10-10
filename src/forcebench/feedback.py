@@ -28,6 +28,7 @@ from forcebench.runner import (
     _git_sha,
     attempt_dir,
     case_key,
+    check_private_config,
     check_results,
     check_run_dir,
     read_run,
@@ -164,6 +165,7 @@ async def generate_attempt(
         raise RunDirError(f"grade {ungraded[0]} before attempt {n}")
     first = read_run(run_dir)
     m = registry.get(first["model"]["id"])
+    check_private_config(m, registry.provider_for(m), run_dir)
     if first.get("via"):  # through the proxy attempt 1 went through (run --via)
         m = registry.via(m, first["via"])
     name = endpoint_model or first.get("endpoint_model") or m.endpoint_model
