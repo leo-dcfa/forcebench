@@ -195,3 +195,12 @@ def test_each_answer_is_billed_at_its_own_runs_price():
     assert (
         block(follow([("r1", old), ("r2", new)], {}, 1), 1, unpriced, True)["no_cost"] == "no_price"
     )
+
+
+def test_recorded_counts_answers_that_name_who_served_them():
+    named = _case("a", True, cached_input_tokens=0, served_by="OpenAI (flex)")
+    direct = _case("b", True, cached_input_tokens=0, served_by=None)  # a service that names none
+    out = usage(
+        follow([("r", named), ("r", direct)], {}, 1), {"a": "s", "b": "s"}, [1], PRICE, True
+    )
+    assert out["1"]["overall"]["recorded"] == {"cached_input": 2, "served_by": 1}
