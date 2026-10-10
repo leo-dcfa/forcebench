@@ -1238,6 +1238,31 @@ def test_a_complete_entry_has_usage_by_attempts_counted_and_its_concurrency(suit
     assert partial["usage"] == {}
 
 
+def test_concurrency_lists_every_number_a_run_and_its_attempts_ran_at(suites):
+    cases = [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0", "b-1")]
+    # Resumed at another -c: run.json keeps the first number and lists both (runner).
+    meta = {**_meta(), "concurrency": 8, "concurrencies": [8, 4]}
+    e = build_entry([(meta, cases)], suites)
+    assert e["concurrency"] == [4, 8]
+
+
+def test_older_answers_keep_their_split_when_a_later_attempt_records_reasoning(suites):
+    # Attempt 1 recorded before 2026-10-10 (thinking not counted, no cached_input_tokens field);
+    # attempt 2 after, with its thinking counted. pass@1's tokens don't change when it joins.
+    cases = [_case(t, input_tokens=50) for t in ("a-0", "a-1", "b-0")] + [
+        _case("b-1", False, input_tokens=50)
+    ]
+    meta = _meta()
+    done = {"generation_pending": 0}
+    retry = _case("b-1", True, input_tokens=80, reasoning_tokens=60, cached_input_tokens=0)
+    before = build_entry([(meta, [dict(c) for c in cases])], suites)
+    after = build_entry([(meta, cases)], suites, {meta["run_id"]: {2: (done, [retry])}})
+    assert after["usage"]["1"]["overall"]["tokens"] == before["usage"]["1"]["overall"]["tokens"]
+    assert before["usage"]["1"]["overall"]["tokens"]["unsplit"] == 100
+    two = after["usage"]["2"]["overall"]["tokens"]
+    assert (two["reasoning"], two["answer"]) == (15, 10), "the retry splits: 60 and 40 over 4 tasks"
+
+
 def test_a_provisional_ranking_carries_usage_on_its_own_suites(suites, tmp_path, monkeypatch):
     monkeypatch.setattr("forcebench.provisional.MIN_SUITES", 1)
     _write_run(

@@ -53,7 +53,17 @@ from forcebench.prices import Price, PriceList, load_prices
 from forcebench.provisional import provisional
 from forcebench.stats import mean, stratified_bootstrap_ci, wilson_ci
 from forcebench.tasks import Suite, _manifest_ids, load_subset
-from forcebench.usage import Chain, follow, output_tokens, usage, usage_reported
+from forcebench.usage import (
+    Chain,
+    Prices,
+    Splits,
+    follow,
+    output_tokens,
+    price_by_run,
+    split_by_run,
+    usage,
+    usage_reported,
+)
 
 
 # The shape of leaderboard.json (docs/leaderboard-schema.md). Fields may be added within a
@@ -286,6 +296,22 @@ def developer(metas: list[dict[str, Any]], registry: Registry) -> dict[str, str]
     return {"developer": dev, "developer_name": registry.developers[dev].name}
 
 
+def run_units(runs: list[Run], attempts: dict[str, Attempts] | None) -> list[Run]:
+    """Each run's answers, and each of its attempts' with the run's run.json.
+
+    The units in which an answer's split into reasoning and answer, and its list price, are
+    decided (forcebench.usage split_by_run, price_by_run). An attempt is reached the way its run
+    was.
+    """
+    units: list[Run] = []
+    for meta, cases in runs:
+        units.append((meta, cases))
+        units += [
+            (meta, att[1]) for att in (attempts or {}).get(meta["run_id"], {}).values() if att
+        ]
+    return units
+
+
 def route_price(metas: list[dict[str, Any]], prices: PriceList) -> Price | None:
     """The list price of the hosted service the configuration of runs ``metas`` was reached through.
 
@@ -424,19 +450,33 @@ def effort_tier(meta: dict[str, Any]) -> str:
     return meta["effort_tier"]
 
 
+def _concurrencies(meta: dict[str, Any]) -> list[int]:
+    """Every number of answers a run (or attempt) requested at once.
+
+    Each invocation's (`concurrencies`, recorded from 2026-10-10), else the one run.json kept
+    (`concurrency`).
+    """
+    return list(
+        meta.get("concurrencies") or ([meta["concurrency"]] if meta.get("concurrency") else [])
+    )
+
+
 def build_entry(
     runs: list[Run],
     suites: list[Suite],
     attempts: dict[str, Attempts] | None = None,
     served: dict[str, Any] | None = None,
     chains_out: list[Chain] | None = None,
-    price: Price | None = None,
+    price: Prices = None,
+    splits: Splits | None = None,
 ) -> dict[str, Any]:
     """One configuration's entry, from all its runs (oldest first) and their ``attempts``.
 
     ``served`` is how it was served (``serving``), who develops it (``developer``), which model
-    it is (``model_id``) and its published list price, for the leaderboard; ``price`` is that list
-    price, for its cost per task (forcebench.usage). A complete entry's answer chains
+    it is (``model_id``) and its published list price, for the leaderboard; ``price`` is the list
+    price each answer was billed at, for its cost per task (forcebench.usage, price_by_run), and
+    ``splits`` whether an answer's output splits into reasoning and answer (split_by_run; by
+    default decided within each run and attempt). A complete entry's answer chains
     (attempt_chains) are added to ``chains_out``, when given.
 
     Only a complete entry has an overall score; a partial one has ``overall`` null and, if some
@@ -510,8 +550,9 @@ def build_entry(
     ready, chains = (
         attempt_chains(graded, attempts or {}) if complete else (1, follow(graded, {}, 1))
     )
-    # Reasoning is split from the answer only where the server reported it for some answer.
-    splits = any(c.get("reasoning_tokens") for _, cs, _ in chains for c in cs)
+    # Reasoning is split from the answer where the answer's own run (or attempt) reported it.
+    if splits is None:
+        splits = split_by_run(cases for _, cases in run_units(runs, attempts))
     if chains_out is not None:
         chains_out.extend(chains)
     # Each suite's token use and time, so a reader can compare models on one suite.
@@ -570,12 +611,13 @@ def build_entry(
         # Answers requested at once by the runs and their counted attempts, each value once:
         # time per answer depends on it.
         "concurrency": sorted(
-            {m["concurrency"] for m in metas if m.get("concurrency")}
+            {c for m in metas for c in _concurrencies(m)}
             | {
-                a[0]["concurrency"]
+                c
                 for m in metas
                 for k in range(2, ready + 1)
-                if (a := (attempts or {}).get(m["run_id"], {}).get(k)) and a[0].get("concurrency")
+                if (a := (attempts or {}).get(m["run_id"], {}).get(k))
+                for c in _concurrencies(a[0])
             }
         ),
         "samples": sum(len(v) for v in samples.values()),
@@ -715,11 +757,15 @@ def build_leaderboard(
     built = []
     # Each complete entry's answer chains and list price, by (config, subset), for its usage on the
     # suites a provisional ranking covers.
-    chained: dict[tuple[str, str], tuple[list[Chain], Price | None]] = {}
+    chained: dict[tuple[str, str], tuple[list[Chain], Prices, Splits]] = {}
     for runs in grouped.values():
         metas = [m for m, _ in runs]
         chains: list[Chain] = []
-        price = route_price(metas, prices)
+        # Each answer at its own run's route and split as its own run reported (an attempt, as
+        # its run was reached).
+        units = run_units(runs, attempts)
+        price = price_by_run((route_price([m], prices), cases) for m, cases in units)
+        splits = split_by_run(cases for _, cases in units)
         entry = build_entry(
             runs,
             suites,
@@ -732,9 +778,10 @@ def build_leaderboard(
             },
             chains,
             price,
+            splits,
         )
         built.append(entry)
-        chained[(entry["config_id"], entry["subset"])] = (chains, price)
+        chained[(entry["config_id"], entry["subset"])] = (chains, price, splits)
     # Entries have at least one complete suite; only the complete ones are scored and ranked.
     entries = sorted((e for e in built if e["progress"]["suites_complete"]), key=_order)
     _rank(entries)
@@ -796,10 +843,11 @@ def build_leaderboard(
         for key, blk in prov.items():
             common = set(blk["suites"])
             for config_id, scored in blk["entries"].items():
-                chains, price = chained.get((config_id, key.split(":")[0]), ([], None))
+                chains, price, splits = chained.get(
+                    (config_id, key.split(":")[0]), ([], None, False)
+                )
                 mine = [ch for ch in chains if suite_of[ch[0]] in common]
                 if mine:
-                    splits = any(c.get("reasoning_tokens") for _, cs, _ in chains for c in cs)
                     scored["usage"] = usage(mine, suite_of, [1], price, splits, frozenset())
         data["provisional"] = prov
     return data

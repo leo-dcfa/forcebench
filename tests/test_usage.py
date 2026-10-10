@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from forcebench.prices import Price
-from forcebench.usage import block, follow, usage
+from forcebench.usage import block, follow, price_by_run, split_by_run, usage
 
 
 PRICE = Price(
@@ -133,3 +133,74 @@ def test_usage_by_attempts_counted_and_suite():
     assert "suites" not in out["2"], "c@2 is shown overall only"
     assert out["3"]["suites"]["s1"]["answers"] == 4
     assert out["3"]["overall"]["recorded"] == {"cached_input": 0, "served_by": 0}
+
+
+def test_an_answer_the_endpoint_never_returned_counts_as_failed_without_tokens_or_time():
+    # gemini-3.8-flash@medium's shape: one retry recorded as failed (runner.record_failed: no
+    # tokens, the last try's latency). It is a failure in the score, and leaves the cost intact.
+    never = _case("b", False, input_tokens=0, output_tokens=0, reasoning_tokens=0, latency_s=69.0)
+    never["finish_reason"] = "failed: the endpoint cut every response"
+    answers = [("r", _case("a", True)), ("r", _case("b", False))]
+    later = {("r", 2): {("b", 0): never}, ("r", 3): {}}
+    two = block(follow(answers, later, 3), 2, PRICE, True)
+    assert (two["answers"], two["failed"], two["unreported"], two["no_cost"]) == (3, 1, 0, None)
+    one_answer = 1000 * 2 + 500 * 10
+    assert two["cost"]["total"] == pytest.approx(2 * one_answer / 1e6), "no tokens for it"
+    assert two["time_s"]["mean"] == 10.0, "and no time: the failed try's latency is left out"
+    assert two["solved"] == 1
+
+
+def test_a_task_with_several_samples_counts_once_as_the_mean_of_its_samples():
+    # Task a answered twice (one pass, one fail, the second with twice the tokens and time); b once.
+    a0, a1 = _case("a", True), _case("a", False, sample=1, input_tokens=2000, latency_s=20.0)
+    chains = follow([("r", a0), ("r", a1), ("r", _case("b", True))], {}, 1)
+    out = block(chains, 1, PRICE, True)
+    assert (out["tasks"], out["answers"], out["solved"]) == (2, 3, 1.5)
+    # a: mean input 1,500, b: 1,000; per task (1,500 + 1,000) / 2.
+    assert out["tokens"]["input"] == 1250
+    assert out["time_s"]["mean"] == pytest.approx((15 + 10) / 2)
+
+
+def test_older_answers_stay_unsplit_when_newer_ones_join_the_entry():
+    # Attempt 1 recorded before 2026-10-10 (Anthropic's thinking not counted: reasoning 0, no
+    # cached_input_tokens field); attempt 2 recorded after, with its thinking counted.
+    old = _case("a", False, reasoning_tokens=0)
+    new = _case("a", True, reasoning_tokens=300, cached_input_tokens=0)
+    chains = follow([("r", old)], {("r", 2): {("a", 0): new}}, 2)
+    before = block(chains, 1, PRICE, split_by_run([[old]]))
+    after_units = split_by_run([[old], [new]])
+    assert block(chains, 1, PRICE, after_units)["tokens"] == before["tokens"], "pass@1 is unchanged"
+    assert before["tokens"]["unsplit"] == 500
+    two = block(chains, 2, PRICE, after_units)["tokens"]
+    assert (two["reasoning"], two["answer"], two["unsplit"]) == (300, 200, 500)
+
+
+def test_a_server_that_reports_reasoning_splits_its_older_answers_too():
+    # Older OpenAI-compatible answers kept their reasoning count: they split as before.
+    a, b = _case("a", True), _case("b", False, reasoning_tokens=0)
+    split = split_by_run([[a, b]])
+    assert split(a)
+    assert split(b)
+
+
+def test_each_answer_is_billed_at_its_own_runs_price():
+    # A configuration whose newer run was pinned to a dearer route: each answer at its run's price.
+    dear = PRICE.model_copy(update={"input": 4, "output": 20})
+    old, new = _case("a", True), _case("b", True)
+    prices = price_by_run([(PRICE, [old]), (dear, [new])])
+    out = block(follow([("r1", old), ("r2", new)], {}, 1), 1, prices, True)
+    assert out["cost"]["total"] == pytest.approx((1000 * 2 + 500 * 10 + 1000 * 4 + 500 * 20) / 1e6)
+    assert price_by_run([(PRICE, [old]), (PRICE, [new])]) is PRICE, "one price when all agree"
+    unpriced = price_by_run([(PRICE, [old]), (None, [new])])
+    assert (
+        block(follow([("r1", old), ("r2", new)], {}, 1), 1, unpriced, True)["no_cost"] == "no_price"
+    )
+
+
+def test_recorded_counts_answers_that_name_who_served_them():
+    named = _case("a", True, cached_input_tokens=0, served_by="OpenAI (flex)")
+    direct = _case("b", True, cached_input_tokens=0, served_by=None)  # a service that names none
+    out = usage(
+        follow([("r", named), ("r", direct)], {}, 1), {"a": "s", "b": "s"}, [1], PRICE, True
+    )
+    assert out["1"]["overall"]["recorded"] == {"cached_input": 2, "served_by": 1}
