@@ -280,10 +280,11 @@ def usage(
     for k in within:
         overall = block(chains, k, price, splits)
         counted = [c for _, cs, _ in chains for c in cs[:k]]
-        # Answers recorded with cached input tokens and who served them (from 2026-10-10).
+        # Answers recorded with their cached input tokens (from 2026-10-10), and answers that name
+        # who served them (a router's upstream provider, recorded from then for OpenRouter only).
         overall["recorded"] = {
             "cached_input": sum("cached_input_tokens" in c for c in counted),
-            "served_by": sum("served_by" in c for c in counted),
+            "served_by": sum(bool(c.get("served_by")) for c in counted),
         }
         entry: dict[str, Any] = {"overall": overall}
         if k in suites_for:
