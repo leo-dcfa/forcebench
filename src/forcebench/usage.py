@@ -30,6 +30,8 @@ Case = dict[str, Any]
 Chain = tuple[str, list[Case], int | None]
 # Whether an answer's output splits into reasoning and answer (split_by_run), or one value for all.
 Splits = Callable[[Case], bool] | bool
+# The list price an answer was billed at (its own run's route, price_by_run), or one for all.
+Prices = Callable[[Case], Price | None] | Price | None
 
 
 def _usd(x: float) -> float:
@@ -141,18 +143,37 @@ def _split(c: Case, splits: bool) -> tuple[int, int, int]:
     return reasoning, out - reasoning, 0
 
 
+def price_by_run(units: Iterable[tuple[Price | None, Iterable[Case]]]) -> Prices:
+    """Each answer's list price, from the price of the run it belongs to (an attempt, its run's).
+
+    One price when every run has the same (a configuration whose runs were all reached the same
+    way); otherwise each answer is priced at its own run's route.
+    """
+    by_id: dict[int, Price | None] = {}
+    distinct: list[Price | None] = []
+    for p, cases in units:
+        if p not in distinct:
+            distinct.append(p)
+        by_id.update((id(c), p) for c in cases)
+    if len(distinct) <= 1:
+        return distinct[0] if distinct else None
+    return lambda c: by_id.get(id(c))
+
+
 def _count(x: float) -> float | int:
     """A weighted count as published: whole numbers stay whole (one sample per task)."""
     return int(x) if x == int(x) else round(x, 2)
 
 
-def block(chains: list[Chain], within: int, price: Price | None, splits: Splits) -> dict[str, Any]:
+def block(chains: list[Chain], within: int, price: Prices, splits: Splits) -> dict[str, Any]:
     """Tokens, time and cost per task over ``chains``, counting attempts up to ``within``.
 
     A task with several samples counts once: each of its chains weighs 1 / its samples, as in the
-    score (stats: a task's score is the mean over its samples).
+    score (stats: a task's score is the mean over its samples). Each answer is billed at its own
+    run's list price (``price``: one for all, or per answer, price_by_run).
     """
     split = splits if callable(splits) else (lambda c: bool(splits))
+    price_of = price if callable(price) else (lambda c: price)
     counted = [(tid, cases[:within], p is not None and p <= within) for tid, cases, p in chains]
     samples: dict[str, int] = {}
     for tid, _, _ in counted:
@@ -206,21 +227,28 @@ def block(chains: list[Chain], within: int, price: Price | None, splits: Splits)
         "unsplit": _tok(tokens["unsplit"] / n),
         "output": _tok((tokens["reasoning"] + tokens["answer"] + tokens["unsplit"]) / n),
     }
-    if price is None:
+    priced = [(c, w, price_of(c)) for c, w in answered]
+    billed = [(c, w, p) for c, w, p in priced if p is not None]
+    if len(billed) < len(priced):
         out["no_cost"] = "no_price"
         return out
-    if price.prompt_tokens_max and any(
-        (c.get("input_tokens") or 0) > price.prompt_tokens_max for c, _ in answered
+    if any(
+        p.prompt_tokens_max and (c.get("input_tokens") or 0) > p.prompt_tokens_max
+        for c, _, p in billed
     ):
         out["no_cost"] = "price_tier"
         return out
-    per = {  # dollars over the scope, by part: input at the input price, cached or not
-        "input": (tokens["input"] - tokens["cached_input"]) * price.input,
-        "cached_input": tokens["cached_input"] * price.input,
-        "reasoning": tokens["reasoning"] * price.output,
-        "answer": tokens["answer"] * price.output,
-        "unsplit": tokens["unsplit"] * price.output,
-    }
+    # Dollars (per million tokens' price) over the scope, by part: input at the input price,
+    # cached or not.
+    per = {"input": 0.0, "cached_input": 0.0, "reasoning": 0.0, "answer": 0.0, "unsplit": 0.0}
+    for c, w, p in billed:
+        cached = c.get("cached_input_tokens") or 0
+        r, a, u = _split(c, split(c))
+        per["input"] += ((c.get("input_tokens") or 0) - cached) * w * p.input
+        per["cached_input"] += cached * w * p.input
+        per["reasoning"] += r * w * p.output
+        per["answer"] += a * w * p.output
+        per["unsplit"] += u * w * p.output
     total = sum(per.values()) / 1e6
     out["cost"] = {
         "per_task": _usd(total / n),
@@ -239,7 +267,7 @@ def usage(
     chains: list[Chain],
     suite_of: dict[str, str],
     within: list[int],
-    price: Price | None,
+    price: Prices,
     splits: Splits,
     suites_for: frozenset[int] = frozenset({1, 3}),
 ) -> dict[str, Any]:

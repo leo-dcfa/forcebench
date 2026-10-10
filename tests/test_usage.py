@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from forcebench.prices import Price
-from forcebench.usage import block, follow, split_by_run, usage
+from forcebench.usage import block, follow, price_by_run, split_by_run, usage
 
 
 PRICE = Price(
@@ -181,3 +181,17 @@ def test_a_server_that_reports_reasoning_splits_its_older_answers_too():
     split = split_by_run([[a, b]])
     assert split(a)
     assert split(b)
+
+
+def test_each_answer_is_billed_at_its_own_runs_price():
+    # A configuration whose newer run was pinned to a dearer route: each answer at its run's price.
+    dear = PRICE.model_copy(update={"input": 4, "output": 20})
+    old, new = _case("a", True), _case("b", True)
+    prices = price_by_run([(PRICE, [old]), (dear, [new])])
+    out = block(follow([("r1", old), ("r2", new)], {}, 1), 1, prices, True)
+    assert out["cost"]["total"] == pytest.approx((1000 * 2 + 500 * 10 + 1000 * 4 + 500 * 20) / 1e6)
+    assert price_by_run([(PRICE, [old]), (PRICE, [new])]) is PRICE, "one price when all agree"
+    unpriced = price_by_run([(PRICE, [old]), (None, [new])])
+    assert (
+        block(follow([("r1", old), ("r2", new)], {}, 1), 1, unpriced, True)["no_cost"] == "no_price"
+    )
