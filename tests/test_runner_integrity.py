@@ -26,6 +26,7 @@ from forcebench.runner import (
     invalidate,
     read_records,
     record_failed,
+    recorded_concurrency,
     sample_seed,
 )
 
@@ -231,6 +232,24 @@ def test_resume_takes_omitted_settings_from_the_run(model, make_task, tmp_path):
     assert len(model.prompts) == 2, "nothing is regenerated"
     for k in ("config_id", "effort", "samples", "subset", "request", "started_at"):
         assert after[k] == before[k]
+
+
+def test_a_resume_keeps_the_runs_concurrency_and_records_its_own(model, make_task, tmp_path):
+    # Started at 8 answers at once, resumed with -c left out (and so at its default, 4): the run
+    # still says 8, and lists every number it ran at, so time per answer is labelled truly.
+    run_dir = _generate(model, tmp_path / RUN, [_task(make_task)], concurrency=8)
+    _generate(model, run_dir, [_task(make_task)], concurrency=4)
+    meta = _meta(run_dir)
+    assert (meta["concurrency"], meta["concurrencies"]) == (8, [8, 4])
+
+
+def test_a_run_from_before_concurrencies_counts_its_concurrency_first():
+    old = {"concurrency": 6}
+    assert recorded_concurrency(old, 2) == {"concurrency": 6, "concurrencies": [6, 2]}
+    assert recorded_concurrency({}, 3) == {"concurrency": 3, "concurrencies": [3]}
+    assert recorded_concurrency({"concurrency": 4, "concurrencies": [4, 8]}, 8)[
+        "concurrencies"
+    ] == [4, 8]
 
 
 @pytest.mark.parametrize(
